@@ -282,7 +282,7 @@ function renderSidebarMiembros() {
   container.innerHTML = `
     <div class="sidebar-members-label">👥 Miembros del grupo</div>
     <div class="sidebar-members-list">
- // Reemplaza el map dentro de renderSidebarMiembros() con esto:
+ 
 ${miembros.map(email => {
     const key = email.replace(/\./g, '_');
     const nombre = nombres[key] || email.split('@')[0];
