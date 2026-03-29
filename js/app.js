@@ -41,46 +41,46 @@ let triviaIdx = 0;
 let triviaScore = 0;
 let puntosMarcador = [];
 
-const EMOJIS_SEMESTRE = ['📅','📚','🎓','🌱','☀️','🍂','❄️','📖','🏫','✏️'];
-const EMOJIS_MATERIA  = ['📐','🔬','🌍','📊','💻','🎨','⚗️','📝','🔢','🎭','📜','🔭','💡','🧮','🏋️'];
-const EMOJIS_GRUPO    = ['👥','🚀','⭐','🔥','💎','🌙','🎯','🏆','🌈','🎪'];
+const EMOJIS_SEMESTRE = ['📅', '📚', '🎓', '🌱', '☀️', '🍂', '❄️', '📖', '🏫', '✏️'];
+const EMOJIS_MATERIA = ['📐', '🔬', '🌍', '📊', '💻', '🎨', '⚗️', '📝', '🔢', '🎭', '📜', '🔭', '💡', '🧮', '🏋️'];
+const EMOJIS_GRUPO = ['👥', '🚀', '⭐', '🔥', '💎', '🌙', '🎯', '🏆', '🌈', '🎪'];
 
 /* ═══════════════════════════════════════════════════
    UTILIDADES
 ═══════════════════════════════════════════════════ */
 const $ = id => document.getElementById(id);
-const qs  = (sel, ctx = document) => ctx.querySelector(sel);
+const qs = (sel, ctx = document) => ctx.querySelector(sel);
 const qsa = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
 function escHtml(str) {
   return String(str || '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function fmtTime(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleString('es-MX', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'short' });
+  return d.toLocaleString('es-MX', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
 }
 function fmtTimeChat(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' });
+  return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }
 function fmtDateChat(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   const hoy = new Date();
   if (d.toDateString() === hoy.toDateString()) return 'Hoy';
-  const ayer = new Date(hoy); ayer.setDate(ayer.getDate()-1);
+  const ayer = new Date(hoy); ayer.setDate(ayer.getDate() - 1);
   if (d.toDateString() === ayer.toDateString()) return 'Ayer';
-  return d.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
+  return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 function waitForFirebase(cb) {
   if (window._firebaseReady) { cb(); return; }
   window.addEventListener('firebase-ready', cb, { once: true });
 }
-function db()  { return window._db; }
+function db() { return window._db; }
 function lib() { return window._fbLib; }
 
 /* ═══════════════════════════════════════════════════
@@ -154,7 +154,7 @@ async function ensureUserDoc() {
       avatar: currentUser.avatar,
       updatedAt: lib().serverTimestamp()
     }, { merge: true });
-  } catch (_) {}
+  } catch (_) { }
 }
 
 function showLogin() {
@@ -220,11 +220,34 @@ async function loadGruposDelUsuario() {
 
 function renderGroupSelector() {
   const sel = $('groupSelector');
-  sel.innerHTML = grupos.map(g =>
-    `<option value="${g.id}" ${g.id === currentGroupId ? 'selected':''}>
-      ${escHtml(g.icon||'👥')} ${escHtml(g.name)}
-    </option>`
-  ).join('') || '<option value="">Sin grupos</option>';
+  
+  // Separar los grupos
+  const misGruposAdmin = grupos.filter(g => g.adminUid === currentUser.uid);
+  const misGruposMiembro = grupos.filter(g => g.adminUid !== currentUser.uid);
+
+  let html = '';
+
+  if (misGruposAdmin.length > 0) {
+    html += `<optgroup label="👑 GRUPOS QUE ADMINISTRO">`;
+    html += misGruposAdmin.map(g => 
+      `<option value="${g.id}" ${g.id === currentGroupId ? 'selected':''}>
+        ${escHtml(g.icon||'👥')} ${escHtml(g.name)}
+      </option>`
+    ).join('');
+    html += `</optgroup>`;
+  }
+
+  if (misGruposMiembro.length > 0) {
+    html += `<optgroup label="👥 GRUPOS EN LOS QUE ESTOY">`;
+    html += misGruposMiembro.map(g => 
+      `<option value="${g.id}" ${g.id === currentGroupId ? 'selected':''}>
+        ${escHtml(g.icon||'👥')} ${escHtml(g.name)}
+      </option>`
+    ).join('');
+    html += `</optgroup>`;
+  }
+
+  sel.innerHTML = html || '<option value="">Sin grupos</option>';
 }
 
 $('groupSelector').addEventListener('change', e => {
@@ -253,34 +276,55 @@ function renderSidebarMiembros() {
   const container = $('sidebarMiembros');
   if (!container || !currentGroupData) return;
   const miembros = currentGroupData.miembros || [];
-  const nombres  = currentGroupData.miembroNombres || {};
+  const nombres = currentGroupData.miembroNombres || {};
   if (!miembros.length) { container.innerHTML = ''; return; }
 
   container.innerHTML = `
     <div class="sidebar-members-label">👥 Miembros del grupo</div>
     <div class="sidebar-members-list">
-      ${miembros.map(email => {
-        const key    = email.replace(/\./g,'_');
-        const nombre = nombres[key] || email.split('@')[0];
-        const esYo   = email === currentUser.email;
-        const esAdmin = email === currentGroupData.adminEmail;
-        return `<button class="sidebar-member-btn ${esYo?'me':''}"
-          data-email="${escHtml(email)}"
-          onclick="verMuroDeUsuario('${escHtml(email)}','${escHtml(nombre)}')"
-          title="${escHtml(email)}">
-          <span class="sidebar-member-initial">${escHtml(nombre.charAt(0).toUpperCase())}</span>
-          <span class="sidebar-member-name">${escHtml(nombre)}${esYo?' (tú)':''}${esAdmin?' ⭐':''}</span>
-        </button>`;
-      }).join('')}
+ // Reemplaza el map dentro de renderSidebarMiembros() con esto:
+${miembros.map(email => {
+    const key = email.replace(/\./g, '_');
+    const nombre = nombres[key] || email.split('@')[0];
+    const esYo = email === currentUser.email;
+    const esAdminGrupo = email === currentGroupData.adminEmail;
+
+    // Botón de expulsar: Solo aparece si YO soy admin, y no me estoy viendo a mí mismo
+    const btnExpulsar = (isAdmin && !esYo)
+      ? `<button class="btn-sm btn-sm-danger" style="margin-left:auto; padding:2px 6px; font-size:10px;" onclick="event.stopPropagation(); expulsarMiembro('${escHtml(email)}')">X</button>`
+      : '';
+
+    return `<button class="sidebar-member-btn ${esYo ? 'me' : ''}"
+    data-email="${escHtml(email)}"
+    onclick="verMuroDeUsuario('${escHtml(email)}','${escHtml(nombre)}')"
+    title="${escHtml(email)}">
+    <span class="sidebar-member-initial">${escHtml(nombre.charAt(0).toUpperCase())}</span>
+    <span class="sidebar-member-name">${escHtml(nombre)}${esYo ? ' (tú)' : ''}${esAdminGrupo ? ' ⭐' : ''}</span>
+    ${btnExpulsar}
+  </button>`;
+  }).join('')}
     </div>`;
 }
 
+window.expulsarMiembro = async function(emailExpulsado) {
+  if (!confirm(`¿Estás seguro de expulsar a ${emailExpulsado} del grupo?`)) return;
+  const { doc, updateDoc, arrayRemove } = lib();
+  try {
+    await updateDoc(doc(db(), 'ec_grupos', currentGroupId), {
+      miembros: arrayRemove(emailExpulsado)
+    });
+    alert(`El usuario ${emailExpulsado} ha sido expulsado.`);
+  } catch (e) {
+    alert('Error al expulsar: ' + e.message);
+  }
+};
+
 /* Ver muro de otro miembro */
-let muroViendoUid   = null;
+let muroViendoUid = null;
 let muroViendoEmail = null;
 let muroViendoNombre = null;
 
-window.verMuroDeUsuario = function(email, nombre) {
+window.verMuroDeUsuario = function (email, nombre) {
   // Si es el propio usuario, ir a Mi Muro normal
   if (email === currentUser.email) {
     muroViendoUid = null;
@@ -294,16 +338,16 @@ window.verMuroDeUsuario = function(email, nombre) {
   }
   // Buscar UID en ec_users por email
   const { collection, query, where, getDocs } = lib();
-  getDocs(query(collection(db(),'ec_users'), where('email','==', email))).then(snap => {
+  getDocs(query(collection(db(), 'ec_users'), where('email', '==', email))).then(snap => {
     if (snap.empty) {
       // Usuario aún no se ha logueado, mostrar muro vacío con nombre
-      muroViendoUid   = '__pending__';
+      muroViendoUid = '__pending__';
       muroViendoEmail = email;
       muroViendoNombre = nombre;
     } else {
       const d = snap.docs[0];
-      muroViendoUid    = d.id;
-      muroViendoEmail  = email;
+      muroViendoUid = d.id;
+      muroViendoEmail = email;
       muroViendoNombre = d.data().name || nombre;
     }
     currentSection = 'muro';
@@ -311,8 +355,8 @@ window.verMuroDeUsuario = function(email, nombre) {
     activarSeccion('muro');
     closeSidebar();
   }).catch(() => {
-    muroViendoUid    = '__pending__';
-    muroViendoEmail  = email;
+    muroViendoUid = '__pending__';
+    muroViendoEmail = email;
     muroViendoNombre = nombre;
     currentSection = 'muro';
     setActiveNav('muro');
@@ -333,7 +377,7 @@ $('btnCreateGroupEmpty').addEventListener('click', openModalCrearGrupo);
 
 $('btnConfirmarGrupo').addEventListener('click', async () => {
   const nombre = $('nuevoGrupoNombre').value.trim();
-  const desc   = $('nuevoGrupoDesc').value.trim();
+  const desc = $('nuevoGrupoDesc').value.trim();
   if (!nombre) { alert('Escribe el nombre del grupo.'); return; }
   const { collection, addDoc, serverTimestamp } = lib();
   try {
@@ -363,11 +407,11 @@ function renderMiembrosList() {
   const container = $('miembrosListContainer');
   if (!container || !currentGroupData) return;
   const miembros = currentGroupData.miembros || [];
-  const nombres  = currentGroupData.miembroNombres || {};
+  const nombres = currentGroupData.miembroNombres || {};
   if (!miembros.length) { container.innerHTML = '<p style="font-size:12px;color:var(--text3)">Sin miembros aún.</p>'; return; }
   container.innerHTML = '<p style="font-size:11px;color:var(--text3);margin-bottom:6px">Miembros actuales:</p>' +
     miembros.map(email => {
-      const key   = email.replace(/\./g,'_');
+      const key = email.replace(/\./g, '_');
       const nombre = nombres[key] || email.split('@')[0];
       const esAdmin = email === currentGroupData.adminEmail;
       return `<div class="miembro-list-item">
@@ -379,7 +423,7 @@ function renderMiembrosList() {
 }
 
 $('btnConfirmarMiembro').addEventListener('click', async () => {
-  const email  = $('miembroEmail').value.trim().toLowerCase();
+  const email = $('miembroEmail').value.trim().toLowerCase();
   const nombre = $('miembroNombre').value.trim();
   if (!email || !nombre) { alert('Completa el correo y nombre.'); return; }
   if (!currentGroupId) return;
@@ -387,7 +431,7 @@ $('btnConfirmarMiembro').addEventListener('click', async () => {
   try {
     await updateDoc(doc(db(), 'ec_grupos', currentGroupId), {
       miembros: arrayUnion(email),
-      [`miembroNombres.${email.replace(/\./g,'_')}`]: nombre
+      [`miembroNombres.${email.replace(/\./g, '_')}`]: nombre
     });
     closeModal('modalAgregarMiembro');
     $('miembroEmail').value = '';
@@ -400,8 +444,8 @@ $('btnConfirmarMiembro').addEventListener('click', async () => {
    NAVEGACIÓN
 ═══════════════════════════════════════════════════ */
 const sectionTitles = {
-  feed:'Feed', muro:'Mi Muro', apuntes:'Apuntes',
-  chat:'Chat', tareas:'Tareas', dinamicas:'Dinámicas'
+  feed: 'Feed', muro: 'Mi Muro', apuntes: 'Apuntes',
+  chat: 'Chat', tareas: 'Tareas', dinamicas: 'Dinámicas'
 };
 
 function setActiveNav(section) {
@@ -434,21 +478,21 @@ qsa('.bottom-nav-item').forEach(btn => {
 function activarSeccion(section) {
   if (!currentGroupId) { showSection('noGroup'); return; }
   showSection(section);
-  if (section === 'feed')     initFeed();
-  if (section === 'chat')     initChat();
-  if (section === 'tareas')   initTareas();
-  if (section === 'apuntes')  initApuntes();
-  if (section === 'dinamicas')initDinamicas();
-  if (section === 'muro')     initMuro();
+  if (section === 'feed') initFeed();
+  if (section === 'chat') initChat();
+  if (section === 'tareas') initTareas();
+  if (section === 'apuntes') initApuntes();
+  if (section === 'dinamicas') initDinamicas();
+  if (section === 'muro') initMuro();
 }
 
 function showSection(name) {
   qsa('.section').forEach(s => s.classList.remove('active'));
   const map = {
-    loading:'sectionLoading', noGroup:'sectionNoGroup',
-    feed:'sectionFeed', muro:'sectionMuro',
-    apuntes:'sectionApuntes', chat:'sectionChat',
-    tareas:'sectionTareas', dinamicas:'sectionDinamicas'
+    loading: 'sectionLoading', noGroup: 'sectionNoGroup',
+    feed: 'sectionFeed', muro: 'sectionMuro',
+    apuntes: 'sectionApuntes', chat: 'sectionChat',
+    tareas: 'sectionTareas', dinamicas: 'sectionDinamicas'
   };
   const el = $(map[name]);
   if (el) el.classList.add('active');
@@ -477,8 +521,8 @@ function initFeed() {
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_feed'),
-    where('groupId','==', currentGroupId),
-    orderBy('createdAt','desc'),
+    where('groupId', '==', currentGroupId),
+    orderBy('createdAt', 'desc'),
     limit(40)
   );
   $('feedList').innerHTML = '<div class="feed-loading">Cargando…</div>';
@@ -524,7 +568,7 @@ function renderFeed(posts) {
   qsa('.feed-comment-send').forEach(btn => {
     btn.addEventListener('click', () => {
       const postId = btn.dataset.post;
-      const input  = btn.previousElementSibling;
+      const input = btn.previousElementSibling;
       enviarComentario(postId, input);
     });
   });
@@ -541,9 +585,13 @@ function renderFeed(posts) {
 }
 
 function buildFeedCard(p) {
+  // 1. Aquí validamos si es el dueño del post o si es el Admin
   const isMine = p.authorUid === currentUser.uid;
+  const canDelete = isMine || isAdmin; 
+
   const badgeTipo  = p.type === 'foto' ? 'badge-foto' : (p.type === 'tarea' ? 'badge-tarea' : 'badge-texto');
   const badgeLabel = p.type === 'foto' ? '📷 Foto' : (p.type === 'tarea' ? '✅ Tarea' : '💬 Texto');
+  
   let imgHtml = '';
   if (p.images && p.images.length > 0) {
     const cls = `count-${Math.min(p.images.length, 3)}`;
@@ -551,6 +599,7 @@ function buildFeedCard(p) {
       ${p.images.slice(0,3).map(url => `<img src="${escHtml(url)}" loading="lazy" alt="" class="feed-card-img">`).join('')}
     </div>`;
   }
+  
   const likeCount    = p.likes || 0;
   const commentCount = p.commentCount || 0;
   const isLiked      = p.likedBy?.includes(currentUser.uid);
@@ -573,7 +622,8 @@ function buildFeedCard(p) {
       <button class="feed-comments-toggle" data-post="${p.id}">
         💬 ${commentCount > 0 ? commentCount + ' comentario' + (commentCount>1?'s':'') : 'Comentar'}
       </button>
-      ${isMine ? `<button class="feed-action-btn" style="margin-left:auto" onclick="eliminarPost('${p.id}')"><span>🗑️</span></button>` : ''}
+      
+      ${canDelete ? `<button class="feed-action-btn" style="margin-left:auto" onclick="eliminarPost('${p.id}')"><span>🗑️</span></button>` : ''}
     </div>
     <div class="feed-comments-section" data-open="0">
       <div class="feed-comments-list"></div>
@@ -590,8 +640,8 @@ function loadComments(postId, sectionEl) {
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_comentarios'),
-    where('postId','==', postId),
-    orderBy('createdAt','asc')
+    where('postId', '==', postId),
+    orderBy('createdAt', 'asc')
   );
   const list = sectionEl.querySelector('.feed-comments-list');
   onSnapshot(q, snap => {
@@ -599,9 +649,9 @@ function loadComments(postId, sectionEl) {
     snap.forEach(d => comments.push({ id: d.id, ...d.data() }));
     list.innerHTML = comments.map(c => `
       <div class="feed-comment-item">
-        <img class="feed-comment-avatar" src="${escHtml(c.authorAvatar||'')}" alt="" onerror="this.style.display='none'">
+        <img class="feed-comment-avatar" src="${escHtml(c.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
         <div class="feed-comment-bubble">
-          <div class="feed-comment-author">${escHtml(c.authorName||'Anónimo')}</div>
+          <div class="feed-comment-author">${escHtml(c.authorName || 'Anónimo')}</div>
           <div class="feed-comment-text">${escHtml(c.text)}</div>
           <div class="feed-comment-time">${fmtTime(c.createdAt)}</div>
         </div>
@@ -643,7 +693,7 @@ async function toggleFeedLike(postId, btn) {
   } catch (e) { console.error(e); }
 }
 
-window.eliminarPost = async function(postId) {
+window.eliminarPost = async function (postId) {
   if (!confirm('¿Eliminar esta publicación?')) return;
   const { doc, deleteDoc } = lib();
   await deleteDoc(doc(db(), 'ec_feed', postId));
@@ -731,12 +781,12 @@ function initMuro() {
   // ¿Estamos viendo el muro de otro?
   const esAjeno = muroViendoUid && muroViendoUid !== '__pending__';
   const esPropio = !muroViendoUid;
-  const uid    = esAjeno ? muroViendoUid : currentUser.uid;
+  const uid = esAjeno ? muroViendoUid : currentUser.uid;
   const nombre = esAjeno ? muroViendoNombre : currentUser.name;
   const avatar = esPropio ? currentUser.avatar : '';
 
-  if ($('muroAvatar'))  $('muroAvatar').src = avatar;
-  if ($('muroNombre'))  $('muroNombre').textContent = nombre;
+  if ($('muroAvatar')) $('muroAvatar').src = avatar;
+  if ($('muroNombre')) $('muroNombre').textContent = nombre;
 
   // Botón subir: solo visible en muro propio
   const btnSubir = $('btnMuroSubir');
@@ -780,10 +830,10 @@ function initMuro() {
 function cargarMuroStats(uid) {
   const targetUid = uid || currentUser.uid;
   const { collection, query, where, getDocs } = lib();
-  const qFotos = query(collection(db(),'ec_muro_fotos'), where('authorUid','==', targetUid));
+  const qFotos = query(collection(db(), 'ec_muro_fotos'), where('authorUid', '==', targetUid));
   getDocs(qFotos).then(snap => {
-    if ($('muroStats')) $('muroStats').textContent = `${snap.size} foto${snap.size!==1?'s':''}`;
-  }).catch(() => {});
+    if ($('muroStats')) $('muroStats').textContent = `${snap.size} foto${snap.size !== 1 ? 's' : ''}`;
+  }).catch(() => { });
 }
 
 function cargarMuroFotos(uid, esPropio) {
@@ -791,8 +841,8 @@ function cargarMuroFotos(uid, esPropio) {
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_muro_fotos'),
-    where('authorUid','==', targetUid),
-    orderBy('createdAt','desc')
+    where('authorUid', '==', targetUid),
+    orderBy('createdAt', 'desc')
   );
   const grid = $('muroFotosGrid');
   if (!grid) return;
@@ -812,7 +862,7 @@ function cargarMuroFotos(uid, esPropio) {
       <div class="muro-photo-thumb" onclick="openLightbox(${i})">
         <img src="${escHtml(f.url)}" loading="lazy" alt="">
       </div>`).join('');
-    if ($('muroStats')) $('muroStats').textContent = `${fotos.length} foto${fotos.length!==1?'s':''}`;
+    if ($('muroStats')) $('muroStats').textContent = `${fotos.length} foto${fotos.length !== 1 ? 's' : ''}`;
   });
 }
 
@@ -868,9 +918,9 @@ function cargarMuroPublicaciones() {
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_feed'),
-    where('authorUid','==', currentUser.uid),
-    where('groupId','==', currentGroupId),
-    orderBy('createdAt','desc'),
+    where('authorUid', '==', currentUser.uid),
+    where('groupId', '==', currentGroupId),
+    orderBy('createdAt', 'desc'),
     limit(20)
   );
   const list = $('muroPostsList');
@@ -894,8 +944,8 @@ function initChat() {
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_chat'),
-    where('groupId','==', currentGroupId),
-    orderBy('createdAt','asc'),
+    where('groupId', '==', currentGroupId),
+    orderBy('createdAt', 'asc'),
     limit(80)
   );
   $('chatMessages').innerHTML = '<div class="feed-loading">Conectando…</div>';
@@ -923,7 +973,7 @@ function renderChat(msgs) {
       lastDate = msgDate;
     }
     html += `<div class="chat-msg ${mine ? 'mine' : ''}">
-      <img class="chat-msg-avatar" src="${escHtml(m.authorAvatar||'')}" alt="" onerror="this.style.display='none'">
+      <img class="chat-msg-avatar" src="${escHtml(m.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
       <div class="chat-msg-wrap">
         ${!mine ? `<div class="chat-msg-author">${escHtml(m.authorName)}</div>` : ''}
         <div class="chat-msg-bubble">${escHtml(m.text)}</div>
@@ -938,7 +988,7 @@ function renderChat(msgs) {
 
 async function enviarMensaje() {
   const input = $('chatInput');
-  const text  = input.value.trim();
+  const text = input.value.trim();
   if (!text || !currentGroupId) return;
   input.value = '';
   input.style.height = 'auto';
@@ -951,10 +1001,10 @@ async function enviarMensaje() {
   tempEl.className = 'chat-msg mine';
   tempEl.id = tempId;
   tempEl.innerHTML = `
-    <img class="chat-msg-avatar" src="${escHtml(currentUser.avatar||'')}" alt="" onerror="this.style.display='none'">
+    <img class="chat-msg-avatar" src="${escHtml(currentUser.avatar || '')}" alt="" onerror="this.style.display='none'">
     <div class="chat-msg-wrap">
       <div class="chat-msg-bubble">${escHtml(text)}</div>
-      <div class="chat-msg-time sending-indicator">${now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})} · enviando…</div>
+      <div class="chat-msg-time sending-indicator">${now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} · enviando…</div>
     </div>`;
   msgBox.appendChild(tempEl);
   msgBox.scrollTop = msgBox.scrollHeight;
@@ -970,7 +1020,7 @@ async function enviarMensaje() {
       createdAt: serverTimestamp()
     });
     // El onSnapshot reemplazará el mensaje temporal automáticamente
-  } catch(e) {
+  } catch (e) {
     const errEl = document.getElementById(tempId);
     if (errEl) {
       errEl.style.opacity = '0.5';
@@ -985,7 +1035,7 @@ $('chatInput').addEventListener('keydown', e => {
 });
 
 // Auto-resize textarea del chat
-$('chatInput').addEventListener('input', function() {
+$('chatInput').addEventListener('input', function () {
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 100) + 'px';
 });
@@ -998,8 +1048,8 @@ function initTareas() {
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_tareas'),
-    where('groupId','==', currentGroupId),
-    orderBy('createdAt','desc')
+    where('groupId', '==', currentGroupId),
+    orderBy('createdAt', 'desc')
   );
   $('tareasList').innerHTML = '<div class="feed-loading">Cargando…</div>';
   tareasUnsub = onSnapshot(q, snap => {
@@ -1012,7 +1062,7 @@ function initTareas() {
 function renderTareas(tareas) {
   let filtradas = tareas;
   if (tareasFilter === 'pending') filtradas = tareas.filter(t => !t.done);
-  if (tareasFilter === 'done')    filtradas = tareas.filter(t =>  t.done);
+  if (tareasFilter === 'done') filtradas = tareas.filter(t => t.done);
 
   if (!filtradas.length) {
     $('tareasList').innerHTML = '<div class="feed-loading">No hay tareas aquí.</div>';
@@ -1020,7 +1070,7 @@ function renderTareas(tareas) {
   }
   const now = new Date();
   $('tareasList').innerHTML = filtradas.map(t => {
-    const vence  = t.fecha ? new Date(t.fecha) : null;
+    const vence = t.fecha ? new Date(t.fecha) : null;
     const vencida = vence && vence < now && !t.done;
     return `<div class="tarea-card ${t.done ? 'done' : ''}">
       <button class="tarea-check ${t.done ? 'checked' : ''}" onclick="toggleTarea('${t.id}',${!t.done})">${t.done ? '✓' : ''}</button>
@@ -1029,7 +1079,7 @@ function renderTareas(tareas) {
         ${t.desc ? `<div class="tarea-desc">${escHtml(t.desc)}</div>` : ''}
         <div class="tarea-meta">
           ${t.responsable ? `<span class="tarea-badge badge-responsable">👤 ${escHtml(t.responsable)}</span>` : ''}
-          ${t.materia     ? `<span class="tarea-badge badge-materia">📖 ${escHtml(t.materia)}</span>` : ''}
+          ${t.materia ? `<span class="tarea-badge badge-materia">📖 ${escHtml(t.materia)}</span>` : ''}
           ${vence ? `<span class="tarea-badge badge-fecha ${vencida ? 'vencida' : ''}">
             ${vencida ? '⚠️' : '📅'} ${vence.toLocaleDateString('es-MX')}
           </span>` : ''}
@@ -1040,11 +1090,11 @@ function renderTareas(tareas) {
   }).join('');
 }
 
-window.toggleTarea = async function(id, done) {
+window.toggleTarea = async function (id, done) {
   const { doc, updateDoc } = lib();
   await updateDoc(doc(db(), 'ec_tareas', id), { done });
 };
-window.eliminarTarea = async function(id) {
+window.eliminarTarea = async function (id) {
   if (!confirm('¿Eliminar tarea?')) return;
   const { doc, deleteDoc } = lib();
   await deleteDoc(doc(db(), 'ec_tareas', id));
@@ -1090,7 +1140,7 @@ $('btnConfirmarTarea').addEventListener('click', async () => {
       createdAt: serverTimestamp()
     });
     closeModal('modalNuevaTarea');
-    ['tareaTitulo','tareaDesc','tareaResponsable','tareaFecha','tareaMateria'].forEach(id => $(id).value = '');
+    ['tareaTitulo', 'tareaDesc', 'tareaResponsable', 'tareaFecha', 'tareaMateria'].forEach(id => $(id).value = '');
   } catch (e) { alert('Error: ' + e.message); }
 });
 
@@ -1106,8 +1156,8 @@ function loadSemestres() {
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_semestres'),
-    where('groupId','==', currentGroupId),
-    orderBy('createdAt','asc')
+    where('groupId', '==', currentGroupId),
+    orderBy('createdAt', 'asc')
   );
   onSnapshot(q, snap => {
     semestres = [];
@@ -1120,8 +1170,8 @@ function loadGalerias() {
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_galerias'),
-    where('groupId','==', currentGroupId),
-    orderBy('createdAt','asc')
+    where('groupId', '==', currentGroupId),
+    orderBy('createdAt', 'asc')
   );
   onSnapshot(q, snap => {
     galerias = [];
@@ -1142,7 +1192,7 @@ function renderSemestres() {
     const mats = galerias.filter(g => g.semestreId === sem.id);
     return `<div class="semestre-group" id="sem-${sem.id}">
       <div class="semestre-header" onclick="toggleSemestre('${sem.id}')">
-        <span class="semestre-icon">${escHtml(sem.icon||'📅')}</span>
+        <span class="semestre-icon">${escHtml(sem.icon || '📅')}</span>
         <span class="semestre-name">${escHtml(sem.name)}</span>
         <span class="semestre-toggle">›</span>
       </div>
@@ -1157,10 +1207,10 @@ function renderSemestres() {
   }).join('');
 }
 
-window.toggleSemestre = function(id) {
+window.toggleSemestre = function (id) {
   const grup = $('sem-' + id);
   const grid = grup?.querySelector('.materias-grid');
-  const tog  = grup?.querySelector('.semestre-toggle');
+  const tog = grup?.querySelector('.semestre-toggle');
   if (!grid) return;
   const open = grid.style.display !== 'none';
   grid.style.display = open ? 'none' : 'grid';
@@ -1170,15 +1220,15 @@ window.toggleSemestre = function(id) {
 function buildMateriaCard(m) {
   return `<div class="materia-card" onclick="abrirGaleria('${m.id}')">
     ${m.coverImage ? `<img class="materia-card-cover" src="${escHtml(m.coverImage)}" alt="">` : ''}
-    <div class="materia-card-icon">${escHtml(m.icon||'📚')}</div>
+    <div class="materia-card-icon">${escHtml(m.icon || '📚')}</div>
     <div class="materia-card-name">${escHtml(m.name)}</div>
   </div>`;
 }
 
-window.abrirGaleria = function(galeriaId) {
+window.abrirGaleria = function (galeriaId) {
   galeriaActual = galerias.find(g => g.id === galeriaId);
   if (!galeriaActual) return;
-  $('galeriaTitle').textContent = `${galeriaActual.icon||'📚'} ${galeriaActual.name}`;
+  $('galeriaTitle').textContent = `${galeriaActual.icon || '📚'} ${galeriaActual.name}`;
   $('apuntesGroupsContainer').style.display = 'none';
   $('apuntesGaleriaView').style.display = 'block';
   $('apuntesUploadZone').style.display = 'none';
@@ -1189,8 +1239,8 @@ function cargarFotosGaleria() {
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_fotos'),
-    where('galeriaId','==', galeriaActual.id),
-    orderBy('createdAt','desc')
+    where('galeriaId', '==', galeriaActual.id),
+    orderBy('createdAt', 'desc')
   );
   const grid = $('apuntesGrid');
   grid.innerHTML = '<div class="feed-loading">Cargando fotos…</div>';
@@ -1212,7 +1262,7 @@ function renderFotosGaleria(fotos) {
     <div class="photo-thumb" onclick="openLightbox(${i})">
       <img src="${escHtml(f.url)}" loading="lazy" alt="">
       <div class="photo-thumb-overlay">
-        <span class="photo-thumb-caption">${escHtml(f.caption||'')}</span>
+        <span class="photo-thumb-caption">${escHtml(f.caption || '')}</span>
       </div>
     </div>`).join('');
 }
@@ -1255,7 +1305,7 @@ function setupApunteUpload() {
         });
         await addDoc(collection(db(), 'ec_feed'), {
           groupId: currentGroupId,
-          text: `Subió fotos de ${galeriaActual.icon||'📚'} ${galeriaActual.name}${caption ? `: ${caption}` : ''}`,
+          text: `Subió fotos de ${galeriaActual.icon || '📚'} ${galeriaActual.name}${caption ? `: ${caption}` : ''}`,
           type: 'foto', images: [url],
           authorUid: currentUser.uid,
           authorName: currentUser.name,
@@ -1265,7 +1315,7 @@ function setupApunteUpload() {
         });
       }
       done++;
-      $('apunteProgressBar').style.width = `${Math.round(done/apunteFiles.length*100)}%`;
+      $('apunteProgressBar').style.width = `${Math.round(done / apunteFiles.length * 100)}%`;
     }
     apunteFiles = [];
     $('apuntePreviewList').innerHTML = '';
@@ -1287,7 +1337,7 @@ function renderApuntePreview() {
 
 /* ── MODALES APUNTES ── */
 let selectedSemestreEmoji = '📅';
-let selectedMateriaEmoji  = '📚';
+let selectedMateriaEmoji = '📚';
 
 $('btnNewSubjectGroup').addEventListener('click', () => {
   renderEmojiPicker('semestreEmojiPicker', EMOJIS_SEMESTRE, '📅', em => selectedSemestreEmoji = em);
@@ -1312,19 +1362,19 @@ $('btnConfirmarSemestre').addEventListener('click', async () => {
     });
     closeModal('modalNuevoSemestre');
     $('semestreNombre').value = '';
-  } catch(e) { alert('Error al crear semestre: ' + e.message); }
+  } catch (e) { alert('Error al crear semestre: ' + e.message); }
   btn.disabled = false; btn.textContent = 'Crear';
   _creandoSemestre = false;
 });
 
 $('btnNewMateria').addEventListener('click', () => openNewMateriaModal(''));
-window.openNewMateriaModal = function(semestreId) {
+window.openNewMateriaModal = function (semestreId) {
   renderEmojiPicker('materiaEmojiPicker', EMOJIS_MATERIA, '📚', em => selectedMateriaEmoji = em);
   selectedMateriaEmoji = '📚';
   $('materiaSemestreSelect').innerHTML =
     `<option value="">Sin semestre</option>` +
-    semestres.map(s => `<option value="${s.id}" ${s.id===semestreId?'selected':''}>
-      ${escHtml(s.icon||'📅')} ${escHtml(s.name)}
+    semestres.map(s => `<option value="${s.id}" ${s.id === semestreId ? 'selected' : ''}>
+      ${escHtml(s.icon || '📅')} ${escHtml(s.name)}
     </option>`).join('');
   openModal('modalNuevaMateria');
 };
@@ -1339,7 +1389,7 @@ $('btnConfirmarMateria').addEventListener('click', async () => {
   const btn = $('btnConfirmarMateria');
   btn.disabled = true; btn.textContent = '⏳';
   const tag = nombre.toLowerCase().normalize('NFD')
-    .replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+    .replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
   const { collection, addDoc, serverTimestamp } = lib();
   try {
     await addDoc(collection(db(), 'ec_galerias'), {
@@ -1351,7 +1401,7 @@ $('btnConfirmarMateria').addEventListener('click', async () => {
     });
     closeModal('modalNuevaMateria');
     $('materiaNombre').value = '';
-  } catch(e) { alert('Error al crear materia: ' + e.message); }
+  } catch (e) { alert('Error al crear materia: ' + e.message); }
   btn.disabled = false; btn.textContent = 'Crear';
   _creandoMateria = false;
 });
@@ -1365,7 +1415,7 @@ async function uploadToCloudinary(file, tag = '') {
   fd.append('upload_preset', CLOUDINARY_PRESET);
   if (tag) fd.append('tags', tag);
   try {
-    const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
       method: 'POST', body: fd
     });
     const data = await res.json();
@@ -1379,12 +1429,12 @@ async function uploadToCloudinary(file, tag = '') {
 /* ═══════════════════════════════════════════════════
    LIGHTBOX
 ═══════════════════════════════════════════════════ */
-window.openLightbox = function(idx) {
+window.openLightbox = function (idx) {
   lightboxIdx = idx;
   updateLightbox();
   $('lightbox').classList.add('open');
 };
-window.openLightboxFeed = function(imgEl) {
+window.openLightboxFeed = function (imgEl) {
   lightboxPhotos = [{ url: imgEl.src, caption: '' }];
   lightboxIdx = 0;
   updateLightbox();
@@ -1396,17 +1446,17 @@ function updateLightbox() {
   $('lightboxImg').src = p.url || p;
   $('lightboxCaption').textContent = p.caption || '';
   $('lightboxPrev').style.opacity = lightboxIdx > 0 ? '1' : '0.3';
-  $('lightboxNext').style.opacity = lightboxIdx < lightboxPhotos.length-1 ? '1' : '0.3';
+  $('lightboxNext').style.opacity = lightboxIdx < lightboxPhotos.length - 1 ? '1' : '0.3';
 }
 $('lightboxClose').addEventListener('click', () => $('lightbox').classList.remove('open'));
 $('lightbox').addEventListener('click', e => { if (e.target === $('lightbox')) $('lightbox').classList.remove('open'); });
 $('lightboxPrev').addEventListener('click', () => { if (lightboxIdx > 0) { lightboxIdx--; updateLightbox(); } });
-$('lightboxNext').addEventListener('click', () => { if (lightboxIdx < lightboxPhotos.length-1) { lightboxIdx++; updateLightbox(); } });
+$('lightboxNext').addEventListener('click', () => { if (lightboxIdx < lightboxPhotos.length - 1) { lightboxIdx++; updateLightbox(); } });
 document.addEventListener('keydown', e => {
   if (!$('lightbox').classList.contains('open')) return;
   if (e.key === 'Escape') $('lightbox').classList.remove('open');
-  if (e.key === 'ArrowLeft'  && lightboxIdx > 0) { lightboxIdx--; updateLightbox(); }
-  if (e.key === 'ArrowRight' && lightboxIdx < lightboxPhotos.length-1) { lightboxIdx++; updateLightbox(); }
+  if (e.key === 'ArrowLeft' && lightboxIdx > 0) { lightboxIdx--; updateLightbox(); }
+  if (e.key === 'ArrowRight' && lightboxIdx < lightboxPhotos.length - 1) { lightboxIdx++; updateLightbox(); }
 });
 
 /* ═══════════════════════════════════════════════════
@@ -1427,7 +1477,7 @@ qsa('.btn-dinamica[data-open]').forEach(btn => {
 function initRuleta() {
   if (currentGroupData?.miembros) {
     const nombres = currentGroupData.miembros.map(email => {
-      const key = email.replace(/\./g,'_');
+      const key = email.replace(/\./g, '_');
       return currentGroupData.miembroNombres?.[key] || email.split('@')[0];
     });
     ruletaMiembros = nombres;
@@ -1450,14 +1500,14 @@ $('btnSpin').addEventListener('click', () => {
   ruletaSpinning = true;
   $('ruletaResultado').textContent = '⏳';
   $('btnSpin').disabled = true;
-  const extra    = Math.floor(Math.random()*3+5)*360 + Math.floor(Math.random()*360);
+  const extra = Math.floor(Math.random() * 3 + 5) * 360 + Math.floor(Math.random() * 360);
   const duration = 4000;
-  const start    = performance.now();
+  const start = performance.now();
   const startAngle = ruletaAngulo;
   function step(now) {
     const elapsed = now - start;
     const t = Math.min(elapsed / duration, 1);
-    const ease = 1 - Math.pow(1-t, 4);
+    const ease = 1 - Math.pow(1 - t, 4);
     ruletaAngulo = startAngle + extra * ease;
     dibujarRuleta();
     if (t < 1) { requestAnimationFrame(step); }
@@ -1465,8 +1515,8 @@ $('btnSpin').addEventListener('click', () => {
       ruletaSpinning = false;
       $('btnSpin').disabled = false;
       const n = ruletaMiembros.length;
-      const segAngle  = 360 / n;
-      const normalized = (((-ruletaAngulo % 360)+360) % 360);
+      const segAngle = 360 / n;
+      const normalized = (((-ruletaAngulo % 360) + 360) % 360);
       const idx = Math.floor(normalized / segAngle) % n;
       $('ruletaResultado').textContent = `🎯 ${ruletaMiembros[idx]}`;
     }
@@ -1480,18 +1530,18 @@ function dibujarRuleta() {
   const cx = 150, cy = 150, r = 140;
   const n = ruletaMiembros.length || 1;
   const segAngle = (Math.PI * 2) / n;
-  const colores = ['#7c6af7','#a594f9','#4f46e5','#6366f1','#818cf8','#c4b5fd','#8b5cf6','#ddd6fe'];
+  const colores = ['#7c6af7', '#a594f9', '#4f46e5', '#6366f1', '#818cf8', '#c4b5fd', '#8b5cf6', '#ddd6fe'];
   ctx.clearRect(0, 0, 300, 300);
   for (let i = 0; i < n; i++) {
     const start = (ruletaAngulo * Math.PI / 180) + i * segAngle - Math.PI / 2;
-    const end   = start + segAngle;
+    const end = start + segAngle;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, r, start, end);
     ctx.closePath();
-    ctx.fillStyle   = colores[i % colores.length];
+    ctx.fillStyle = colores[i % colores.length];
     ctx.strokeStyle = '#0e0e16';
-    ctx.lineWidth   = 2;
+    ctx.lineWidth = 2;
     ctx.fill(); ctx.stroke();
     const midAngle = start + segAngle / 2;
     const tx = cx + (r * 0.65) * Math.cos(midAngle);
@@ -1503,15 +1553,15 @@ function dibujarRuleta() {
     ctx.font = 'bold 13px Plus Jakarta Sans, sans-serif';
     ctx.textAlign = 'center';
     const nombre = ruletaMiembros[i] || '';
-    ctx.fillText(nombre.length > 10 ? nombre.slice(0,9)+'…' : nombre, 0, 0);
+    ctx.fillText(nombre.length > 10 ? nombre.slice(0, 9) + '…' : nombre, 0, 0);
     ctx.restore();
   }
   ctx.beginPath();
-  ctx.arc(cx, cy, 14, 0, Math.PI*2);
-  ctx.fillStyle   = '#0e0e16';
+  ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+  ctx.fillStyle = '#0e0e16';
   ctx.fill();
   ctx.strokeStyle = '#7c6af7';
-  ctx.lineWidth   = 3;
+  ctx.lineWidth = 3;
   ctx.stroke();
 }
 
@@ -1543,9 +1593,9 @@ async function loadVotacionActiva() {
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_votaciones'),
-    where('groupId','==', currentGroupId),
-    where('activa','==', true),
-    orderBy('createdAt','desc'),
+    where('groupId', '==', currentGroupId),
+    where('activa', '==', true),
+    orderBy('createdAt', 'desc'),
     limit(1)
   );
   votacionUnsub = onSnapshot(q, snap => {
@@ -1553,24 +1603,24 @@ async function loadVotacionActiva() {
       renderVotacionActiva({ id: snap.docs[0].id, ...snap.docs[0].data() });
     } else {
       $('votacionActiva').style.display = 'none';
-      $('votacionCrear').style.display  = 'block';
+      $('votacionCrear').style.display = 'block';
     }
   });
 }
 
 function renderVotacionActiva(v) {
   $('votacionActiva').style.display = 'block';
-  $('votacionCrear').style.display  = 'none';
+  $('votacionCrear').style.display = 'none';
   $('votacionPreguntaText').textContent = v.pregunta;
   const yaVoto = v.votantes?.includes(currentUser.uid);
-  const totalVotos = Object.values(v.votos||{}).reduce((a,b) => a+b, 0);
+  const totalVotos = Object.values(v.votos || {}).reduce((a, b) => a + b, 0);
   $('votacionOpciones').innerHTML = yaVoto ? '' :
     v.opciones.map((op, i) =>
       `<button class="votacion-opcion-btn" onclick="votar('${v.id}',${i},'${escHtml(op)}')">${escHtml(op)}</button>`
     ).join('');
   $('votacionResultados').innerHTML = v.opciones.map((op, i) => {
     const cnt = v.votos?.[i] || 0;
-    const pct = totalVotos ? Math.round(cnt/totalVotos*100) : 0;
+    const pct = totalVotos ? Math.round(cnt / totalVotos * 100) : 0;
     return `<div class="votacion-resultado-item">
       <span class="votacion-bar-label">${escHtml(op)}</span>
       <div class="votacion-bar-wrap"><div class="votacion-bar" style="width:${pct}%"></div></div>
@@ -1579,7 +1629,7 @@ function renderVotacionActiva(v) {
   }).join('');
 }
 
-window.votar = async function(votacionId, opcionIdx) {
+window.votar = async function (votacionId, opcionIdx) {
   const { doc, updateDoc, arrayUnion, increment } = lib();
   await updateDoc(doc(db(), 'ec_votaciones', votacionId), {
     [`votos.${opcionIdx}`]: increment(1),
@@ -1592,9 +1642,9 @@ $('btnCerrarVotacion').addEventListener('click', async () => {
   const { collection, query, where, orderBy, limit, getDocs, doc, updateDoc } = lib();
   const q = query(
     collection(db(), 'ec_votaciones'),
-    where('groupId','==', currentGroupId),
-    where('activa','==', true),
-    orderBy('createdAt','desc'),
+    where('groupId', '==', currentGroupId),
+    where('activa', '==', true),
+    orderBy('createdAt', 'desc'),
     limit(1)
   );
   const snap = await getDocs(q);
@@ -1605,13 +1655,13 @@ $('btnCerrarVotacion').addEventListener('click', async () => {
 function renderTriviaBanco() {
   $('triviaBanco').innerHTML = triviaBanco.length
     ? `<p style="font-size:12px;color:var(--text2);margin-bottom:8px">${triviaBanco.length} pregunta(s) lista(s)</p>` +
-      triviaBanco.map((p, i) => `<div class="trivia-banco-item">
+    triviaBanco.map((p, i) => `<div class="trivia-banco-item">
         <span>${escHtml(p.pregunta)}</span>
         <button onclick="triviaEliminar(${i})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:12px">✕</button>
       </div>`).join('')
     : '<p style="font-size:12px;color:var(--text2)">Agrega preguntas antes de iniciar.</p>';
 }
-window.triviaEliminar = function(i) { triviaBanco.splice(i,1); renderTriviaBanco(); };
+window.triviaEliminar = function (i) { triviaBanco.splice(i, 1); renderTriviaBanco(); };
 
 $('btnAgregarPregunta').addEventListener('click', () => {
   const pregunta = $('triviaPreguntaInput').value.trim();
@@ -1642,9 +1692,9 @@ function mostrarPreguntaTrivia() {
     return;
   }
   const p = triviaBanco[triviaIdx];
-  const opciones = [...p.respuestas].sort(() => Math.random()-0.5);
+  const opciones = [...p.respuestas].sort(() => Math.random() - 0.5);
   const correcta = p.respuestas[0];
-  $('triviaProgreso').textContent = `Pregunta ${triviaIdx+1} de ${triviaBanco.length} · Puntos: ${triviaScore}`;
+  $('triviaProgreso').textContent = `Pregunta ${triviaIdx + 1} de ${triviaBanco.length} · Puntos: ${triviaScore}`;
   $('triviaPreguntaText').textContent = p.pregunta;
   $('triviaFeedback').textContent = '';
   $('triviaOpciones').innerHTML = opciones.map(op =>
@@ -1652,7 +1702,7 @@ function mostrarPreguntaTrivia() {
       ${escHtml(op)}
     </button>`).join('');
 }
-window.responderTrivia = function(elegida, correcta, btn) {
+window.responderTrivia = function (elegida, correcta, btn) {
   qsa('.trivia-opcion').forEach(b => { b.disabled = true; });
   const correcto = elegida === correcta;
   if (correcto) {
@@ -1662,15 +1712,15 @@ window.responderTrivia = function(elegida, correcta, btn) {
     $('triviaFeedback').style.color = 'var(--green)';
   } else {
     btn.classList.add('incorrecto');
-    qsa('.trivia-opcion').forEach(b => { if (b.textContent.trim()===correcta) b.classList.add('correcto'); });
+    qsa('.trivia-opcion').forEach(b => { if (b.textContent.trim() === correcta) b.classList.add('correcto'); });
     $('triviaFeedback').textContent = `❌ Era: ${correcta}`;
     $('triviaFeedback').style.color = 'var(--red)';
   }
   setTimeout(() => { triviaIdx++; mostrarPreguntaTrivia(); }, 1800);
 };
-window.reiniciarTrivia = function() {
-  $('triviaJuego').style.display  = 'none';
-  $('triviaCrear').style.display  = 'block';
+window.reiniciarTrivia = function () {
+  $('triviaJuego').style.display = 'none';
+  $('triviaCrear').style.display = 'block';
   $('triviaJuego').innerHTML = `
     <div class="trivia-progreso" id="triviaProgreso"></div>
     <div class="trivia-pregunta" id="triviaPreguntaText"></div>
@@ -1685,10 +1735,10 @@ function renderPuntos() {
     marc.innerHTML = '<div class="feed-loading" style="padding:20px 0">Agrega jugadores abajo.</div>';
     return;
   }
-  const sorted = [...puntosMarcador].sort((a,b) => b.pts - a.pts);
-  marc.innerHTML = sorted.map((j,i) => `
+  const sorted = [...puntosMarcador].sort((a, b) => b.pts - a.pts);
+  marc.innerHTML = sorted.map((j, i) => `
     <div class="puntos-jugador">
-      <span style="font-size:16px;opacity:0.6">${i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`}</span>
+      <span style="font-size:16px;opacity:0.6">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
       <span class="puntos-jugador-nombre">${escHtml(j.nombre)}</span>
       <div class="puntos-btns">
         <button class="puntos-btn" onclick="cambiarPuntos('${escHtml(j.nombre)}',-1)">−</button>
@@ -1700,26 +1750,26 @@ function renderPuntos() {
 $('btnAgregarJugador').addEventListener('click', () => {
   const nombre = $('puntosNombre').value.trim();
   if (!nombre) return;
-  if (!puntosMarcador.find(j => j.nombre===nombre)) { puntosMarcador.push({ nombre, pts:0 }); renderPuntos(); }
+  if (!puntosMarcador.find(j => j.nombre === nombre)) { puntosMarcador.push({ nombre, pts: 0 }); renderPuntos(); }
   $('puntosNombre').value = '';
 });
 $('btnResetPuntos').addEventListener('click', () => {
   if (!confirm('¿Reiniciar todos los puntos?')) return;
   puntosMarcador.forEach(j => j.pts = 0); renderPuntos();
 });
-window.cambiarPuntos = function(nombre, delta) {
-  const j = puntosMarcador.find(j => j.nombre===nombre);
-  if (j) { j.pts = Math.max(0, j.pts+delta); renderPuntos(); }
+window.cambiarPuntos = function (nombre, delta) {
+  const j = puntosMarcador.find(j => j.nombre === nombre);
+  if (j) { j.pts = Math.max(0, j.pts + delta); renderPuntos(); }
 };
 
 /* ═══════════════════════════════════════════════════
    MODALES — utilidades
 ═══════════════════════════════════════════════════ */
-function openModal(id)  { $(id)?.classList.add('open'); }
+function openModal(id) { $(id)?.classList.add('open'); }
 function closeModal(id) { $(id)?.classList.remove('open'); }
 
 document.addEventListener('click', e => {
-  const closeBtn  = e.target.closest('.modal-close[data-close]');
+  const closeBtn = e.target.closest('.modal-close[data-close]');
   if (closeBtn) closeModal(closeBtn.dataset.close);
   const cancelBtn = e.target.closest('.btn-cancel[data-close]');
   if (cancelBtn) closeModal(cancelBtn.dataset.close);
@@ -1733,7 +1783,7 @@ function renderEmojiPicker(containerId, emojis, selected, onChange) {
   const container = $(containerId);
   if (!container) return;
   container.innerHTML = emojis.map(em =>
-    `<span class="emoji-option ${em===selected?'selected':''}" data-em="${em}">${em}</span>`
+    `<span class="emoji-option ${em === selected ? 'selected' : ''}" data-em="${em}">${em}</span>`
   ).join('');
   container.querySelectorAll('.emoji-option').forEach(opt => {
     opt.addEventListener('click', () => {
@@ -1753,6 +1803,6 @@ waitForFirebase(() => initAuth());
 // PWA Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    navigator.serviceWorker.register('./sw.js').catch(() => { });
   });
 }

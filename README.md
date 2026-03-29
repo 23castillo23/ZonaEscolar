@@ -54,13 +54,15 @@ service cloud.firestore {
     function isAuth() {
       return request.auth != null;
     }
-
+    
+    // Función para saber si alguien es miembro (usada en chats, tareas, etc.)
     function isMember(groupId) {
       return isAuth() &&
         request.auth.token.email in
         get(/databases/$(database)/documents/ec_grupos/$(groupId)).data.miembros;
     }
-
+    
+    // Función para saber si el usuario actual es el administrador del grupo
     function isAdmin(groupId) {
       return isAuth() &&
         request.auth.uid ==
@@ -68,51 +70,76 @@ service cloud.firestore {
     }
 
     match /ec_users/{uid} {
-      allow read, write: if isAuth() && request.auth.uid == uid;
+      allow read: if isAuth();
+      allow write: if isAuth() && request.auth.uid == uid;
     }
 
+    // ─── 1. CORRECCIÓN: PERMITIR A LOS MIEMBROS VER SUS GRUPOS ───
     match /ec_grupos/{groupId} {
-      allow read: if isMember(groupId);
+      allow read: if isAuth() && request.auth.token.email in resource.data.miembros;
       allow create: if isAuth();
       allow update: if isAdmin(groupId);
       allow delete: if isAdmin(groupId);
     }
 
+    // ─── 2. PODERES DE ADMIN: FEED ───
     match /ec_feed/{docId} {
       allow read: if isMember(resource.data.groupId);
       allow create: if isMember(request.resource.data.groupId);
-      allow delete: if isAuth() && request.auth.uid == resource.data.authorUid;
+      allow update: if isMember(resource.data.groupId);
+      // El autor original O el administrador pueden borrar
+      allow delete: if isAuth() && (request.auth.uid == resource.data.authorUid || isAdmin(resource.data.groupId));
     }
+
     match /ec_chat/{docId} {
-      allow read, create: if isMember(request.resource.data.groupId);
+      allow read: if isMember(resource.data.groupId);
+      allow create: if isMember(request.resource.data.groupId);
     }
+
+    // ─── 3. PODERES DE ADMIN: TAREAS ───
     match /ec_tareas/{docId} {
       allow read, create: if isMember(request.resource.data.groupId);
-      allow update, delete: if isMember(resource.data.groupId);
+      allow update: if isMember(resource.data.groupId);
+      // Solo el administrador (y el autor) pueden borrar tareas
+      allow delete: if isAuth() && (request.auth.uid == resource.data.authorUid || isAdmin(resource.data.groupId));
     }
+
     match /ec_semestres/{docId} {
       allow read, create: if isMember(request.resource.data.groupId);
       allow delete: if isAdmin(resource.data.groupId);
     }
+
     match /ec_galerias/{docId} {
       allow read, create: if isMember(request.resource.data.groupId);
       allow delete: if isAdmin(resource.data.groupId);
     }
+
     match /ec_fotos/{docId} {
       allow read, create: if isMember(request.resource.data.groupId);
       allow delete: if isAdmin(resource.data.groupId);
     }
-    match /ec_muro_fotos/{docId} {
-      allow read, create: if isAuth();
-      allow delete: if isAuth() && request.auth.uid == resource.data.authorUid;
-    }
+
     match /ec_votaciones/{docId} {
       allow read: if isMember(resource.data.groupId);
       allow create: if isMember(request.resource.data.groupId);
       allow update: if isMember(resource.data.groupId);
+      allow delete: if isAdmin(resource.data.groupId);
     }
+
+    // ─── 4. PODERES DE ADMIN: MURO FOTOS ───
+    match /ec_muro_fotos/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.auth.uid == request.resource.data.authorUid;
+      // El autor original O el administrador del grupo pueden borrar fotos del muro
+      allow delete: if isAuth() && (request.auth.uid == resource.data.authorUid || isAdmin(resource.data.groupId));
+    }
+
+    // ─── 5. PODERES DE ADMIN: COMENTARIOS ───
     match /ec_comentarios/{docId} {
-      allow read, create: if isMember(request.resource.data.groupId);
+      allow read: if isMember(resource.data.groupId);
+      allow create: if isMember(request.resource.data.groupId);
+      // El autor original O el administrador pueden borrar comentarios
+      allow delete: if isAuth() && (request.auth.uid == resource.data.authorUid || isAdmin(resource.data.groupId));
     }
   }
 }
