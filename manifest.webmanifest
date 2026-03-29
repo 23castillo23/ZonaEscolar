@@ -1,6 +1,6 @@
 {
-  "name": "EduCircle",
-  "short_name": "EduCircle",
+  "name": "ZonaEscolar",
+  "short_name": "ZonaEscolar",
   "description": "Tu espacio escolar privado — apuntes, chat, tareas y dinámicas con tu grupo.",
   "start_url": "./",
   "display": "standalone",

@@ -3,12 +3,13 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#1a1a2e">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1a2e" id="metaThemeColor">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="EduCircle">
-  <title>EduCircle · Tu espacio escolar privado</title>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ZonaEscolar">
+  <title>ZonaEscolar · Tu espacio escolar privado</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.png" type="image/png">
   <link rel="apple-touch-icon" href="icons/icon.png">
@@ -28,8 +29,8 @@
     <div class="login-bg-orb orb3"></div>
     <div class="login-card">
       <div class="login-logo">
-        <span class="login-logo-icon">◎</span>
-        <span class="login-logo-text">EduCircle</span>
+        <span class="login-logo-icon">🏫</span>
+        <span class="login-logo-text">ZonaEscolar</span>
       </div>
       <h1 class="login-title">Tu espacio escolar privado</h1>
       <p class="login-subtitle">Apuntes, chat, tareas y dinámicas — todo con tu grupo.</p>
@@ -56,7 +57,7 @@
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <span class="sidebar-logo">◎ EduCircle</span>
+        <span class="sidebar-logo">🏫 ZonaEscolar</span>
         <button class="sidebar-close" id="sidebarClose">✕</button>
       </div>
 
@@ -71,6 +72,9 @@
       <nav class="sidebar-nav">
         <button class="nav-item active" data-section="feed">
           <span class="nav-icon">⚡</span> Feed
+        </button>
+        <button class="nav-item" data-section="muro">
+          <span class="nav-icon">🙋</span> Mi Muro
         </button>
         <button class="nav-item" data-section="apuntes">
           <span class="nav-icon">📸</span> Apuntes
@@ -109,8 +113,8 @@
         <button class="topbar-menu" id="topbarMenu">☰</button>
         <div class="topbar-title" id="topbarTitle">Feed</div>
         <div class="topbar-right">
-          <button class="btn-sm" id="btnInvitarCompa" style="margin-right: 10px;">+ Invitar compa</button>
-          
+          <button class="btn-sm" id="btnInvitarCompa" style="margin-right: 4px;"><span>+ Invitar</span></button>
+          <button class="btn-theme-toggle" id="btnThemeToggle" title="Cambiar tema">🌙</button>
           <span class="topbar-group-badge" id="topbarGroupBadge"></span>
           <img class="topbar-avatar" id="topbarAvatar" src="" alt="">
         </div>
@@ -119,8 +123,8 @@
       <!-- ── SECCIÓN: SIN GRUPO ── -->
       <section class="section active" id="sectionNoGroup">
         <div class="empty-hero">
-          <div class="empty-hero-icon">◎</div>
-          <h2 class="empty-hero-title">Bienvenido a EduCircle</h2>
+          <div class="empty-hero-icon">🏫</div>
+          <h2 class="empty-hero-title">Bienvenido a ZonaEscolar</h2>
           <p class="empty-hero-text">Aún no perteneces a ningún grupo.<br>Crea uno o pide al admin que te agregue.</p>
           <button class="btn-primary" id="btnCreateGroupEmpty">Crear mi primer grupo</button>
         </div>
@@ -135,10 +139,30 @@
           </div>
           <label class="compose-photo-btn" for="composePhoto" title="Subir foto">📷</label>
           <input type="file" id="composePhoto" accept="image/*" multiple style="display:none">
-          <button class="compose-send" id="composeSend">→</button>
+          <button class="compose-send" id="composeSend">➤</button>
         </div>
         <div class="feed-list" id="feedList">
           <div class="feed-loading">Cargando feed…</div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN: MI MURO ── -->
+      <section class="section" id="sectionMuro">
+        <div class="muro-header">
+          <img class="muro-avatar-large" id="muroAvatar" src="" alt="">
+          <div class="muro-user-info">
+            <div class="muro-user-name" id="muroNombre"></div>
+            <div class="muro-user-stats" id="muroStats">0 publicaciones</div>
+          </div>
+          <button class="btn-sm" id="btnMuroSubir">+ Foto</button>
+        </div>
+        <div class="muro-tabs">
+          <button class="muro-tab active" data-tab="fotos">📷 Fotos</button>
+          <button class="muro-tab" data-tab="publicaciones">⚡ Publicaciones</button>
+        </div>
+        <input type="file" id="muroFileInput" accept="image/*" multiple style="display:none">
+        <div id="muroContent">
+          <div class="muro-photos-grid" id="muroFotosGrid"></div>
         </div>
       </section>
 
@@ -182,8 +206,10 @@
           <div class="feed-loading">Conectando al chat…</div>
         </div>
         <div class="chat-compose">
-          <input type="text" class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" maxlength="500">
-          <button class="chat-send" id="chatSend">→</button>
+          <div class="chat-input-wrap">
+            <textarea class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" rows="1" maxlength="500"></textarea>
+          </div>
+          <button class="chat-send" id="chatSend">➤</button>
         </div>
       </section>
 
@@ -233,6 +259,26 @@
       </section>
 
     </div><!-- /main-content -->
+
+    <!-- BOTTOM NAV (solo móvil) -->
+    <nav class="bottom-nav" id="bottomNav">
+      <button class="bottom-nav-item active" data-section="feed">
+        <span class="bnav-icon">⚡</span>Feed
+      </button>
+      <button class="bottom-nav-item" data-section="muro">
+        <span class="bnav-icon">🙋</span>Muro
+      </button>
+      <button class="bottom-nav-item" data-section="chat">
+        <span class="bnav-icon">💬</span>Chat
+      </button>
+      <button class="bottom-nav-item" data-section="tareas">
+        <span class="bnav-icon">✅</span>Tareas
+      </button>
+      <button class="bottom-nav-item" data-section="dinamicas">
+        <span class="bnav-icon">🎮</span>Más
+      </button>
+    </nav>
+
   </div><!-- /appShell -->
 
   <!-- ══════════ MODALES ══════════ -->
@@ -244,11 +290,9 @@
       <h3 class="modal-title">Crear grupo privado</h3>
       <p class="modal-desc">Solo tú (el admin) podrás agregar miembros.</p>
       <label class="modal-label">Nombre del grupo</label>
-      <input type="text" id="nuevoGrupoNombre" class="modal-input" placeholder="Ej: Ingeniería 4to semestre"
-        maxlength="50">
+      <input type="text" id="nuevoGrupoNombre" class="modal-input" placeholder="Ej: Ingeniería 4to semestre" maxlength="50">
       <label class="modal-label">Descripción (opcional)</label>
-      <input type="text" id="nuevoGrupoDesc" class="modal-input" placeholder="Ej: Grupo cerrado del equipo azul"
-        maxlength="100">
+      <input type="text" id="nuevoGrupoDesc" class="modal-input" placeholder="Ej: Grupo cerrado del equipo azul" maxlength="100">
       <label class="modal-label">Icono</label>
       <div class="emoji-picker" id="grupoEmojiPicker"></div>
       <div class="modal-actions">
@@ -275,7 +319,7 @@
     </div>
   </div>
 
-  <!-- MODAL: NUEVO SEMESTRE (grupo de apuntes) -->
+  <!-- MODAL: NUEVO SEMESTRE -->
   <div class="modal-overlay" id="modalNuevoSemestre">
     <div class="modal-box">
       <button class="modal-close" data-close="modalNuevoSemestre">✕</button>
@@ -446,7 +490,7 @@
       messagingSenderId: "703801149606",
       appId: "1:703801149606:web:337730f2eba005ec424c67"
     };
-    
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = initializeFirestore(app, {
@@ -462,12 +506,10 @@
       GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
     };
     window._firebaseReady = true;
-
-    // Disparar evento cuando Firebase esté listo
     window.dispatchEvent(new Event('firebase-ready'));
   </script>
 
-  <script src="js/app.js?v=1"></script>
+  <script src="js/app.js?v=2"></script>
 </body>
 
 </html>

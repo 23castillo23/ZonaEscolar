@@ -1,7 +1,8 @@
 /**
- * EduCircle — app.js
- * Google Auth · Grupos privados · Feed · Chat · Tareas · Dinámicas
- * Cloudinary: dwjzn6n0a / preset: escolar_unsigned
+ * ZonaEscolar — app.js
+ * Google Auth · Grupos privados · Feed + Comentarios + Likes
+ * Chat · Tareas · Muro Personal · Apuntes · Dinámicas
+ * Cloudinary: dwjzn6n0a / preset: zonaescolar_unsigned
  */
 
 const CLOUDINARY_CLOUD = 'dwjzn6n0a';
@@ -10,16 +11,16 @@ const CLOUDINARY_PRESET = 'zonaescolar_unsigned';
 /* ═══════════════════════════════════════════════════
    ESTADO GLOBAL
 ═══════════════════════════════════════════════════ */
-let currentUser = null;   // { uid, email, name, avatar }
-let currentGroupId = null;   // grupo activo
-let currentGroupData = null;  // datos del grupo activo
-let isAdmin = false;  // ¿es admin del grupo?
+let currentUser = null;
+let currentGroupId = null;
+let currentGroupData = null;
+let isAdmin = false;
 
-let grupos = [];     // todos los grupos del usuario
-let semestres = [];     // semestres de apuntes
-let galerias = [];     // materias / galerías
-let galeriaActual = null;   // galería de apuntes abierta
-let apunteFiles = [];     // archivos pendientes de subir
+let grupos = [];
+let semestres = [];
+let galerias = [];
+let galeriaActual = null;
+let apunteFiles = [];
 
 let feedUnsub = null;
 let chatUnsub = null;
@@ -32,47 +33,75 @@ let tareasFilter = 'all';
 let lightboxPhotos = [];
 let lightboxIdx = 0;
 
-// Dinámicas locales
 let ruletaMiembros = [];
 let ruletaAngulo = 0;
 let ruletaSpinning = false;
-let triviaBanco = [];    // preguntas creadas
+let triviaBanco = [];
 let triviaIdx = 0;
 let triviaScore = 0;
 let puntosMarcador = [];
 
-const EMOJIS_SEMESTRE = ['📅', '📚', '🎓', '🌱', '☀️', '🍂', '❄️', '📖', '🏫', '✏️'];
-const EMOJIS_MATERIA = ['📐', '🔬', '🌍', '📊', '💻', '🎨', '⚗️', '📝', '🔢', '🎭', '📜', '🔭', '💡', '🧮', '🏋️'];
-const EMOJIS_GRUPO = ['👥', '🚀', '⭐', '🔥', '💎', '🌙', '🎯', '🏆', '🌈', '🎪'];
+const EMOJIS_SEMESTRE = ['📅','📚','🎓','🌱','☀️','🍂','❄️','📖','🏫','✏️'];
+const EMOJIS_MATERIA  = ['📐','🔬','🌍','📊','💻','🎨','⚗️','📝','🔢','🎭','📜','🔭','💡','🧮','🏋️'];
+const EMOJIS_GRUPO    = ['👥','🚀','⭐','🔥','💎','🌙','🎯','🏆','🌈','🎪'];
 
 /* ═══════════════════════════════════════════════════
    UTILIDADES
 ═══════════════════════════════════════════════════ */
 const $ = id => document.getElementById(id);
-const qs = (sel, ctx = document) => ctx.querySelector(sel);
+const qs  = (sel, ctx = document) => ctx.querySelector(sel);
 const qsa = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
 function escHtml(str) {
   return String(str || '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function fmtTime(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleString('es-MX', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
+  return d.toLocaleString('es-MX', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'short' });
 }
 function fmtTimeChat(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' });
+}
+function fmtDateChat(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const hoy = new Date();
+  if (d.toDateString() === hoy.toDateString()) return 'Hoy';
+  const ayer = new Date(hoy); ayer.setDate(ayer.getDate()-1);
+  if (d.toDateString() === ayer.toDateString()) return 'Ayer';
+  return d.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
 }
 function waitForFirebase(cb) {
   if (window._firebaseReady) { cb(); return; }
   window.addEventListener('firebase-ready', cb, { once: true });
 }
-function db() { return window._db; }
+function db()  { return window._db; }
 function lib() { return window._fbLib; }
+
+/* ═══════════════════════════════════════════════════
+   MODO OSCURO / CLARO
+═══════════════════════════════════════════════════ */
+function initTheme() {
+  const saved = localStorage.getItem('ze_theme') || 'dark';
+  applyTheme(saved);
+}
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
+  const btn = $('btnThemeToggle');
+  if (btn) btn.textContent = theme === 'light' ? '🌙' : '☀️';
+  const meta = $('metaThemeColor');
+  if (meta) meta.content = theme === 'light' ? '#ffffff' : '#1a1a2e';
+  localStorage.setItem('ze_theme', theme);
+}
+$('btnThemeToggle').addEventListener('click', () => {
+  const current = localStorage.getItem('ze_theme') || 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+});
 
 /* ═══════════════════════════════════════════════════
    AUTH
@@ -125,7 +154,7 @@ async function ensureUserDoc() {
       avatar: currentUser.avatar,
       updatedAt: lib().serverTimestamp()
     }, { merge: true });
-  } catch (_) { }
+  } catch (_) {}
 }
 
 function showLogin() {
@@ -135,24 +164,21 @@ function showLogin() {
 function showApp() {
   $('loginScreen').style.display = 'none';
   $('appShell').style.display = 'flex';
-  // Poblar avatares
-  [$('userAvatar'), $('topbarAvatar'), $('composeAvatar')].forEach(el => {
+  [$('userAvatar'), $('topbarAvatar'), $('composeAvatar'), $('muroAvatar')].forEach(el => {
     if (el) el.src = currentUser.avatar || '';
   });
   $('userName').textContent = currentUser.name;
   $('userRole').textContent = 'Miembro';
+  if ($('muroNombre')) $('muroNombre').textContent = currentUser.name;
 }
 
 /* ═══════════════════════════════════════════════════
    GRUPOS
 ═══════════════════════════════════════════════════ */
 async function loadGruposDelUsuario() {
-  // Escuchar grupos donde el usuario es miembro (por email) o admin (por uid)
   const { collection, query, onSnapshot, where } = lib();
-
   if (gruposUnsub) gruposUnsub();
 
-  // Escuchar grupos donde el usuario es miembro
   const q = query(
     collection(db(), 'ec_grupos'),
     where('miembros', 'array-contains', currentUser.email)
@@ -173,8 +199,8 @@ async function loadGruposDelUsuario() {
 function renderGroupSelector() {
   const sel = $('groupSelector');
   sel.innerHTML = grupos.map(g =>
-    `<option value="${g.id}" ${g.id === currentGroupId ? 'selected' : ''}>
-      ${escHtml(g.icon || '👥')} ${escHtml(g.name)}
+    `<option value="${g.id}" ${g.id === currentGroupId ? 'selected':''}>
+      ${escHtml(g.icon||'👥')} ${escHtml(g.name)}
     </option>`
   ).join('') || '<option value="">Sin grupos</option>';
 }
@@ -188,30 +214,28 @@ async function activarGrupo(groupId) {
   currentGroupData = grupos.find(g => g.id === groupId) || null;
   isAdmin = currentGroupData?.adminUid === currentUser.uid;
   $('userRole').textContent = isAdmin ? 'Admin' : 'Miembro';
-  $('topbarGroupBadge').textContent = currentGroupData ? `${currentGroupData.icon || '👥'} ${currentGroupData.name}` : '';
+  $('topbarGroupBadge').textContent = currentGroupData
+    ? `${currentGroupData.icon||'👥'} ${currentGroupData.name}` : '';
   renderGroupSelector();
-  // Reiniciar listeners
-  if (feedUnsub) { feedUnsub(); feedUnsub = null; }
-  if (chatUnsub) { chatUnsub(); chatUnsub = null; }
-  if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
-  // Activar sección actual
+  if (feedUnsub)  { feedUnsub();  feedUnsub  = null; }
+  if (chatUnsub)  { chatUnsub();  chatUnsub  = null; }
+  if (tareasUnsub){ tareasUnsub();tareasUnsub = null; }
   activarSeccion(currentSection);
 }
 
 /* ── CREAR GRUPO ── */
+let selectedGrupoEmoji = '👥';
 function openModalCrearGrupo() {
   renderEmojiPicker('grupoEmojiPicker', EMOJIS_GRUPO, '👥', em => selectedGrupoEmoji = em);
   selectedGrupoEmoji = '👥';
   openModal('modalCrearGrupo');
 }
-let selectedGrupoEmoji = '👥';
-
 $('btnCreateGroup').addEventListener('click', openModalCrearGrupo);
 $('btnCreateGroupEmpty').addEventListener('click', openModalCrearGrupo);
 
 $('btnConfirmarGrupo').addEventListener('click', async () => {
   const nombre = $('nuevoGrupoNombre').value.trim();
-  const desc = $('nuevoGrupoDesc').value.trim();
+  const desc   = $('nuevoGrupoDesc').value.trim();
   if (!nombre) { alert('Escribe el nombre del grupo.'); return; }
   const { collection, addDoc, serverTimestamp } = lib();
   try {
@@ -221,7 +245,7 @@ $('btnConfirmarGrupo').addEventListener('click', async () => {
       icon: selectedGrupoEmoji,
       adminUid: currentUser.uid,
       adminEmail: currentUser.email,
-      miembros: [currentUser.email],  // admin es miembro automático
+      miembros: [currentUser.email],
       createdAt: serverTimestamp()
     });
     closeModal('modalCrearGrupo');
@@ -232,15 +256,10 @@ $('btnConfirmarGrupo').addEventListener('click', async () => {
 });
 
 /* ── AGREGAR MIEMBRO ── */
+$('btnInvitarCompa').addEventListener('click', () => openModal('modalAgregarMiembro'));
 
-// 1. Este es el botón NUEVO que abre la ventanita:
-$('btnInvitarCompa').addEventListener('click', () => {
-  openModal('modalAgregarMiembro');
-});
-
-// 2. Este es TU código original que guarda los datos cuando le das a "Agregar":
 $('btnConfirmarMiembro').addEventListener('click', async () => {
-  const email = $('miembroEmail').value.trim().toLowerCase();
+  const email  = $('miembroEmail').value.trim().toLowerCase();
   const nombre = $('miembroNombre').value.trim();
   if (!email || !nombre) { alert('Completa el correo y nombre.'); return; }
   if (!currentGroupId) return;
@@ -248,7 +267,7 @@ $('btnConfirmarMiembro').addEventListener('click', async () => {
   try {
     await updateDoc(doc(db(), 'ec_grupos', currentGroupId), {
       miembros: arrayUnion(email),
-      [`miembroNombres.${email.replace(/\./g, '_')}`]: nombre
+      [`miembroNombres.${email.replace(/\./g,'_')}`]: nombre
     });
     closeModal('modalAgregarMiembro');
     $('miembroEmail').value = '';
@@ -260,38 +279,55 @@ $('btnConfirmarMiembro').addEventListener('click', async () => {
 /* ═══════════════════════════════════════════════════
    NAVEGACIÓN
 ═══════════════════════════════════════════════════ */
+const sectionTitles = {
+  feed:'Feed', muro:'Mi Muro', apuntes:'Apuntes',
+  chat:'Chat', tareas:'Tareas', dinamicas:'Dinámicas'
+};
+
+function setActiveNav(section) {
+  // Sidebar nav
+  qsa('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.section === section));
+  // Bottom nav
+  qsa('.bottom-nav-item').forEach(b => b.classList.toggle('active', b.dataset.section === section));
+  $('topbarTitle').textContent = sectionTitles[section] || 'ZonaEscolar';
+}
+
 qsa('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     const section = btn.dataset.section;
     currentSection = section;
-    qsa('.nav-item').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const titles = { feed: 'Feed', apuntes: 'Apuntes', chat: 'Chat', tareas: 'Tareas', dinamicas: 'Dinámicas' };
-    $('topbarTitle').textContent = titles[section] || 'EduCircle';
+    setActiveNav(section);
     activarSeccion(section);
     closeSidebar();
+  });
+});
+
+qsa('.bottom-nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const section = btn.dataset.section;
+    currentSection = section;
+    setActiveNav(section);
+    activarSeccion(section);
   });
 });
 
 function activarSeccion(section) {
   if (!currentGroupId) { showSection('noGroup'); return; }
   showSection(section);
-  if (section === 'feed') initFeed();
-  if (section === 'chat') initChat();
-  if (section === 'tareas') initTareas();
-  if (section === 'apuntes') initApuntes();
-  if (section === 'dinamicas') initDinamicas();
+  if (section === 'feed')     initFeed();
+  if (section === 'chat')     initChat();
+  if (section === 'tareas')   initTareas();
+  if (section === 'apuntes')  initApuntes();
+  if (section === 'dinamicas')initDinamicas();
+  if (section === 'muro')     initMuro();
 }
 
 function showSection(name) {
   qsa('.section').forEach(s => s.classList.remove('active'));
   const map = {
-    noGroup: 'sectionNoGroup',
-    feed: 'sectionFeed',
-    apuntes: 'sectionApuntes',
-    chat: 'sectionChat',
-    tareas: 'sectionTareas',
-    dinamicas: 'sectionDinamicas'
+    noGroup:'sectionNoGroup', feed:'sectionFeed', muro:'sectionMuro',
+    apuntes:'sectionApuntes', chat:'sectionChat',
+    tareas:'sectionTareas', dinamicas:'sectionDinamicas'
   };
   const el = $(map[name]);
   if (el) el.classList.add('active');
@@ -315,12 +351,12 @@ function closeSidebar() {
    FEED
 ═══════════════════════════════════════════════════ */
 function initFeed() {
-  if (feedUnsub) return; // ya activo
+  if (feedUnsub) return;
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_feed'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'desc'),
+    where('groupId','==', currentGroupId),
+    orderBy('createdAt','desc'),
     limit(40)
   );
   $('feedList').innerHTML = '<div class="feed-loading">Cargando…</div>';
@@ -337,32 +373,71 @@ function renderFeed(posts) {
     return;
   }
   $('feedList').innerHTML = posts.map(p => buildFeedCard(p)).join('');
-  // Ligar likes
   qsa('.feed-action-btn[data-like]').forEach(btn => {
     btn.addEventListener('click', () => toggleFeedLike(btn.dataset.like, btn));
   });
-  // Ligar imágenes de feed para lightbox
-  qsa('.feed-card-img, .feed-card-images-grid img').forEach((img, i) => {
+  qsa('.feed-card-img, .feed-card-images-grid img').forEach(img => {
     img.addEventListener('click', () => openLightboxFeed(img));
+  });
+  // Cargar comentarios expandidos
+  qsa('.feed-comments-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const postId = btn.dataset.post;
+      const section = btn.closest('.feed-card')?.querySelector('.feed-comments-section');
+      if (!section) return;
+      const isOpen = section.dataset.open === '1';
+      if (!isOpen) {
+        loadComments(postId, section);
+        section.dataset.open = '1';
+        btn.textContent = 'Ocultar comentarios';
+      } else {
+        section.dataset.open = '0';
+        btn.textContent = `Ver comentarios`;
+        const list = section.querySelector('.feed-comments-list');
+        if (list) list.innerHTML = '';
+      }
+    });
+  });
+  // Enviar comentario
+  qsa('.feed-comment-send').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const postId = btn.dataset.post;
+      const input  = btn.previousElementSibling;
+      enviarComentario(postId, input);
+    });
+  });
+  qsa('.feed-comment-input').forEach(inp => {
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const btn = inp.nextElementSibling;
+        const postId = btn.dataset.post;
+        enviarComentario(postId, inp);
+      }
+    });
   });
 }
 
 function buildFeedCard(p) {
   const isMine = p.authorUid === currentUser.uid;
-  const badgeTipo = p.type === 'foto' ? 'badge-foto' : (p.type === 'tarea' ? 'badge-tarea' : 'badge-texto');
+  const badgeTipo  = p.type === 'foto' ? 'badge-foto' : (p.type === 'tarea' ? 'badge-tarea' : 'badge-texto');
   const badgeLabel = p.type === 'foto' ? '📷 Foto' : (p.type === 'tarea' ? '✅ Tarea' : '💬 Texto');
   let imgHtml = '';
   if (p.images && p.images.length > 0) {
     const cls = `count-${Math.min(p.images.length, 3)}`;
     imgHtml = `<div class="feed-card-images-grid ${cls}">
-      ${p.images.slice(0, 3).map(url => `<img src="${escHtml(url)}" loading="lazy" alt="">`).join('')}
+      ${p.images.slice(0,3).map(url => `<img src="${escHtml(url)}" loading="lazy" alt="" class="feed-card-img">`).join('')}
     </div>`;
   }
+  const likeCount    = p.likes || 0;
+  const commentCount = p.commentCount || 0;
+  const isLiked      = p.likedBy?.includes(currentUser.uid);
+
   return `<div class="feed-card">
     <div class="feed-card-header">
-      <img class="feed-card-avatar" src="${escHtml(p.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
+      <img class="feed-card-avatar" src="${escHtml(p.authorAvatar||'')}" alt="" onerror="this.style.display='none'">
       <div class="feed-card-meta">
-        <div class="feed-card-author">${escHtml(p.authorName || 'Anónimo')}</div>
+        <div class="feed-card-author">${escHtml(p.authorName||'Anónimo')}</div>
         <div class="feed-card-time">${fmtTime(p.createdAt)}</div>
       </div>
       <span class="feed-card-type-badge ${badgeTipo}">${badgeLabel}</span>
@@ -370,19 +445,74 @@ function buildFeedCard(p) {
     ${p.text ? `<div class="feed-card-body"><p class="feed-card-text">${escHtml(p.text)}</p></div>` : ''}
     ${imgHtml}
     <div class="feed-card-actions">
-      <button class="feed-action-btn ${p.likedBy?.includes(currentUser.uid) ? 'liked' : ''}" data-like="${p.id}">
-        <span>${p.likedBy?.includes(currentUser.uid) ? '❤️' : '🤍'}</span> ${p.likes || 0}
+      <button class="feed-action-btn ${isLiked?'liked':''}" data-like="${p.id}">
+        <span>${isLiked?'❤️':'🤍'}</span> ${likeCount}
       </button>
-      ${isMine ? `<button class="feed-action-btn" onclick="eliminarPost('${p.id}')"><span>🗑️</span></button>` : ''}
+      <button class="feed-comments-toggle" data-post="${p.id}">
+        💬 ${commentCount > 0 ? commentCount + ' comentario' + (commentCount>1?'s':'') : 'Comentar'}
+      </button>
+      ${isMine ? `<button class="feed-action-btn" style="margin-left:auto" onclick="eliminarPost('${p.id}')"><span>🗑️</span></button>` : ''}
+    </div>
+    <div class="feed-comments-section" data-open="0">
+      <div class="feed-comments-list"></div>
+      <div class="feed-comment-compose">
+        <img class="feed-comment-avatar" src="${escHtml(currentUser.avatar||'')}" alt="" onerror="this.style.display='none'">
+        <input type="text" class="feed-comment-input" placeholder="Escribe un comentario…" maxlength="300">
+        <button class="feed-comment-send" data-post="${p.id}">➤</button>
+      </div>
     </div>
   </div>`;
+}
+
+function loadComments(postId, sectionEl) {
+  const { collection, query, where, orderBy, onSnapshot } = lib();
+  const q = query(
+    collection(db(), 'ec_comentarios'),
+    where('postId','==', postId),
+    orderBy('createdAt','asc')
+  );
+  const list = sectionEl.querySelector('.feed-comments-list');
+  onSnapshot(q, snap => {
+    const comments = [];
+    snap.forEach(d => comments.push({ id: d.id, ...d.data() }));
+    list.innerHTML = comments.map(c => `
+      <div class="feed-comment-item">
+        <img class="feed-comment-avatar" src="${escHtml(c.authorAvatar||'')}" alt="" onerror="this.style.display='none'">
+        <div class="feed-comment-bubble">
+          <div class="feed-comment-author">${escHtml(c.authorName||'Anónimo')}</div>
+          <div class="feed-comment-text">${escHtml(c.text)}</div>
+          <div class="feed-comment-time">${fmtTime(c.createdAt)}</div>
+        </div>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--text3);padding:4px 0">Sé el primero en comentar.</div>';
+  });
+}
+
+async function enviarComentario(postId, inputEl) {
+  const text = inputEl.value.trim();
+  if (!text) return;
+  inputEl.value = '';
+  const { collection, addDoc, serverTimestamp, doc, updateDoc, increment } = lib();
+  try {
+    await addDoc(collection(db(), 'ec_comentarios'), {
+      postId,
+      groupId: currentGroupId,
+      text,
+      authorUid: currentUser.uid,
+      authorName: currentUser.name,
+      authorAvatar: currentUser.avatar,
+      createdAt: serverTimestamp()
+    });
+    // Incrementar contador en el post
+    await updateDoc(doc(db(), 'ec_feed', postId), {
+      commentCount: increment(1)
+    });
+  } catch (e) { console.error(e); }
 }
 
 async function toggleFeedLike(postId, btn) {
   const { doc, updateDoc, arrayUnion, arrayRemove, increment } = lib();
   const uid = currentUser.uid;
-  const likedEl = btn;
-  const isLiked = likedEl.classList.contains('liked');
+  const isLiked = btn.classList.contains('liked');
   try {
     await updateDoc(doc(db(), 'ec_feed', postId), {
       likedBy: isLiked ? arrayRemove(uid) : arrayUnion(uid),
@@ -391,7 +521,7 @@ async function toggleFeedLike(postId, btn) {
   } catch (e) { console.error(e); }
 }
 
-window.eliminarPost = async function (postId) {
+window.eliminarPost = async function(postId) {
   if (!confirm('¿Eliminar esta publicación?')) return;
   const { doc, deleteDoc } = lib();
   await deleteDoc(doc(db(), 'ec_feed', postId));
@@ -407,10 +537,8 @@ $('composeSend').addEventListener('click', async () => {
   const text = $('composeInput').value.trim();
   if (!text && !composeFiles.length) return;
   if (!currentGroupId) return;
-
   $('composeSend').disabled = true;
   const { collection, addDoc, serverTimestamp } = lib();
-
   let images = [];
   if (composeFiles.length) {
     images = await Promise.all(composeFiles.map(f => uploadToCloudinary(f)));
@@ -418,18 +546,18 @@ $('composeSend').addEventListener('click', async () => {
     composeFiles = [];
     $('composePhoto').value = '';
   }
-
   try {
     await addDoc(collection(db(), 'ec_feed'), {
       groupId: currentGroupId,
       text: text || '',
-      images: images,
+      images,
       type: images.length ? 'foto' : 'texto',
       authorUid: currentUser.uid,
       authorName: currentUser.name,
       authorAvatar: currentUser.avatar,
       likes: 0,
       likedBy: [],
+      commentCount: 0,
       createdAt: serverTimestamp()
     });
     $('composeInput').value = '';
@@ -442,6 +570,118 @@ $('composeInput').addEventListener('keydown', e => {
 });
 
 /* ═══════════════════════════════════════════════════
+   MURO PERSONAL
+═══════════════════════════════════════════════════ */
+function initMuro() {
+  if ($('muroAvatar'))  $('muroAvatar').src  = currentUser.avatar || '';
+  if ($('muroNombre')) $('muroNombre').textContent = currentUser.name;
+  cargarMuroFotos();
+  cargarMuroStats();
+}
+
+function cargarMuroStats() {
+  const { collection, query, where, getDocs } = lib();
+  const qFotos = query(collection(db(),'ec_muro_fotos'), where('authorUid','==',currentUser.uid));
+  getDocs(qFotos).then(snap => {
+    if ($('muroStats')) $('muroStats').textContent = `${snap.size} foto${snap.size!==1?'s':''}`;
+  }).catch(() => {});
+}
+
+function cargarMuroFotos() {
+  const { collection, query, where, orderBy, onSnapshot } = lib();
+  const q = query(
+    collection(db(), 'ec_muro_fotos'),
+    where('authorUid','==', currentUser.uid),
+    orderBy('createdAt','desc')
+  );
+  const grid = $('muroFotosGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="feed-loading" style="grid-column:1/-1">Cargando fotos…</div>';
+  onSnapshot(q, snap => {
+    const fotos = [];
+    snap.forEach(d => fotos.push({ id: d.id, ...d.data() }));
+    lightboxPhotos = fotos;
+    if (!fotos.length) {
+      grid.innerHTML = `<div class="feed-loading" style="grid-column:1/-1;padding:30px">
+        No has subido fotos todavía.<br>
+        <span style="font-size:12px;color:var(--text3)">Usa el botón "+ Foto" para subir al muro.</span>
+      </div>`;
+      return;
+    }
+    grid.innerHTML = fotos.map((f, i) => `
+      <div class="muro-photo-thumb" onclick="openLightbox(${i})">
+        <img src="${escHtml(f.url)}" loading="lazy" alt="">
+      </div>`).join('');
+    if ($('muroStats')) $('muroStats').textContent = `${fotos.length} foto${fotos.length!==1?'s':''}`;
+  });
+}
+
+// Subir foto al muro
+$('btnMuroSubir').addEventListener('click', () => $('muroFileInput').click());
+$('muroFileInput').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  if (!files.length) return;
+  $('btnMuroSubir').disabled = true;
+  $('btnMuroSubir').textContent = '⏳';
+  const { collection, addDoc, serverTimestamp } = lib();
+  for (const file of files) {
+    const url = await uploadToCloudinary(file);
+    if (url) {
+      await addDoc(collection(db(), 'ec_muro_fotos'), {
+        url,
+        authorUid: currentUser.uid,
+        authorName: currentUser.name,
+        authorAvatar: currentUser.avatar,
+        groupId: currentGroupId,
+        createdAt: serverTimestamp()
+      });
+    }
+  }
+  $('btnMuroSubir').disabled = false;
+  $('btnMuroSubir').textContent = '+ Foto';
+  $('muroFileInput').value = '';
+});
+
+// Tabs del muro
+qsa('.muro-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    qsa('.muro-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const tipo = tab.dataset.tab;
+    const content = $('muroContent');
+    if (tipo === 'fotos') {
+      content.innerHTML = `<div class="muro-photos-grid" id="muroFotosGrid"></div>`;
+      cargarMuroFotos();
+    } else {
+      content.innerHTML = `<div class="feed-list" id="muroPostsList"><div class="feed-loading">Cargando…</div></div>`;
+      cargarMuroPublicaciones();
+    }
+  });
+});
+
+function cargarMuroPublicaciones() {
+  const { collection, query, where, orderBy, limit, onSnapshot } = lib();
+  const q = query(
+    collection(db(), 'ec_feed'),
+    where('authorUid','==', currentUser.uid),
+    where('groupId','==', currentGroupId),
+    orderBy('createdAt','desc'),
+    limit(20)
+  );
+  const list = $('muroPostsList');
+  if (!list) return;
+  onSnapshot(q, snap => {
+    const posts = [];
+    snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
+    if (!posts.length) {
+      list.innerHTML = '<div class="feed-loading">Aún no tienes publicaciones en este grupo.</div>';
+      return;
+    }
+    list.innerHTML = posts.map(p => buildFeedCard(p)).join('');
+  });
+}
+
+/* ═══════════════════════════════════════════════════
    CHAT
 ═══════════════════════════════════════════════════ */
 function initChat() {
@@ -449,8 +689,8 @@ function initChat() {
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_chat'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'asc'),
+    where('groupId','==', currentGroupId),
+    orderBy('createdAt','asc'),
     limit(80)
   );
   $('chatMessages').innerHTML = '<div class="feed-loading">Conectando…</div>';
@@ -466,25 +706,37 @@ function renderChat(msgs) {
     $('chatMessages').innerHTML = '<div class="feed-loading">Aún no hay mensajes. ¡Rompe el hielo! 👋</div>';
     return;
   }
-  $('chatMessages').innerHTML = msgs.map(m => {
+
+  let html = '';
+  let lastDate = '';
+
+  msgs.forEach(m => {
     const mine = m.authorUid === currentUser.uid;
-    return `<div class="chat-msg ${mine ? 'mine' : ''}">
-      <img class="chat-msg-avatar" src="${escHtml(m.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
+    const msgDate = m.createdAt ? fmtDateChat(m.createdAt) : '';
+    if (msgDate && msgDate !== lastDate) {
+      html += `<div class="chat-date-divider"><span>${escHtml(msgDate)}</span></div>`;
+      lastDate = msgDate;
+    }
+    html += `<div class="chat-msg ${mine ? 'mine' : ''}">
+      <img class="chat-msg-avatar" src="${escHtml(m.authorAvatar||'')}" alt="" onerror="this.style.display='none'">
       <div class="chat-msg-wrap">
         ${!mine ? `<div class="chat-msg-author">${escHtml(m.authorName)}</div>` : ''}
         <div class="chat-msg-bubble">${escHtml(m.text)}</div>
         <div class="chat-msg-time">${fmtTimeChat(m.createdAt)}</div>
       </div>
     </div>`;
-  }).join('');
+  });
+
+  $('chatMessages').innerHTML = html;
   $('chatMessages').scrollTop = $('chatMessages').scrollHeight;
 }
 
 async function enviarMensaje() {
   const input = $('chatInput');
-  const text = input.value.trim();
+  const text  = input.value.trim();
   if (!text || !currentGroupId) return;
   input.value = '';
+  input.style.height = 'auto';
   const { collection, addDoc, serverTimestamp } = lib();
   await addDoc(collection(db(), 'ec_chat'), {
     groupId: currentGroupId,
@@ -501,6 +753,12 @@ $('chatInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensaje(); }
 });
 
+// Auto-resize textarea del chat
+$('chatInput').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+});
+
 /* ═══════════════════════════════════════════════════
    TAREAS
 ═══════════════════════════════════════════════════ */
@@ -509,8 +767,8 @@ function initTareas() {
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_tareas'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'desc')
+    where('groupId','==', currentGroupId),
+    orderBy('createdAt','desc')
   );
   $('tareasList').innerHTML = '<div class="feed-loading">Cargando…</div>';
   tareasUnsub = onSnapshot(q, snap => {
@@ -523,25 +781,24 @@ function initTareas() {
 function renderTareas(tareas) {
   let filtradas = tareas;
   if (tareasFilter === 'pending') filtradas = tareas.filter(t => !t.done);
-  if (tareasFilter === 'done') filtradas = tareas.filter(t => t.done);
+  if (tareasFilter === 'done')    filtradas = tareas.filter(t =>  t.done);
 
   if (!filtradas.length) {
     $('tareasList').innerHTML = '<div class="feed-loading">No hay tareas aquí.</div>';
     return;
   }
-
   const now = new Date();
   $('tareasList').innerHTML = filtradas.map(t => {
-    const vence = t.fecha ? new Date(t.fecha) : null;
+    const vence  = t.fecha ? new Date(t.fecha) : null;
     const vencida = vence && vence < now && !t.done;
     return `<div class="tarea-card ${t.done ? 'done' : ''}">
-      <button class="tarea-check ${t.done ? 'checked' : ''}" onclick="toggleTarea('${t.id}', ${!t.done})">${t.done ? '✓' : ''}</button>
+      <button class="tarea-check ${t.done ? 'checked' : ''}" onclick="toggleTarea('${t.id}',${!t.done})">${t.done ? '✓' : ''}</button>
       <div class="tarea-body">
         <div class="tarea-titulo">${escHtml(t.titulo)}</div>
         ${t.desc ? `<div class="tarea-desc">${escHtml(t.desc)}</div>` : ''}
         <div class="tarea-meta">
           ${t.responsable ? `<span class="tarea-badge badge-responsable">👤 ${escHtml(t.responsable)}</span>` : ''}
-          ${t.materia ? `<span class="tarea-badge badge-materia">📖 ${escHtml(t.materia)}</span>` : ''}
+          ${t.materia     ? `<span class="tarea-badge badge-materia">📖 ${escHtml(t.materia)}</span>` : ''}
           ${vence ? `<span class="tarea-badge badge-fecha ${vencida ? 'vencida' : ''}">
             ${vencida ? '⚠️' : '📅'} ${vence.toLocaleDateString('es-MX')}
           </span>` : ''}
@@ -552,23 +809,21 @@ function renderTareas(tareas) {
   }).join('');
 }
 
-window.toggleTarea = async function (id, done) {
+window.toggleTarea = async function(id, done) {
   const { doc, updateDoc } = lib();
   await updateDoc(doc(db(), 'ec_tareas', id), { done });
 };
-window.eliminarTarea = async function (id) {
+window.eliminarTarea = async function(id) {
   if (!confirm('¿Eliminar tarea?')) return;
   const { doc, deleteDoc } = lib();
   await deleteDoc(doc(db(), 'ec_tareas', id));
 };
 
-// Filtros de tarea
 qsa('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     tareasFilter = btn.dataset.filter;
     qsa('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    // Re-renderizar con los datos actuales
     if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
     initTareas();
   });
@@ -593,25 +848,23 @@ $('btnConfirmarTarea').addEventListener('click', async () => {
       createdAt: serverTimestamp()
     };
     await addDoc(collection(db(), 'ec_tareas'), tarea);
-    // Publicar en feed automáticamente
     await addDoc(collection(db(), 'ec_feed'), {
       groupId: currentGroupId,
       text: `📋 Nueva tarea: "${titulo}"${tarea.responsable ? ` · Responsable: ${tarea.responsable}` : ''}${tarea.fecha ? ` · Fecha: ${new Date(tarea.fecha).toLocaleDateString('es-MX')}` : ''}`,
-      type: 'tarea',
-      images: [],
+      type: 'tarea', images: [],
       authorUid: currentUser.uid,
       authorName: currentUser.name,
       authorAvatar: currentUser.avatar,
-      likes: 0, likedBy: [],
+      likes: 0, likedBy: [], commentCount: 0,
       createdAt: serverTimestamp()
     });
     closeModal('modalNuevaTarea');
-    ['tareaTitulo', 'tareaDesc', 'tareaResponsable', 'tareaFecha', 'tareaMateria'].forEach(id => $(id).value = '');
+    ['tareaTitulo','tareaDesc','tareaResponsable','tareaFecha','tareaMateria'].forEach(id => $(id).value = '');
   } catch (e) { alert('Error: ' + e.message); }
 });
 
 /* ═══════════════════════════════════════════════════
-   APUNTES (heredado de FotoApuntes, adaptado a grupos)
+   APUNTES
 ═══════════════════════════════════════════════════ */
 function initApuntes() {
   loadSemestres();
@@ -622,8 +875,8 @@ function loadSemestres() {
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_semestres'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'asc')
+    where('groupId','==', currentGroupId),
+    orderBy('createdAt','asc')
   );
   onSnapshot(q, snap => {
     semestres = [];
@@ -636,8 +889,8 @@ function loadGalerias() {
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_galerias'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'asc')
+    where('groupId','==', currentGroupId),
+    orderBy('createdAt','asc')
   );
   onSnapshot(q, snap => {
     galerias = [];
@@ -658,7 +911,7 @@ function renderSemestres() {
     const mats = galerias.filter(g => g.semestreId === sem.id);
     return `<div class="semestre-group" id="sem-${sem.id}">
       <div class="semestre-header" onclick="toggleSemestre('${sem.id}')">
-        <span class="semestre-icon">${escHtml(sem.icon || '📅')}</span>
+        <span class="semestre-icon">${escHtml(sem.icon||'📅')}</span>
         <span class="semestre-name">${escHtml(sem.name)}</span>
         <span class="semestre-toggle">›</span>
       </div>
@@ -673,10 +926,10 @@ function renderSemestres() {
   }).join('');
 }
 
-window.toggleSemestre = function (id) {
+window.toggleSemestre = function(id) {
   const grup = $('sem-' + id);
   const grid = grup?.querySelector('.materias-grid');
-  const tog = grup?.querySelector('.semestre-toggle');
+  const tog  = grup?.querySelector('.semestre-toggle');
   if (!grid) return;
   const open = grid.style.display !== 'none';
   grid.style.display = open ? 'none' : 'grid';
@@ -686,15 +939,15 @@ window.toggleSemestre = function (id) {
 function buildMateriaCard(m) {
   return `<div class="materia-card" onclick="abrirGaleria('${m.id}')">
     ${m.coverImage ? `<img class="materia-card-cover" src="${escHtml(m.coverImage)}" alt="">` : ''}
-    <div class="materia-card-icon">${escHtml(m.icon || '📚')}</div>
+    <div class="materia-card-icon">${escHtml(m.icon||'📚')}</div>
     <div class="materia-card-name">${escHtml(m.name)}</div>
   </div>`;
 }
 
-window.abrirGaleria = function (galeriaId) {
+window.abrirGaleria = function(galeriaId) {
   galeriaActual = galerias.find(g => g.id === galeriaId);
   if (!galeriaActual) return;
-  $('galeriaTitle').textContent = `${galeriaActual.icon || '📚'} ${galeriaActual.name}`;
+  $('galeriaTitle').textContent = `${galeriaActual.icon||'📚'} ${galeriaActual.name}`;
   $('apuntesGroupsContainer').style.display = 'none';
   $('apuntesGaleriaView').style.display = 'block';
   $('apuntesUploadZone').style.display = 'none';
@@ -705,8 +958,8 @@ function cargarFotosGaleria() {
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_fotos'),
-    where('galeriaId', '==', galeriaActual.id),
-    orderBy('createdAt', 'desc')
+    where('galeriaId','==', galeriaActual.id),
+    orderBy('createdAt','desc')
   );
   const grid = $('apuntesGrid');
   grid.innerHTML = '<div class="feed-loading">Cargando fotos…</div>';
@@ -728,7 +981,7 @@ function renderFotosGaleria(fotos) {
     <div class="photo-thumb" onclick="openLightbox(${i})">
       <img src="${escHtml(f.url)}" loading="lazy" alt="">
       <div class="photo-thumb-overlay">
-        <span class="photo-thumb-caption">${escHtml(f.caption || '')}</span>
+        <span class="photo-thumb-caption">${escHtml(f.caption||'')}</span>
       </div>
     </div>`).join('');
 }
@@ -738,23 +991,19 @@ $('btnApuntesBack').addEventListener('click', () => {
   $('apuntesGroupsContainer').style.display = 'block';
   $('apuntesGaleriaView').style.display = 'none';
 });
-
 $('btnUploadApunte').addEventListener('click', () => {
   const zone = $('apuntesUploadZone');
   zone.style.display = zone.style.display === 'none' ? 'block' : 'none';
 });
 
 function setupApunteUpload() {
-  $('apunteFileInput').addEventListener('change', e => {
+  const onChange = e => {
     apunteFiles = [...e.target.files];
     renderApuntePreview();
     $('btnApunteSend').disabled = !apunteFiles.length;
-  });
-  $('apunteCameraInput').addEventListener('change', e => {
-    apunteFiles = [...e.target.files];
-    renderApuntePreview();
-    $('btnApunteSend').disabled = !apunteFiles.length;
-  });
+  };
+  $('apunteFileInput').addEventListener('change', onChange);
+  $('apunteCameraInput').addEventListener('change', onChange);
 
   $('btnApunteSend').addEventListener('click', async () => {
     if (!apunteFiles.length || !galeriaActual) return;
@@ -768,33 +1017,33 @@ function setupApunteUpload() {
         await addDoc(collection(db(), 'ec_fotos'), {
           galeriaId: galeriaActual.id,
           groupId: currentGroupId,
-          url,
-          caption,
+          url, caption,
           authorUid: currentUser.uid,
           authorName: currentUser.name,
           createdAt: serverTimestamp()
         });
-        // Publicar en feed
         await addDoc(collection(db(), 'ec_feed'), {
           groupId: currentGroupId,
-          text: `Subió fotos de ${galeriaActual.icon || '📚'} ${galeriaActual.name}${caption ? `: ${caption}` : ''}`,
-          type: 'foto',
-          images: [url],
+          text: `Subió fotos de ${galeriaActual.icon||'📚'} ${galeriaActual.name}${caption ? `: ${caption}` : ''}`,
+          type: 'foto', images: [url],
           authorUid: currentUser.uid,
           authorName: currentUser.name,
           authorAvatar: currentUser.avatar,
-          likes: 0, likedBy: [],
+          likes: 0, likedBy: [], commentCount: 0,
           createdAt: serverTimestamp()
         });
       }
       done++;
-      $('apunteProgressBar').style.width = `${Math.round(done / apunteFiles.length * 100)}%`;
+      $('apunteProgressBar').style.width = `${Math.round(done/apunteFiles.length*100)}%`;
     }
     apunteFiles = [];
     $('apuntePreviewList').innerHTML = '';
     $('apunteCaption').value = '';
     $('btnApunteSend').disabled = true;
-    setTimeout(() => { $('apunteProgress').style.display = 'none'; $('apunteProgressBar').style.width = '0%'; }, 800);
+    setTimeout(() => {
+      $('apunteProgress').style.display = 'none';
+      $('apunteProgressBar').style.width = '0%';
+    }, 800);
   });
 }
 
@@ -807,7 +1056,7 @@ function renderApuntePreview() {
 
 /* ── MODALES APUNTES ── */
 let selectedSemestreEmoji = '📅';
-let selectedMateriaEmoji = '📚';
+let selectedMateriaEmoji  = '📚';
 
 $('btnNewSubjectGroup').addEventListener('click', () => {
   renderEmojiPicker('semestreEmojiPicker', EMOJIS_SEMESTRE, '📅', em => selectedSemestreEmoji = em);
@@ -820,37 +1069,36 @@ $('btnConfirmarSemestre').addEventListener('click', async () => {
   if (!nombre) { alert('Escribe el nombre.'); return; }
   const { collection, addDoc, serverTimestamp } = lib();
   await addDoc(collection(db(), 'ec_semestres'), {
-    name: nombre,
-    icon: selectedSemestreEmoji,
-    groupId: currentGroupId,
-    createdAt: serverTimestamp()
+    name: nombre, icon: selectedSemestreEmoji,
+    groupId: currentGroupId, createdAt: serverTimestamp()
   });
   closeModal('modalNuevoSemestre');
   $('semestreNombre').value = '';
 });
 
 $('btnNewMateria').addEventListener('click', () => openNewMateriaModal(''));
-window.openNewMateriaModal = function (semestreId) {
+window.openNewMateriaModal = function(semestreId) {
   renderEmojiPicker('materiaEmojiPicker', EMOJIS_MATERIA, '📚', em => selectedMateriaEmoji = em);
   selectedMateriaEmoji = '📚';
   $('materiaSemestreSelect').innerHTML =
     `<option value="">Sin semestre</option>` +
-    semestres.map(s => `<option value="${s.id}" ${s.id === semestreId ? 'selected' : ''}>${escHtml(s.icon || '📅')} ${escHtml(s.name)}</option>`).join('');
+    semestres.map(s => `<option value="${s.id}" ${s.id===semestreId?'selected':''}>
+      ${escHtml(s.icon||'📅')} ${escHtml(s.name)}
+    </option>`).join('');
   openModal('modalNuevaMateria');
 };
 
 $('btnConfirmarMateria').addEventListener('click', async () => {
   const nombre = $('materiaNombre').value.trim();
   if (!nombre) { alert('Escribe el nombre de la materia.'); return; }
-  const tag = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  const tag = nombre.toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
   const { collection, addDoc, serverTimestamp } = lib();
   await addDoc(collection(db(), 'ec_galerias'), {
-    name: nombre,
-    icon: selectedMateriaEmoji,
+    name: nombre, icon: selectedMateriaEmoji,
     semestreId: $('materiaSemestreSelect').value || '',
     cloudinaryTag: `ec_${tag}_${currentGroupId.slice(-6)}`,
-    groupId: currentGroupId,
-    coverImage: '',
+    groupId: currentGroupId, coverImage: '',
     createdAt: serverTimestamp()
   });
   closeModal('modalNuevaMateria');
@@ -866,7 +1114,7 @@ async function uploadToCloudinary(file, tag = '') {
   fd.append('upload_preset', CLOUDINARY_PRESET);
   if (tag) fd.append('tags', tag);
   try {
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
       method: 'POST', body: fd
     });
     const data = await res.json();
@@ -880,37 +1128,34 @@ async function uploadToCloudinary(file, tag = '') {
 /* ═══════════════════════════════════════════════════
    LIGHTBOX
 ═══════════════════════════════════════════════════ */
-window.openLightbox = function (idx) {
+window.openLightbox = function(idx) {
   lightboxIdx = idx;
   updateLightbox();
   $('lightbox').classList.add('open');
 };
-
-window.openLightboxFeed = function (imgEl) {
+window.openLightboxFeed = function(imgEl) {
   lightboxPhotos = [{ url: imgEl.src, caption: '' }];
   lightboxIdx = 0;
   updateLightbox();
   $('lightbox').classList.add('open');
 };
-
 function updateLightbox() {
   const p = lightboxPhotos[lightboxIdx];
   if (!p) return;
   $('lightboxImg').src = p.url || p;
   $('lightboxCaption').textContent = p.caption || '';
   $('lightboxPrev').style.opacity = lightboxIdx > 0 ? '1' : '0.3';
-  $('lightboxNext').style.opacity = lightboxIdx < lightboxPhotos.length - 1 ? '1' : '0.3';
+  $('lightboxNext').style.opacity = lightboxIdx < lightboxPhotos.length-1 ? '1' : '0.3';
 }
-
 $('lightboxClose').addEventListener('click', () => $('lightbox').classList.remove('open'));
 $('lightbox').addEventListener('click', e => { if (e.target === $('lightbox')) $('lightbox').classList.remove('open'); });
 $('lightboxPrev').addEventListener('click', () => { if (lightboxIdx > 0) { lightboxIdx--; updateLightbox(); } });
-$('lightboxNext').addEventListener('click', () => { if (lightboxIdx < lightboxPhotos.length - 1) { lightboxIdx++; updateLightbox(); } });
+$('lightboxNext').addEventListener('click', () => { if (lightboxIdx < lightboxPhotos.length-1) { lightboxIdx++; updateLightbox(); } });
 document.addEventListener('keydown', e => {
   if (!$('lightbox').classList.contains('open')) return;
   if (e.key === 'Escape') $('lightbox').classList.remove('open');
-  if (e.key === 'ArrowLeft' && lightboxIdx > 0) { lightboxIdx--; updateLightbox(); }
-  if (e.key === 'ArrowRight' && lightboxIdx < lightboxPhotos.length - 1) { lightboxIdx++; updateLightbox(); }
+  if (e.key === 'ArrowLeft'  && lightboxIdx > 0) { lightboxIdx--; updateLightbox(); }
+  if (e.key === 'ArrowRight' && lightboxIdx < lightboxPhotos.length-1) { lightboxIdx++; updateLightbox(); }
 });
 
 /* ═══════════════════════════════════════════════════
@@ -923,18 +1168,15 @@ function initDinamicas() {
   renderTriviaBanco();
 }
 
-/* ── BOTONES ABRIR DINÁMICAS ── */
 qsa('.btn-dinamica[data-open]').forEach(btn => {
   btn.addEventListener('click', () => openModal(btn.dataset.open));
 });
 
 /* ─────────────── RULETA ─────────────── */
 function initRuleta() {
-  // Cargar miembros del grupo como participantes por defecto
   if (currentGroupData?.miembros) {
-    // Intentar obtener nombres desde los datos del grupo
     const nombres = currentGroupData.miembros.map(email => {
-      const key = email.replace(/\./g, '_');
+      const key = email.replace(/\./g,'_');
       return currentGroupData.miembroNombres?.[key] || email.split('@')[0];
     });
     ruletaMiembros = nombres;
@@ -957,17 +1199,14 @@ $('btnSpin').addEventListener('click', () => {
   ruletaSpinning = true;
   $('ruletaResultado').textContent = '⏳';
   $('btnSpin').disabled = true;
-  const extra = Math.floor(Math.random() * 3 + 5) * 360 +
-    Math.floor(Math.random() * 360);
-  const total = ruletaAngulo + extra;
+  const extra    = Math.floor(Math.random()*3+5)*360 + Math.floor(Math.random()*360);
   const duration = 4000;
-  const start = performance.now();
+  const start    = performance.now();
   const startAngle = ruletaAngulo;
-
   function step(now) {
     const elapsed = now - start;
     const t = Math.min(elapsed / duration, 1);
-    const ease = 1 - Math.pow(1 - t, 4);
+    const ease = 1 - Math.pow(1-t, 4);
     ruletaAngulo = startAngle + extra * ease;
     dibujarRuleta();
     if (t < 1) { requestAnimationFrame(step); }
@@ -975,8 +1214,8 @@ $('btnSpin').addEventListener('click', () => {
       ruletaSpinning = false;
       $('btnSpin').disabled = false;
       const n = ruletaMiembros.length;
-      const segAngle = 360 / n;
-      const normalized = (((-ruletaAngulo % 360) + 360) % 360);
+      const segAngle  = 360 / n;
+      const normalized = (((-ruletaAngulo % 360)+360) % 360);
       const idx = Math.floor(normalized / segAngle) % n;
       $('ruletaResultado').textContent = `🎯 ${ruletaMiembros[idx]}`;
     }
@@ -990,24 +1229,19 @@ function dibujarRuleta() {
   const cx = 150, cy = 150, r = 140;
   const n = ruletaMiembros.length || 1;
   const segAngle = (Math.PI * 2) / n;
-  const colores = ['#7c6af7', '#a594f9', '#4f46e5', '#6366f1', '#818cf8', '#c4b5fd', '#8b5cf6', '#ddd6fe'];
-
+  const colores = ['#7c6af7','#a594f9','#4f46e5','#6366f1','#818cf8','#c4b5fd','#8b5cf6','#ddd6fe'];
   ctx.clearRect(0, 0, 300, 300);
-
   for (let i = 0; i < n; i++) {
     const start = (ruletaAngulo * Math.PI / 180) + i * segAngle - Math.PI / 2;
-    const end = start + segAngle;
+    const end   = start + segAngle;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, r, start, end);
     ctx.closePath();
-    ctx.fillStyle = colores[i % colores.length];
+    ctx.fillStyle   = colores[i % colores.length];
     ctx.strokeStyle = '#0e0e16';
-    ctx.lineWidth = 2;
-    ctx.fill();
-    ctx.stroke();
-
-    // Texto
+    ctx.lineWidth   = 2;
+    ctx.fill(); ctx.stroke();
     const midAngle = start + segAngle / 2;
     const tx = cx + (r * 0.65) * Math.cos(midAngle);
     const ty = cy + (r * 0.65) * Math.sin(midAngle);
@@ -1018,17 +1252,15 @@ function dibujarRuleta() {
     ctx.font = 'bold 13px Plus Jakarta Sans, sans-serif';
     ctx.textAlign = 'center';
     const nombre = ruletaMiembros[i] || '';
-    ctx.fillText(nombre.length > 10 ? nombre.slice(0, 9) + '…' : nombre, 0, 0);
+    ctx.fillText(nombre.length > 10 ? nombre.slice(0,9)+'…' : nombre, 0, 0);
     ctx.restore();
   }
-
-  // Centro
   ctx.beginPath();
-  ctx.arc(cx, cy, 14, 0, Math.PI * 2);
-  ctx.fillStyle = '#0e0e16';
+  ctx.arc(cx, cy, 14, 0, Math.PI*2);
+  ctx.fillStyle   = '#0e0e16';
   ctx.fill();
   ctx.strokeStyle = '#7c6af7';
-  ctx.lineWidth = 3;
+  ctx.lineWidth   = 3;
   ctx.stroke();
 }
 
@@ -1037,9 +1269,7 @@ $('btnAgregarOpcion').addEventListener('click', () => {
   const wrap = $('votacionOpcionesInputs');
   const n = wrap.querySelectorAll('.opcion-input').length + 1;
   const inp = document.createElement('input');
-  inp.type = 'text';
-  inp.className = 'modal-input opcion-input';
-  inp.placeholder = `Opción ${n}`;
+  inp.type = 'text'; inp.className = 'modal-input opcion-input'; inp.placeholder = `Opción ${n}`;
   wrap.appendChild(inp);
 });
 
@@ -1049,13 +1279,8 @@ $('btnLanzarVotacion').addEventListener('click', async () => {
   if (!pregunta || opciones.length < 2) { alert('Agrega una pregunta y al menos 2 opciones.'); return; }
   const { collection, addDoc, serverTimestamp } = lib();
   await addDoc(collection(db(), 'ec_votaciones'), {
-    groupId: currentGroupId,
-    pregunta,
-    opciones,
-    votos: {},
-    votantes: [],
-    activa: true,
-    createdAt: serverTimestamp()
+    groupId: currentGroupId, pregunta, opciones, votos: {}, votantes: [],
+    activa: true, createdAt: serverTimestamp()
   });
   $('votacionPregunta').value = '';
   qsa('.opcion-input').forEach(i => i.value = '');
@@ -1067,37 +1292,34 @@ async function loadVotacionActiva() {
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_votaciones'),
-    where('groupId', '==', currentGroupId),
-    where('activa', '==', true),
-    orderBy('createdAt', 'desc'),
+    where('groupId','==', currentGroupId),
+    where('activa','==', true),
+    orderBy('createdAt','desc'),
     limit(1)
   );
   votacionUnsub = onSnapshot(q, snap => {
     if (!snap.empty) {
-      const vot = { id: snap.docs[0].id, ...snap.docs[0].data() };
-      renderVotacionActiva(vot);
+      renderVotacionActiva({ id: snap.docs[0].id, ...snap.docs[0].data() });
     } else {
       $('votacionActiva').style.display = 'none';
-      $('votacionCrear').style.display = 'block';
+      $('votacionCrear').style.display  = 'block';
     }
   });
 }
 
 function renderVotacionActiva(v) {
   $('votacionActiva').style.display = 'block';
-  $('votacionCrear').style.display = 'none';
+  $('votacionCrear').style.display  = 'none';
   $('votacionPreguntaText').textContent = v.pregunta;
   const yaVoto = v.votantes?.includes(currentUser.uid);
-  const totalVotos = Object.values(v.votos || {}).reduce((a, b) => a + b, 0);
-
+  const totalVotos = Object.values(v.votos||{}).reduce((a,b) => a+b, 0);
   $('votacionOpciones').innerHTML = yaVoto ? '' :
     v.opciones.map((op, i) =>
-      `<button class="votacion-opcion-btn" onclick="votar('${v.id}', ${i}, '${escHtml(op)}')">${escHtml(op)}</button>`
+      `<button class="votacion-opcion-btn" onclick="votar('${v.id}',${i},'${escHtml(op)}')">${escHtml(op)}</button>`
     ).join('');
-
   $('votacionResultados').innerHTML = v.opciones.map((op, i) => {
     const cnt = v.votos?.[i] || 0;
-    const pct = totalVotos ? Math.round(cnt / totalVotos * 100) : 0;
+    const pct = totalVotos ? Math.round(cnt/totalVotos*100) : 0;
     return `<div class="votacion-resultado-item">
       <span class="votacion-bar-label">${escHtml(op)}</span>
       <div class="votacion-bar-wrap"><div class="votacion-bar" style="width:${pct}%"></div></div>
@@ -1106,7 +1328,7 @@ function renderVotacionActiva(v) {
   }).join('');
 }
 
-window.votar = async function (votacionId, opcionIdx, opcionNombre) {
+window.votar = async function(votacionId, opcionIdx) {
   const { doc, updateDoc, arrayUnion, increment } = lib();
   await updateDoc(doc(db(), 'ec_votaciones', votacionId), {
     [`votos.${opcionIdx}`]: increment(1),
@@ -1116,42 +1338,35 @@ window.votar = async function (votacionId, opcionIdx, opcionNombre) {
 
 $('btnCerrarVotacion').addEventListener('click', async () => {
   if (!confirm('¿Cerrar esta votación?')) return;
-  // Buscar la votación activa
   const { collection, query, where, orderBy, limit, getDocs, doc, updateDoc } = lib();
   const q = query(
     collection(db(), 'ec_votaciones'),
-    where('groupId', '==', currentGroupId),
-    where('activa', '==', true),
-    orderBy('createdAt', 'desc'),
+    where('groupId','==', currentGroupId),
+    where('activa','==', true),
+    orderBy('createdAt','desc'),
     limit(1)
   );
   const snap = await getDocs(q);
-  if (!snap.empty) {
-    await updateDoc(doc(db(), 'ec_votaciones', snap.docs[0].id), { activa: false });
-  }
+  if (!snap.empty) await updateDoc(doc(db(), 'ec_votaciones', snap.docs[0].id), { activa: false });
 });
 
 /* ─────────────── TRIVIA ─────────────── */
 function renderTriviaBanco() {
   $('triviaBanco').innerHTML = triviaBanco.length
     ? `<p style="font-size:12px;color:var(--text2);margin-bottom:8px">${triviaBanco.length} pregunta(s) lista(s)</p>` +
-    triviaBanco.map((p, i) => `<div class="trivia-banco-item">
+      triviaBanco.map((p, i) => `<div class="trivia-banco-item">
         <span>${escHtml(p.pregunta)}</span>
         <button onclick="triviaEliminar(${i})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:12px">✕</button>
       </div>`).join('')
     : '<p style="font-size:12px;color:var(--text2)">Agrega preguntas antes de iniciar.</p>';
 }
-
-window.triviaEliminar = function (i) {
-  triviaBanco.splice(i, 1);
-  renderTriviaBanco();
-};
+window.triviaEliminar = function(i) { triviaBanco.splice(i,1); renderTriviaBanco(); };
 
 $('btnAgregarPregunta').addEventListener('click', () => {
   const pregunta = $('triviaPreguntaInput').value.trim();
   const resps = qsa('.trivia-resp-input').map(i => i.value.trim()).filter(Boolean);
   if (!pregunta || resps.length < 2) { alert('Agrega la pregunta y al menos la respuesta correcta + 1 opción.'); return; }
-  triviaBanco.push({ pregunta, respuestas: resps }); // respuestas[0] = correcta
+  triviaBanco.push({ pregunta, respuestas: resps });
   $('triviaPreguntaInput').value = '';
   qsa('.trivia-resp-input').forEach(i => i.value = '');
   renderTriviaBanco();
@@ -1159,8 +1374,7 @@ $('btnAgregarPregunta').addEventListener('click', () => {
 
 $('btnIniciarTrivia').addEventListener('click', () => {
   if (!triviaBanco.length) { alert('Agrega al menos una pregunta.'); return; }
-  triviaIdx = 0;
-  triviaScore = 0;
+  triviaIdx = 0; triviaScore = 0;
   $('triviaCrear').style.display = 'none';
   $('triviaJuego').style.display = 'block';
   mostrarPreguntaTrivia();
@@ -1168,7 +1382,6 @@ $('btnIniciarTrivia').addEventListener('click', () => {
 
 function mostrarPreguntaTrivia() {
   if (triviaIdx >= triviaBanco.length) {
-    // Fin
     $('triviaJuego').innerHTML = `<div style="text-align:center;padding:20px">
       <div style="font-size:40px;margin-bottom:12px">🏆</div>
       <h3 style="font-family:var(--font-display);font-size:22px;margin-bottom:8px">¡Trivia terminada!</h3>
@@ -1177,23 +1390,18 @@ function mostrarPreguntaTrivia() {
     </div>`;
     return;
   }
-
   const p = triviaBanco[triviaIdx];
-  // Mezclar opciones
-  const opciones = [...p.respuestas].sort(() => Math.random() - 0.5);
+  const opciones = [...p.respuestas].sort(() => Math.random()-0.5);
   const correcta = p.respuestas[0];
-
-  $('triviaProgreso').textContent = `Pregunta ${triviaIdx + 1} de ${triviaBanco.length} · Puntos: ${triviaScore}`;
+  $('triviaProgreso').textContent = `Pregunta ${triviaIdx+1} de ${triviaBanco.length} · Puntos: ${triviaScore}`;
   $('triviaPreguntaText').textContent = p.pregunta;
   $('triviaFeedback').textContent = '';
   $('triviaOpciones').innerHTML = opciones.map(op =>
-    `<button class="trivia-opcion" onclick="responderTrivia('${escHtml(op)}', '${escHtml(correcta)}', this)">
+    `<button class="trivia-opcion" onclick="responderTrivia('${escHtml(op)}','${escHtml(correcta)}',this)">
       ${escHtml(op)}
-    </button>`
-  ).join('');
+    </button>`).join('');
 }
-
-window.responderTrivia = function (elegida, correcta, btn) {
+window.responderTrivia = function(elegida, correcta, btn) {
   qsa('.trivia-opcion').forEach(b => { b.disabled = true; });
   const correcto = elegida === correcta;
   if (correcto) {
@@ -1203,18 +1411,15 @@ window.responderTrivia = function (elegida, correcta, btn) {
     $('triviaFeedback').style.color = 'var(--green)';
   } else {
     btn.classList.add('incorrecto');
-    qsa('.trivia-opcion').forEach(b => {
-      if (b.textContent.trim() === correcta) b.classList.add('correcto');
-    });
+    qsa('.trivia-opcion').forEach(b => { if (b.textContent.trim()===correcta) b.classList.add('correcto'); });
     $('triviaFeedback').textContent = `❌ Era: ${correcta}`;
     $('triviaFeedback').style.color = 'var(--red)';
   }
   setTimeout(() => { triviaIdx++; mostrarPreguntaTrivia(); }, 1800);
 };
-
-window.reiniciarTrivia = function () {
-  $('triviaJuego').style.display = 'none';
-  $('triviaCrear').style.display = 'block';
+window.reiniciarTrivia = function() {
+  $('triviaJuego').style.display  = 'none';
+  $('triviaCrear').style.display  = 'block';
   $('triviaJuego').innerHTML = `
     <div class="trivia-progreso" id="triviaProgreso"></div>
     <div class="trivia-pregunta" id="triviaPreguntaText"></div>
@@ -1229,55 +1434,45 @@ function renderPuntos() {
     marc.innerHTML = '<div class="feed-loading" style="padding:20px 0">Agrega jugadores abajo.</div>';
     return;
   }
-  const sorted = [...puntosMarcador].sort((a, b) => b.pts - a.pts);
-  marc.innerHTML = sorted.map((j, i) => `
+  const sorted = [...puntosMarcador].sort((a,b) => b.pts - a.pts);
+  marc.innerHTML = sorted.map((j,i) => `
     <div class="puntos-jugador">
-      <span style="font-size:16px;opacity:0.6">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
+      <span style="font-size:16px;opacity:0.6">${i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`}</span>
       <span class="puntos-jugador-nombre">${escHtml(j.nombre)}</span>
       <div class="puntos-btns">
-        <button class="puntos-btn" onclick="cambiarPuntos('${escHtml(j.nombre)}', -1)">−</button>
+        <button class="puntos-btn" onclick="cambiarPuntos('${escHtml(j.nombre)}',-1)">−</button>
         <span class="puntos-num">${j.pts}</span>
-        <button class="puntos-btn" onclick="cambiarPuntos('${escHtml(j.nombre)}', 1)">+</button>
+        <button class="puntos-btn" onclick="cambiarPuntos('${escHtml(j.nombre)}',1)">+</button>
       </div>
     </div>`).join('');
 }
-
 $('btnAgregarJugador').addEventListener('click', () => {
   const nombre = $('puntosNombre').value.trim();
   if (!nombre) return;
-  if (!puntosMarcador.find(j => j.nombre === nombre)) {
-    puntosMarcador.push({ nombre, pts: 0 });
-    renderPuntos();
-  }
+  if (!puntosMarcador.find(j => j.nombre===nombre)) { puntosMarcador.push({ nombre, pts:0 }); renderPuntos(); }
   $('puntosNombre').value = '';
 });
 $('btnResetPuntos').addEventListener('click', () => {
   if (!confirm('¿Reiniciar todos los puntos?')) return;
-  puntosMarcador.forEach(j => j.pts = 0);
-  renderPuntos();
+  puntosMarcador.forEach(j => j.pts = 0); renderPuntos();
 });
-window.cambiarPuntos = function (nombre, delta) {
-  const j = puntosMarcador.find(j => j.nombre === nombre);
-  if (j) { j.pts = Math.max(0, j.pts + delta); renderPuntos(); }
+window.cambiarPuntos = function(nombre, delta) {
+  const j = puntosMarcador.find(j => j.nombre===nombre);
+  if (j) { j.pts = Math.max(0, j.pts+delta); renderPuntos(); }
 };
 
 /* ═══════════════════════════════════════════════════
    MODALES — utilidades
 ═══════════════════════════════════════════════════ */
-function openModal(id) { $(id)?.classList.add('open'); }
+function openModal(id)  { $(id)?.classList.add('open'); }
 function closeModal(id) { $(id)?.classList.remove('open'); }
 
-// Cerrar por botón .modal-close
 document.addEventListener('click', e => {
-  const closeBtn = e.target.closest('.modal-close[data-close]');
+  const closeBtn  = e.target.closest('.modal-close[data-close]');
   if (closeBtn) closeModal(closeBtn.dataset.close);
-  // Cerrar por btn-cancel con data-close
   const cancelBtn = e.target.closest('.btn-cancel[data-close]');
   if (cancelBtn) closeModal(cancelBtn.dataset.close);
-  // Cerrar al hacer clic en overlay
-  if (e.target.classList.contains('modal-overlay')) {
-    e.target.classList.remove('open');
-  }
+  if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('open');
 });
 
 /* ═══════════════════════════════════════════════════
@@ -1287,7 +1482,7 @@ function renderEmojiPicker(containerId, emojis, selected, onChange) {
   const container = $(containerId);
   if (!container) return;
   container.innerHTML = emojis.map(em =>
-    `<span class="emoji-option ${em === selected ? 'selected' : ''}" data-em="${em}">${em}</span>`
+    `<span class="emoji-option ${em===selected?'selected':''}" data-em="${em}">${em}</span>`
   ).join('');
   container.querySelectorAll('.emoji-option').forEach(opt => {
     opt.addEventListener('click', () => {
@@ -1301,11 +1496,12 @@ function renderEmojiPicker(containerId, emojis, selected, onChange) {
 /* ═══════════════════════════════════════════════════
    ARRANQUE
 ═══════════════════════════════════════════════════ */
+initTheme();
 waitForFirebase(() => initAuth());
 
 // PWA Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => { });
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
 }
