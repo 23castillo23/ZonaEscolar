@@ -306,15 +306,17 @@
   <div class="modal-overlay" id="modalAgregarMiembro">
     <div class="modal-box">
       <button class="modal-close" data-close="modalAgregarMiembro">✕</button>
-      <h3 class="modal-title">Agregar miembro</h3>
-      <p class="modal-desc">Pídele a tu compañero su correo de Google y agrégalo aquí.</p>
-      <label class="modal-label">Correo Gmail del miembro</label>
+      <h3 class="modal-title">👥 Miembros del grupo</h3>
+      <div id="miembrosListContainer" style="margin-bottom:14px;max-height:160px;overflow-y:auto;"></div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:0 0 12px">
+      <p class="modal-desc" style="margin-bottom:6px">Agrega a alguien nuevo con su correo de Google:</p>
+      <label class="modal-label">Correo Gmail</label>
       <input type="email" id="miembroEmail" class="modal-input" placeholder="compañero@gmail.com">
       <label class="modal-label">Nombre para mostrar</label>
       <input type="text" id="miembroNombre" class="modal-input" placeholder="Nombre del compañero" maxlength="40">
       <div class="modal-actions">
-        <button class="btn-cancel" data-close="modalAgregarMiembro">Cancelar</button>
-        <button class="btn-primary" id="btnConfirmarMiembro">Agregar</button>
+        <button class="btn-cancel" data-close="modalAgregarMiembro">Cerrar</button>
+        <button class="btn-primary" id="btnConfirmarMiembro">+ Agregar</button>
       </div>
     </div>
   </div>

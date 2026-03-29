@@ -217,9 +217,10 @@ async function activarGrupo(groupId) {
   $('topbarGroupBadge').textContent = currentGroupData
     ? `${currentGroupData.icon||'👥'} ${currentGroupData.name}` : '';
   renderGroupSelector();
-  if (feedUnsub)  { feedUnsub();  feedUnsub  = null; }
-  if (chatUnsub)  { chatUnsub();  chatUnsub  = null; }
-  if (tareasUnsub){ tareasUnsub();tareasUnsub = null; }
+  if (feedUnsub)    { feedUnsub();    feedUnsub    = null; }
+  if (chatUnsub)    { chatUnsub();    chatUnsub    = null; }
+  if (tareasUnsub)  { tareasUnsub();  tareasUnsub  = null; }
+  if (votacionUnsub){ votacionUnsub();votacionUnsub = null; }
   activarSeccion(currentSection);
 }
 
@@ -256,7 +257,29 @@ $('btnConfirmarGrupo').addEventListener('click', async () => {
 });
 
 /* ── AGREGAR MIEMBRO ── */
-$('btnInvitarCompa').addEventListener('click', () => openModal('modalAgregarMiembro'));
+$('btnInvitarCompa').addEventListener('click', () => {
+  openModal('modalAgregarMiembro');
+  renderMiembrosList();
+});
+
+function renderMiembrosList() {
+  const container = $('miembrosListContainer');
+  if (!container || !currentGroupData) return;
+  const miembros = currentGroupData.miembros || [];
+  const nombres  = currentGroupData.miembroNombres || {};
+  if (!miembros.length) { container.innerHTML = '<p style="font-size:12px;color:var(--text3)">Sin miembros aún.</p>'; return; }
+  container.innerHTML = '<p style="font-size:11px;color:var(--text3);margin-bottom:6px">Miembros actuales:</p>' +
+    miembros.map(email => {
+      const key   = email.replace(/\./g,'_');
+      const nombre = nombres[key] || email.split('@')[0];
+      const esAdmin = email === currentGroupData.adminEmail;
+      return `<div class="miembro-list-item">
+        <span class="miembro-list-name">${escHtml(nombre)}</span>
+        <span class="miembro-list-email">${escHtml(email)}</span>
+        ${esAdmin ? '<span class="miembro-badge-admin">Admin</span>' : ''}
+      </div>`;
+    }).join('');
+}
 
 $('btnConfirmarMiembro').addEventListener('click', async () => {
   const email  = $('miembroEmail').value.trim().toLowerCase();
@@ -529,22 +552,50 @@ window.eliminarPost = async function(postId) {
 
 /* ── PUBLICAR EN FEED ── */
 let composeFiles = [];
+
 $('composePhoto').addEventListener('change', e => {
   composeFiles = [...e.target.files];
+  renderComposePreview();
 });
+
+function renderComposePreview() {
+  let preview = $('composePreview');
+  if (!preview) {
+    preview = document.createElement('div');
+    preview.id = 'composePreview';
+    preview.className = 'compose-preview';
+    $('composePhoto').parentElement.insertAdjacentElement('afterend', preview);
+  }
+  if (!composeFiles.length) { preview.innerHTML = ''; return; }
+  preview.innerHTML = composeFiles.map((f, i) => {
+    const url = URL.createObjectURL(f);
+    return `<div class="compose-preview-item">
+      <img src="${url}" alt="">
+      <button class="compose-preview-remove" data-idx="${i}">✕</button>
+    </div>`;
+  }).join('');
+  preview.querySelectorAll('.compose-preview-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      composeFiles.splice(Number(btn.dataset.idx), 1);
+      renderComposePreview();
+    });
+  });
+}
 
 $('composeSend').addEventListener('click', async () => {
   const text = $('composeInput').value.trim();
   if (!text && !composeFiles.length) return;
   if (!currentGroupId) return;
-  $('composeSend').disabled = true;
+
+  const btn = $('composeSend');
+  btn.disabled = true;
+  btn.textContent = '⏳';
+
   const { collection, addDoc, serverTimestamp } = lib();
   let images = [];
   if (composeFiles.length) {
     images = await Promise.all(composeFiles.map(f => uploadToCloudinary(f)));
     images = images.filter(Boolean);
-    composeFiles = [];
-    $('composePhoto').value = '';
   }
   try {
     await addDoc(collection(db(), 'ec_feed'), {
@@ -561,8 +612,13 @@ $('composeSend').addEventListener('click', async () => {
       createdAt: serverTimestamp()
     });
     $('composeInput').value = '';
+    composeFiles = [];
+    $('composePhoto').value = '';
+    renderComposePreview();
   } catch (e) { alert('Error al publicar: ' + e.message); }
-  $('composeSend').disabled = false;
+
+  btn.disabled = false;
+  btn.textContent = '➤';
 });
 
 $('composeInput').addEventListener('keydown', e => {
@@ -737,15 +793,41 @@ async function enviarMensaje() {
   if (!text || !currentGroupId) return;
   input.value = '';
   input.style.height = 'auto';
+
+  // Mensaje optimista — aparece al instante sin esperar Firestore
+  const tempId = 'temp-' + Date.now();
+  const msgBox = $('chatMessages');
+  const now = new Date();
+  const tempEl = document.createElement('div');
+  tempEl.className = 'chat-msg mine';
+  tempEl.id = tempId;
+  tempEl.innerHTML = `
+    <img class="chat-msg-avatar" src="${escHtml(currentUser.avatar||'')}" alt="" onerror="this.style.display='none'">
+    <div class="chat-msg-wrap">
+      <div class="chat-msg-bubble">${escHtml(text)}</div>
+      <div class="chat-msg-time sending-indicator">${now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})} · enviando…</div>
+    </div>`;
+  msgBox.appendChild(tempEl);
+  msgBox.scrollTop = msgBox.scrollHeight;
+
   const { collection, addDoc, serverTimestamp } = lib();
-  await addDoc(collection(db(), 'ec_chat'), {
-    groupId: currentGroupId,
-    text,
-    authorUid: currentUser.uid,
-    authorName: currentUser.name,
-    authorAvatar: currentUser.avatar,
-    createdAt: serverTimestamp()
-  });
+  try {
+    await addDoc(collection(db(), 'ec_chat'), {
+      groupId: currentGroupId,
+      text,
+      authorUid: currentUser.uid,
+      authorName: currentUser.name,
+      authorAvatar: currentUser.avatar,
+      createdAt: serverTimestamp()
+    });
+    // El onSnapshot reemplazará el mensaje temporal automáticamente
+  } catch(e) {
+    const errEl = document.getElementById(tempId);
+    if (errEl) {
+      errEl.style.opacity = '0.5';
+      errEl.querySelector('.sending-indicator').textContent = '⚠️ Error al enviar';
+    }
+  }
 }
 
 $('chatSend').addEventListener('click', enviarMensaje);
