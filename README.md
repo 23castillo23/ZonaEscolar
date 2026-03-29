@@ -187,12 +187,18 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 
 ## Changelog
 
+### v1.2.0
+- **Sidebar — Miembros del grupo:** la barra lateral ahora muestra la lista de miembros del grupo activo con avatar inicial y nombre. Al hacer clic en un miembro se abre su muro para ver sus fotos y publicaciones. Los miembros invitados que aún no hayan iniciado sesión muestran un mensaje informativo.
+- **Muro ajeno:** al ver el muro de otro miembro se oculta el botón "+ Foto" y aparece un botón "← Volver a mi muro". Cada miembro solo puede subir fotos a su propio muro.
+- **Feed:** el listener se reinicia correctamente al publicar con fotos — las imágenes aparecen en tiempo real sin necesidad de recargar la página.
+- **Tareas:** el listener de tareas se reinicia al cambiar de grupo o sección, solucionando que no aparecieran nuevas tareas creadas.
+- **Apuntes:** creación de semestres y materias ahora muestra errores descriptivos y feedback visual (⏳) durante la operación.
+
 ### v1.1.0
-- **Feed:** preview de fotos antes de publicar, con opción de quitar imágenes individuales. Feedback visual (botón de envío muestra ⏳) mientras se sube a Cloudinary.
-- **Chat:** mensajes optimistas — el texto aparece al instante en pantalla sin esperar confirmación de Firestore. Layout adaptativo para móvil (fuente ≥15px en iOS para evitar zoom, burbujas más anchas, área de escritura más cómoda).
-- **Miembros:** el modal `+ Invitar` ahora muestra la lista completa de miembros actuales del grupo con su nombre, correo y rol (Admin/Miembro) antes de agregar uno nuevo.
-- **Grupos:** al cambiar de grupo activo se limpian correctamente todos los listeners activos (feed, chat, tareas, votaciones), evitando mezcla de datos entre grupos.
-- **README:** renombrado completamente a ZonaEscolar, documentación de colecciones Firestore, changelog y notas técnicas actualizadas.
+- **Feed:** preview de fotos antes de publicar, con opción de quitar imágenes individuales. Feedback visual (botón de envío muestra ⏳) mientras sube a Cloudinary.
+- **Chat:** mensajes optimistas — el texto aparece al instante sin esperar Firestore. Layout adaptativo para móvil.
+- **Miembros:** el modal `+ Invitar` muestra la lista completa de miembros actuales con nombre, correo y rol.
+- **Grupos:** al cambiar de grupo se limpian todos los listeners activos (feed, chat, tareas, votaciones).
 
 ### v1.0.0
-- Lanzamiento inicial: Auth Google, Feed, Chat, Tareas, Apuntes, Muro, Dinámicas (Ruleta, Votación, Trivia, Puntos), soporte PWA, tema oscuro/claro.
+- Lanzamiento inicial: Auth Google, Feed, Chat, Tareas, Apuntes, Muro, Dinámicas (Ruleta, Votación, Trivia, Puntos), PWA, tema oscuro/claro.

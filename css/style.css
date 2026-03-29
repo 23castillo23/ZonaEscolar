@@ -1582,3 +1582,80 @@ a { color: var(--accent2); }
   padding: 2px 7px;
   border-radius: 10px;
 }
+
+/* ═══════════════════════════════════════════════════════
+   SIDEBAR MIEMBROS
+═══════════════════════════════════════════════════════ */
+.sidebar-members {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px 8px;
+  min-height: 0;
+}
+.sidebar-members-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  padding: 10px 4px 6px;
+}
+.sidebar-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sidebar-member-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition);
+  font-family: inherit;
+  color: var(--text1);
+}
+.sidebar-member-btn:hover {
+  background: var(--bg3);
+  color: var(--text0);
+}
+.sidebar-member-btn.me {
+  color: var(--accent2);
+}
+.sidebar-member-initial {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sidebar-member-btn.me .sidebar-member-initial {
+  background: var(--accent2);
+}
+.sidebar-member-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sidebar necesita flex column para que los miembros ocupen el espacio disponible */
+.sidebar {
+  display: flex !important;
+  flex-direction: column;
+}
+.sidebar-nav {
+  flex-shrink: 0;
+}
+.sidebar-footer {
+  flex-shrink: 0;
+}

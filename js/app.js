@@ -217,12 +217,86 @@ async function activarGrupo(groupId) {
   $('topbarGroupBadge').textContent = currentGroupData
     ? `${currentGroupData.icon||'👥'} ${currentGroupData.name}` : '';
   renderGroupSelector();
+  renderSidebarMiembros();
   if (feedUnsub)    { feedUnsub();    feedUnsub    = null; }
   if (chatUnsub)    { chatUnsub();    chatUnsub    = null; }
   if (tareasUnsub)  { tareasUnsub();  tareasUnsub  = null; }
   if (votacionUnsub){ votacionUnsub();votacionUnsub = null; }
   activarSeccion(currentSection);
 }
+
+/* ── MIEMBROS EN SIDEBAR ── */
+function renderSidebarMiembros() {
+  const container = $('sidebarMiembros');
+  if (!container || !currentGroupData) return;
+  const miembros = currentGroupData.miembros || [];
+  const nombres  = currentGroupData.miembroNombres || {};
+  if (!miembros.length) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `
+    <div class="sidebar-members-label">👥 Miembros del grupo</div>
+    <div class="sidebar-members-list">
+      ${miembros.map(email => {
+        const key    = email.replace(/\./g,'_');
+        const nombre = nombres[key] || email.split('@')[0];
+        const esYo   = email === currentUser.email;
+        const esAdmin = email === currentGroupData.adminEmail;
+        return `<button class="sidebar-member-btn ${esYo?'me':''}"
+          data-email="${escHtml(email)}"
+          onclick="verMuroDeUsuario('${escHtml(email)}','${escHtml(nombre)}')"
+          title="${escHtml(email)}">
+          <span class="sidebar-member-initial">${escHtml(nombre.charAt(0).toUpperCase())}</span>
+          <span class="sidebar-member-name">${escHtml(nombre)}${esYo?' (tú)':''}${esAdmin?' ⭐':''}</span>
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
+/* Ver muro de otro miembro */
+let muroViendoUid   = null;
+let muroViendoEmail = null;
+let muroViendoNombre = null;
+
+window.verMuroDeUsuario = function(email, nombre) {
+  // Si es el propio usuario, ir a Mi Muro normal
+  if (email === currentUser.email) {
+    muroViendoUid = null;
+    muroViendoEmail = null;
+    muroViendoNombre = null;
+    currentSection = 'muro';
+    setActiveNav('muro');
+    activarSeccion('muro');
+    closeSidebar();
+    return;
+  }
+  // Buscar UID en ec_users por email
+  const { collection, query, where, getDocs } = lib();
+  getDocs(query(collection(db(),'ec_users'), where('email','==', email))).then(snap => {
+    if (snap.empty) {
+      // Usuario aún no se ha logueado, mostrar muro vacío con nombre
+      muroViendoUid   = '__pending__';
+      muroViendoEmail = email;
+      muroViendoNombre = nombre;
+    } else {
+      const d = snap.docs[0];
+      muroViendoUid    = d.id;
+      muroViendoEmail  = email;
+      muroViendoNombre = d.data().name || nombre;
+    }
+    currentSection = 'muro';
+    setActiveNav('muro');
+    activarSeccion('muro');
+    closeSidebar();
+  }).catch(() => {
+    muroViendoUid    = '__pending__';
+    muroViendoEmail  = email;
+    muroViendoNombre = nombre;
+    currentSection = 'muro';
+    setActiveNav('muro');
+    activarSeccion('muro');
+    closeSidebar();
+  });
+};
 
 /* ── CREAR GRUPO ── */
 let selectedGrupoEmoji = '👥';
@@ -374,7 +448,8 @@ function closeSidebar() {
    FEED
 ═══════════════════════════════════════════════════ */
 function initFeed() {
-  if (feedUnsub) return;
+  // Reiniciar listener cada vez para asegurar datos frescos (especialmente con imágenes)
+  if (feedUnsub) { feedUnsub(); feedUnsub = null; }
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_feed'),
@@ -626,28 +701,73 @@ $('composeInput').addEventListener('keydown', e => {
 });
 
 /* ═══════════════════════════════════════════════════
-   MURO PERSONAL
+   MURO PERSONAL / MURO DE OTRO MIEMBRO
 ═══════════════════════════════════════════════════ */
 function initMuro() {
-  if ($('muroAvatar'))  $('muroAvatar').src  = currentUser.avatar || '';
-  if ($('muroNombre')) $('muroNombre').textContent = currentUser.name;
-  cargarMuroFotos();
-  cargarMuroStats();
+  // ¿Estamos viendo el muro de otro?
+  const esAjeno = muroViendoUid && muroViendoUid !== '__pending__';
+  const esPropio = !muroViendoUid;
+  const uid    = esAjeno ? muroViendoUid : currentUser.uid;
+  const nombre = esAjeno ? muroViendoNombre : currentUser.name;
+  const avatar = esPropio ? currentUser.avatar : '';
+
+  if ($('muroAvatar'))  $('muroAvatar').src = avatar;
+  if ($('muroNombre'))  $('muroNombre').textContent = nombre;
+
+  // Botón subir: solo visible en muro propio
+  const btnSubir = $('btnMuroSubir');
+  if (btnSubir) btnSubir.style.display = esPropio ? '' : 'none';
+
+  // Botón volver si es ajeno
+  let btnBack = $('muroBackBtn');
+  if (esAjeno) {
+    if (!btnBack) {
+      btnBack = document.createElement('button');
+      btnBack.id = 'muroBackBtn';
+      btnBack.className = 'btn-sm';
+      btnBack.style.marginBottom = '10px';
+      btnBack.textContent = '← Volver a mi muro';
+      btnBack.addEventListener('click', () => {
+        muroViendoUid = null; muroViendoEmail = null; muroViendoNombre = null;
+        initMuro();
+      });
+      const header = $('sectionMuro').querySelector('.muro-header');
+      if (header) header.insertAdjacentElement('beforebegin', btnBack);
+    }
+    btnBack.style.display = '';
+  } else {
+    if (btnBack) btnBack.style.display = 'none';
+  }
+
+  if (muroViendoUid === '__pending__') {
+    // Usuario invitado que aún no se ha registrado
+    const grid = $('muroFotosGrid');
+    if (grid) grid.innerHTML = `<div class="feed-loading" style="grid-column:1/-1;padding:30px">
+      ${escHtml(muroViendoNombre)} aún no ha iniciado sesión en ZonaEscolar.
+    </div>`;
+    if ($('muroStats')) $('muroStats').textContent = '0 fotos';
+    return;
+  }
+
+  cargarMuroFotos(uid, esPropio);
+  cargarMuroStats(uid);
 }
 
-function cargarMuroStats() {
+function cargarMuroStats(uid) {
+  const targetUid = uid || currentUser.uid;
   const { collection, query, where, getDocs } = lib();
-  const qFotos = query(collection(db(),'ec_muro_fotos'), where('authorUid','==',currentUser.uid));
+  const qFotos = query(collection(db(),'ec_muro_fotos'), where('authorUid','==', targetUid));
   getDocs(qFotos).then(snap => {
     if ($('muroStats')) $('muroStats').textContent = `${snap.size} foto${snap.size!==1?'s':''}`;
   }).catch(() => {});
 }
 
-function cargarMuroFotos() {
+function cargarMuroFotos(uid, esPropio) {
+  const targetUid = uid || currentUser.uid;
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_muro_fotos'),
-    where('authorUid','==', currentUser.uid),
+    where('authorUid','==', targetUid),
     orderBy('createdAt','desc')
   );
   const grid = $('muroFotosGrid');
@@ -659,8 +779,8 @@ function cargarMuroFotos() {
     lightboxPhotos = fotos;
     if (!fotos.length) {
       grid.innerHTML = `<div class="feed-loading" style="grid-column:1/-1;padding:30px">
-        No has subido fotos todavía.<br>
-        <span style="font-size:12px;color:var(--text3)">Usa el botón "+ Foto" para subir al muro.</span>
+        ${esPropio !== false ? 'No has subido fotos todavía.' : 'Este miembro aún no tiene fotos.'}<br>
+        ${esPropio !== false ? '<span style="font-size:12px;color:var(--text3)">Usa el botón "+ Foto" para subir al muro.</span>' : ''}
       </div>`;
       return;
     }
@@ -672,8 +792,11 @@ function cargarMuroFotos() {
   });
 }
 
-// Subir foto al muro
-$('btnMuroSubir').addEventListener('click', () => $('muroFileInput').click());
+// Subir foto al muro (solo muro propio)
+$('btnMuroSubir').addEventListener('click', () => {
+  muroViendoUid = null; // asegurar que subimos a nuestro propio muro
+  $('muroFileInput').click();
+});
 $('muroFileInput').addEventListener('change', async e => {
   const files = [...e.target.files];
   if (!files.length) return;
@@ -696,6 +819,8 @@ $('muroFileInput').addEventListener('change', async e => {
   $('btnMuroSubir').disabled = false;
   $('btnMuroSubir').textContent = '+ Foto';
   $('muroFileInput').value = '';
+  // Refrescar muro propio para ver la foto recién subida
+  initMuro();
 });
 
 // Tabs del muro
@@ -845,7 +970,7 @@ $('chatInput').addEventListener('input', function() {
    TAREAS
 ═══════════════════════════════════════════════════ */
 function initTareas() {
-  if (tareasUnsub) return;
+  if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
   const { collection, query, where, orderBy, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_tareas'),
@@ -1149,13 +1274,19 @@ $('btnNewSubjectGroup').addEventListener('click', () => {
 $('btnConfirmarSemestre').addEventListener('click', async () => {
   const nombre = $('semestreNombre').value.trim();
   if (!nombre) { alert('Escribe el nombre.'); return; }
+  if (!currentGroupId) { alert('Selecciona un grupo primero.'); return; }
+  const btn = $('btnConfirmarSemestre');
+  btn.disabled = true; btn.textContent = '⏳';
   const { collection, addDoc, serverTimestamp } = lib();
-  await addDoc(collection(db(), 'ec_semestres'), {
-    name: nombre, icon: selectedSemestreEmoji,
-    groupId: currentGroupId, createdAt: serverTimestamp()
-  });
-  closeModal('modalNuevoSemestre');
-  $('semestreNombre').value = '';
+  try {
+    await addDoc(collection(db(), 'ec_semestres'), {
+      name: nombre, icon: selectedSemestreEmoji,
+      groupId: currentGroupId, createdAt: serverTimestamp()
+    });
+    closeModal('modalNuevoSemestre');
+    $('semestreNombre').value = '';
+  } catch(e) { alert('Error al crear semestre: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Crear';
 });
 
 $('btnNewMateria').addEventListener('click', () => openNewMateriaModal(''));
@@ -1173,18 +1304,24 @@ window.openNewMateriaModal = function(semestreId) {
 $('btnConfirmarMateria').addEventListener('click', async () => {
   const nombre = $('materiaNombre').value.trim();
   if (!nombre) { alert('Escribe el nombre de la materia.'); return; }
+  if (!currentGroupId) { alert('Selecciona un grupo primero.'); return; }
+  const btn = $('btnConfirmarMateria');
+  btn.disabled = true; btn.textContent = '⏳';
   const tag = nombre.toLowerCase().normalize('NFD')
     .replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
   const { collection, addDoc, serverTimestamp } = lib();
-  await addDoc(collection(db(), 'ec_galerias'), {
-    name: nombre, icon: selectedMateriaEmoji,
-    semestreId: $('materiaSemestreSelect').value || '',
-    cloudinaryTag: `ec_${tag}_${currentGroupId.slice(-6)}`,
-    groupId: currentGroupId, coverImage: '',
-    createdAt: serverTimestamp()
-  });
-  closeModal('modalNuevaMateria');
-  $('materiaNombre').value = '';
+  try {
+    await addDoc(collection(db(), 'ec_galerias'), {
+      name: nombre, icon: selectedMateriaEmoji,
+      semestreId: $('materiaSemestreSelect').value || '',
+      cloudinaryTag: `ec_${tag}_${currentGroupId.slice(-6)}`,
+      groupId: currentGroupId, coverImage: '',
+      createdAt: serverTimestamp()
+    });
+    closeModal('modalNuevaMateria');
+    $('materiaNombre').value = '';
+  } catch(e) { alert('Error al crear materia: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Crear';
 });
 
 /* ═══════════════════════════════════════════════════
