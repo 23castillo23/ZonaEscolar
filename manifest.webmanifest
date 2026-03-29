@@ -1,0 +1,14 @@
+{
+  "name": "EduCircle",
+  "short_name": "EduCircle",
+  "description": "Tu espacio escolar privado — apuntes, chat, tareas y dinámicas con tu grupo.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0e0e16",
+  "theme_color": "#7c6af7",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icons/icon.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

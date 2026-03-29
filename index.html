@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="EduCircle">
+  <title>EduCircle · Tu espacio escolar privado</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Sora:wght@400;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+  <!-- ══════════ PANTALLA DE LOGIN ══════════ -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-bg-orb orb1"></div>
+    <div class="login-bg-orb orb2"></div>
+    <div class="login-bg-orb orb3"></div>
+    <div class="login-card">
+      <div class="login-logo">
+        <span class="login-logo-icon">◎</span>
+        <span class="login-logo-text">EduCircle</span>
+      </div>
+      <h1 class="login-title">Tu espacio escolar privado</h1>
+      <p class="login-subtitle">Apuntes, chat, tareas y dinámicas — todo con tu grupo.</p>
+      <button class="btn-google-login" id="btnGoogleLogin">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4"
+            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+          <path fill="#34A853"
+            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+          <path fill="#FBBC05"
+            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+          <path fill="#EA4335"
+            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+        </svg>
+        Entrar con Google
+      </button>
+      <p class="login-note">Solo las personas invitadas por el admin pueden unirse a un grupo.</p>
+    </div>
+  </div>
+
+  <!-- ══════════ APP PRINCIPAL ══════════ -->
+  <div id="appShell" class="app-shell" style="display:none">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-logo">◎ EduCircle</span>
+        <button class="sidebar-close" id="sidebarClose">✕</button>
+      </div>
+
+      <div class="user-pill" id="userPill">
+        <img class="user-avatar" id="userAvatar" src="" alt="">
+        <div class="user-info">
+          <span class="user-name" id="userName"></span>
+          <span class="user-role" id="userRole">Miembro</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-section="feed">
+          <span class="nav-icon">⚡</span> Feed
+        </button>
+        <button class="nav-item" data-section="apuntes">
+          <span class="nav-icon">📸</span> Apuntes
+        </button>
+        <button class="nav-item" data-section="chat">
+          <span class="nav-icon">💬</span> Chat
+        </button>
+        <button class="nav-item" data-section="tareas">
+          <span class="nav-icon">✅</span> Tareas
+        </button>
+        <button class="nav-item" data-section="dinamicas">
+          <span class="nav-icon">🎮</span> Dinámicas
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="group-selector-label">Grupo activo</div>
+        <select class="group-selector" id="groupSelector">
+          <option value="">Cargando grupos…</option>
+        </select>
+        <div class="sidebar-actions">
+          <button class="btn-sm" id="btnCreateGroup">+ Crear grupo</button>
+          <button class="btn-sm btn-sm-danger" id="btnLogout">Salir</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- OVERLAY SIDEBAR MOBILE -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <button class="topbar-menu" id="topbarMenu">☰</button>
+        <div class="topbar-title" id="topbarTitle">Feed</div>
+        <div class="topbar-right">
+          <button class="btn-sm" id="btnInvitarCompa" style="margin-right: 10px;">+ Invitar compa</button>
+          
+          <span class="topbar-group-badge" id="topbarGroupBadge"></span>
+          <img class="topbar-avatar" id="topbarAvatar" src="" alt="">
+        </div>
+      </header>
+
+      <!-- ── SECCIÓN: SIN GRUPO ── -->
+      <section class="section active" id="sectionNoGroup">
+        <div class="empty-hero">
+          <div class="empty-hero-icon">◎</div>
+          <h2 class="empty-hero-title">Bienvenido a EduCircle</h2>
+          <p class="empty-hero-text">Aún no perteneces a ningún grupo.<br>Crea uno o pide al admin que te agregue.</p>
+          <button class="btn-primary" id="btnCreateGroupEmpty">Crear mi primer grupo</button>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN: FEED ── -->
+      <section class="section" id="sectionFeed">
+        <div class="feed-compose">
+          <img class="compose-avatar" id="composeAvatar" src="" alt="">
+          <div class="compose-input-wrap">
+            <input type="text" class="compose-input" id="composeInput" placeholder="Comparte algo con el grupo…">
+          </div>
+          <label class="compose-photo-btn" for="composePhoto" title="Subir foto">📷</label>
+          <input type="file" id="composePhoto" accept="image/*" multiple style="display:none">
+          <button class="compose-send" id="composeSend">→</button>
+        </div>
+        <div class="feed-list" id="feedList">
+          <div class="feed-loading">Cargando feed…</div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN: APUNTES ── -->
+      <section class="section" id="sectionApuntes">
+        <div class="apuntes-toolbar">
+          <button class="btn-new-group" id="btnNewSubjectGroup">+ Semestre</button>
+          <button class="btn-new-gallery" id="btnNewMateria">+ Materia</button>
+        </div>
+        <div id="apuntesGroupsContainer"></div>
+        <div id="apuntesGaleriaView" style="display:none">
+          <div class="galeria-header">
+            <button class="btn-back" id="btnApuntesBack">← Volver</button>
+            <h2 class="galeria-title" id="galeriaTitle"></h2>
+            <button class="btn-upload-top" id="btnUploadApunte">↑ Subir fotos</button>
+          </div>
+          <div class="upload-zone" id="apuntesUploadZone" style="display:none">
+            <div class="upload-drop-area">
+              <label class="btn-file-pick" for="apunteFileInput">Desde archivo</label>
+              <input type="file" id="apunteFileInput" accept="image/*" multiple style="display:none">
+              <label class="btn-camera-pick" for="apunteCameraInput">Tomar foto</label>
+              <input type="file" id="apunteCameraInput" accept="image/*" capture="environment" style="display:none">
+            </div>
+            <div class="upload-meta">
+              <input type="text" id="apunteCaption" class="upload-input" placeholder="Descripción (opcional)">
+              <button class="btn-upload-send" id="btnApunteSend" disabled>Subir</button>
+            </div>
+            <div id="apuntePreviewList" class="upload-preview-list"></div>
+            <div class="upload-progress" id="apunteProgress" style="display:none">
+              <div class="upload-progress-bar" id="apunteProgressBar"></div>
+              <p id="apunteProgressText">Subiendo…</p>
+            </div>
+          </div>
+          <div class="photos-grid" id="apuntesGrid"></div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN: CHAT ── -->
+      <section class="section" id="sectionChat">
+        <div class="chat-messages" id="chatMessages">
+          <div class="feed-loading">Conectando al chat…</div>
+        </div>
+        <div class="chat-compose">
+          <input type="text" class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" maxlength="500">
+          <button class="chat-send" id="chatSend">→</button>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN: TAREAS ── -->
+      <section class="section" id="sectionTareas">
+        <div class="tareas-toolbar">
+          <button class="btn-primary" id="btnNuevaTarea">+ Nueva tarea</button>
+          <div class="tareas-filter">
+            <button class="filter-btn active" data-filter="all">Todas</button>
+            <button class="filter-btn" data-filter="pending">Pendientes</button>
+            <button class="filter-btn" data-filter="done">Completadas</button>
+          </div>
+        </div>
+        <div class="tareas-list" id="tareasList">
+          <div class="feed-loading">Cargando tareas…</div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN: DINÁMICAS ── -->
+      <section class="section" id="sectionDinamicas">
+        <div class="dinamicas-grid">
+          <div class="dinamica-card" id="cardRuleta">
+            <div class="dinamica-icon">🎰</div>
+            <h3>Ruleta</h3>
+            <p>Elige al azar quién expone o responde</p>
+            <button class="btn-dinamica" data-open="modalRuleta">Abrir</button>
+          </div>
+          <div class="dinamica-card" id="cardVotacion">
+            <div class="dinamica-icon">🗳️</div>
+            <h3>Votación</h3>
+            <p>Encuestas rápidas para el grupo</p>
+            <button class="btn-dinamica" data-open="modalVotacion">Abrir</button>
+          </div>
+          <div class="dinamica-card" id="cardTrivia">
+            <div class="dinamica-icon">🧠</div>
+            <h3>Trivia</h3>
+            <p>Preguntas de repaso para el grupo</p>
+            <button class="btn-dinamica" data-open="modalTrivia">Abrir</button>
+          </div>
+          <div class="dinamica-card" id="cardPuntos">
+            <div class="dinamica-icon">🏆</div>
+            <h3>Puntos</h3>
+            <p>Marcador de puntos entre compañeros</p>
+            <button class="btn-dinamica" data-open="modalPuntos">Abrir</button>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /main-content -->
+  </div><!-- /appShell -->
+
+  <!-- ══════════ MODALES ══════════ -->
+
+  <!-- MODAL: CREAR GRUPO -->
+  <div class="modal-overlay" id="modalCrearGrupo">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalCrearGrupo">✕</button>
+      <h3 class="modal-title">Crear grupo privado</h3>
+      <p class="modal-desc">Solo tú (el admin) podrás agregar miembros.</p>
+      <label class="modal-label">Nombre del grupo</label>
+      <input type="text" id="nuevoGrupoNombre" class="modal-input" placeholder="Ej: Ingeniería 4to semestre"
+        maxlength="50">
+      <label class="modal-label">Descripción (opcional)</label>
+      <input type="text" id="nuevoGrupoDesc" class="modal-input" placeholder="Ej: Grupo cerrado del equipo azul"
+        maxlength="100">
+      <label class="modal-label">Icono</label>
+      <div class="emoji-picker" id="grupoEmojiPicker"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalCrearGrupo">Cancelar</button>
+        <button class="btn-primary" id="btnConfirmarGrupo">Crear grupo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: AGREGAR MIEMBRO -->
+  <div class="modal-overlay" id="modalAgregarMiembro">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalAgregarMiembro">✕</button>
+      <h3 class="modal-title">Agregar miembro</h3>
+      <p class="modal-desc">Pídele a tu compañero su correo de Google y agrégalo aquí.</p>
+      <label class="modal-label">Correo Gmail del miembro</label>
+      <input type="email" id="miembroEmail" class="modal-input" placeholder="compañero@gmail.com">
+      <label class="modal-label">Nombre para mostrar</label>
+      <input type="text" id="miembroNombre" class="modal-input" placeholder="Nombre del compañero" maxlength="40">
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalAgregarMiembro">Cancelar</button>
+        <button class="btn-primary" id="btnConfirmarMiembro">Agregar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NUEVO SEMESTRE (grupo de apuntes) -->
+  <div class="modal-overlay" id="modalNuevoSemestre">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalNuevoSemestre">✕</button>
+      <h3 class="modal-title">Nuevo Semestre / Ciclo</h3>
+      <input type="text" id="semestreNombre" class="modal-input" placeholder="Ej: 4to Semestre 2025" maxlength="50">
+      <div class="emoji-picker" id="semestreEmojiPicker"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalNuevoSemestre">Cancelar</button>
+        <button class="btn-primary" id="btnConfirmarSemestre">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NUEVA MATERIA -->
+  <div class="modal-overlay" id="modalNuevaMateria">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalNuevaMateria">✕</button>
+      <h3 class="modal-title">Nueva Materia</h3>
+      <input type="text" id="materiaNombre" class="modal-input" placeholder="Ej: Cálculo Diferencial" maxlength="40">
+      <div class="emoji-picker" id="materiaEmojiPicker"></div>
+      <label class="modal-label" style="margin-top:10px">Semestre</label>
+      <select id="materiaSemestreSelect" class="modal-input modal-select"></select>
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalNuevaMateria">Cancelar</button>
+        <button class="btn-primary" id="btnConfirmarMateria">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NUEVA TAREA -->
+  <div class="modal-overlay" id="modalNuevaTarea">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalNuevaTarea">✕</button>
+      <h3 class="modal-title">Nueva Tarea</h3>
+      <input type="text" id="tareaTitulo" class="modal-input" placeholder="Título de la tarea" maxlength="80">
+      <textarea id="tareaDesc" class="modal-input modal-textarea" placeholder="Descripción (opcional)"></textarea>
+      <label class="modal-label">Responsable</label>
+      <input type="text" id="tareaResponsable" class="modal-input" placeholder="¿Quién la entrega?">
+      <label class="modal-label">Fecha límite</label>
+      <input type="datetime-local" id="tareaFecha" class="modal-input">
+      <label class="modal-label">Materia</label>
+      <input type="text" id="tareaMateria" class="modal-input" placeholder="Ej: Cálculo, Historia…">
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalNuevaTarea">Cancelar</button>
+        <button class="btn-primary" id="btnConfirmarTarea">Guardar tarea</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RULETA -->
+  <div class="modal-overlay" id="modalRuleta">
+    <div class="modal-box modal-box-wide">
+      <button class="modal-close" data-close="modalRuleta">✕</button>
+      <h3 class="modal-title">🎰 Ruleta del grupo</h3>
+      <div class="ruleta-wrap">
+        <canvas id="ruletaCanvas" width="300" height="300"></canvas>
+        <div class="ruleta-arrow">▼</div>
+      </div>
+      <div class="ruleta-resultado" id="ruletaResultado"></div>
+      <button class="btn-primary btn-spin" id="btnSpin">¡Girar!</button>
+      <div class="ruleta-miembros-edit">
+        <label class="modal-label">Participantes (uno por línea)</label>
+        <textarea id="ruletaMiembros" class="modal-input modal-textarea" rows="4"
+          placeholder="Ana&#10;Carlos&#10;Luis&#10;María"></textarea>
+        <button class="btn-sm" id="btnRuletaActualizar">Actualizar ruleta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: VOTACIÓN -->
+  <div class="modal-overlay" id="modalVotacion">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalVotacion">✕</button>
+      <h3 class="modal-title">🗳️ Votación rápida</h3>
+      <div id="votacionActiva" style="display:none">
+        <div class="votacion-pregunta" id="votacionPreguntaText"></div>
+        <div class="votacion-opciones" id="votacionOpciones"></div>
+        <div class="votacion-resultados" id="votacionResultados"></div>
+        <button class="btn-sm btn-sm-danger" id="btnCerrarVotacion">Cerrar votación</button>
+      </div>
+      <div id="votacionCrear">
+        <input type="text" id="votacionPregunta" class="modal-input" placeholder="¿Pregunta de la votación?">
+        <div id="votacionOpcionesInputs">
+          <input type="text" class="modal-input opcion-input" placeholder="Opción 1">
+          <input type="text" class="modal-input opcion-input" placeholder="Opción 2">
+        </div>
+        <button class="btn-sm" id="btnAgregarOpcion">+ Opción</button>
+        <div class="modal-actions">
+          <button class="btn-primary" id="btnLanzarVotacion">Lanzar votación</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: TRIVIA -->
+  <div class="modal-overlay" id="modalTrivia">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalTrivia">✕</button>
+      <h3 class="modal-title">🧠 Trivia escolar</h3>
+      <div id="triviaJuego" style="display:none">
+        <div class="trivia-progreso" id="triviaProgreso"></div>
+        <div class="trivia-pregunta" id="triviaPreguntaText"></div>
+        <div class="trivia-opciones" id="triviaOpciones"></div>
+        <div class="trivia-feedback" id="triviaFeedback"></div>
+      </div>
+      <div id="triviaCrear">
+        <p class="modal-desc">Crea preguntas de repaso para tu grupo.</p>
+        <input type="text" id="triviaPreguntaInput" class="modal-input" placeholder="Pregunta">
+        <div id="triviaRespuestasInputs">
+          <input type="text" class="modal-input trivia-resp-input" placeholder="Respuesta correcta (primera)">
+          <input type="text" class="modal-input trivia-resp-input" placeholder="Opción incorrecta 2">
+          <input type="text" class="modal-input trivia-resp-input" placeholder="Opción incorrecta 3">
+        </div>
+        <div class="modal-actions">
+          <button class="btn-sm" id="btnAgregarPregunta">Guardar pregunta</button>
+          <button class="btn-primary" id="btnIniciarTrivia">Iniciar trivia</button>
+        </div>
+        <div class="trivia-banco" id="triviaBanco"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PUNTOS -->
+  <div class="modal-overlay" id="modalPuntos">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalPuntos">✕</button>
+      <h3 class="modal-title">🏆 Marcador de puntos</h3>
+      <div class="puntos-marcador" id="puntosMarcador"></div>
+      <div class="puntos-agregar">
+        <input type="text" id="puntosNombre" class="modal-input" placeholder="Nombre del jugador">
+        <div class="puntos-btns-row">
+          <button class="btn-sm" id="btnAgregarJugador">+ Agregar</button>
+          <button class="btn-sm btn-sm-danger" id="btnResetPuntos">Reiniciar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIGHTBOX -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose">✕</button>
+    <button class="lightbox-prev" id="lightboxPrev">‹</button>
+    <button class="lightbox-next" id="lightboxNext">›</button>
+    <div class="lightbox-content">
+      <img src="" alt="" id="lightboxImg">
+      <p class="lightbox-caption" id="lightboxCaption"></p>
+    </div>
+  </div>
+
+  <!-- ══════════ FIREBASE ══════════ -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import {
+      getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import {
+      initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+      collection, addDoc, query, where, getDocs, orderBy, limit,
+      onSnapshot, serverTimestamp, doc, setDoc, increment,
+      getDoc, deleteDoc, updateDoc, writeBatch, arrayUnion, arrayRemove
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBmfBZwfeAP_TJmZNE9Tf9r22HvZyBpxbs",
+      authDomain: "zonaescolar-658ff.firebaseapp.com",
+      projectId: "zonaescolar-658ff",
+      storageBucket: "zonaescolar-658ff.firebasestorage.app",
+      messagingSenderId: "703801149606",
+      appId: "1:703801149606:web:337730f2eba005ec424c67"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    });
+
+    window._auth = auth;
+    window._db = db;
+    window._fbLib = {
+      collection, addDoc, query, where, getDocs, orderBy, limit,
+      onSnapshot, serverTimestamp, doc, setDoc, increment,
+      getDoc, deleteDoc, updateDoc, writeBatch, arrayUnion, arrayRemove,
+      GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    };
+    window._firebaseReady = true;
+
+    // Disparar evento cuando Firebase esté listo
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
+
+  <script src="js/app.js?v=1"></script>
+</body>
+
+</html>
