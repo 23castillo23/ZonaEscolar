@@ -170,6 +170,8 @@ function showApp() {
   $('userName').textContent = currentUser.name;
   $('userRole').textContent = 'Miembro';
   if ($('muroNombre')) $('muroNombre').textContent = currentUser.name;
+  // Mostrar pantalla de carga mientras Firestore trae los grupos
+  showSection('loading');
 }
 
 /* ═══════════════════════════════════════════════════
@@ -179,6 +181,8 @@ async function loadGruposDelUsuario() {
   const { collection, query, onSnapshot, where } = lib();
   if (gruposUnsub) gruposUnsub();
 
+  let primerSnapshot = true;
+
   const q = query(
     collection(db(), 'ec_grupos'),
     where('miembros', 'array-contains', currentUser.email)
@@ -187,12 +191,30 @@ async function loadGruposDelUsuario() {
   gruposUnsub = onSnapshot(q, snap => {
     grupos = [];
     snap.forEach(d => grupos.push({ id: d.id, ...d.data() }));
-    renderGroupSelector();
-    if (!currentGroupId && grupos.length > 0) {
-      activarGrupo(grupos[0].id);
-    } else if (grupos.length === 0) {
-      showSection('noGroup');
+
+    if (primerSnapshot) {
+      primerSnapshot = false;
+      // Primera carga: decidir qué mostrar
+      if (grupos.length > 0) {
+        // Restaurar último grupo usado si sigue disponible
+        const lastId = localStorage.getItem('ze_last_group');
+        const target = lastId && grupos.find(g => g.id === lastId)
+          ? lastId : grupos[0].id;
+        activarGrupo(target);
+      } else {
+        showSection('noGroup');
+      }
+    } else {
+      // Actualizaciones en tiempo real: refrescar selector y datos del grupo activo
+      renderGroupSelector();
+      renderSidebarMiembros();
+      if (currentGroupId) {
+        currentGroupData = grupos.find(g => g.id === currentGroupId) || currentGroupData;
+      }
     }
+  }, err => {
+    console.error('Error cargando grupos:', err);
+    showSection('noGroup');
   });
 }
 
@@ -213,6 +235,7 @@ async function activarGrupo(groupId) {
   currentGroupId = groupId;
   currentGroupData = grupos.find(g => g.id === groupId) || null;
   isAdmin = currentGroupData?.adminUid === currentUser.uid;
+  localStorage.setItem('ze_last_group', groupId); // recordar grupo activo
   $('userRole').textContent = isAdmin ? 'Admin' : 'Miembro';
   $('topbarGroupBadge').textContent = currentGroupData
     ? `${currentGroupData.icon||'👥'} ${currentGroupData.name}` : '';
@@ -422,7 +445,8 @@ function activarSeccion(section) {
 function showSection(name) {
   qsa('.section').forEach(s => s.classList.remove('active'));
   const map = {
-    noGroup:'sectionNoGroup', feed:'sectionFeed', muro:'sectionMuro',
+    loading:'sectionLoading', noGroup:'sectionNoGroup',
+    feed:'sectionFeed', muro:'sectionMuro',
     apuntes:'sectionApuntes', chat:'sectionChat',
     tareas:'sectionTareas', dinamicas:'sectionDinamicas'
   };
@@ -1271,12 +1295,15 @@ $('btnNewSubjectGroup').addEventListener('click', () => {
   openModal('modalNuevoSemestre');
 });
 
+let _creandoSemestre = false;
 $('btnConfirmarSemestre').addEventListener('click', async () => {
+  if (_creandoSemestre) return;
   const nombre = $('semestreNombre').value.trim();
   if (!nombre) { alert('Escribe el nombre.'); return; }
   if (!currentGroupId) { alert('Selecciona un grupo primero.'); return; }
+  _creandoSemestre = true;
   const btn = $('btnConfirmarSemestre');
-  btn.disabled = true; btn.textContent = '⏳';
+  btn.disabled = true; btn.textContent = '⏳ Guardando…';
   const { collection, addDoc, serverTimestamp } = lib();
   try {
     await addDoc(collection(db(), 'ec_semestres'), {
@@ -1287,6 +1314,7 @@ $('btnConfirmarSemestre').addEventListener('click', async () => {
     $('semestreNombre').value = '';
   } catch(e) { alert('Error al crear semestre: ' + e.message); }
   btn.disabled = false; btn.textContent = 'Crear';
+  _creandoSemestre = false;
 });
 
 $('btnNewMateria').addEventListener('click', () => openNewMateriaModal(''));
@@ -1301,10 +1329,13 @@ window.openNewMateriaModal = function(semestreId) {
   openModal('modalNuevaMateria');
 };
 
+let _creandoMateria = false;
 $('btnConfirmarMateria').addEventListener('click', async () => {
+  if (_creandoMateria) return;
   const nombre = $('materiaNombre').value.trim();
   if (!nombre) { alert('Escribe el nombre de la materia.'); return; }
   if (!currentGroupId) { alert('Selecciona un grupo primero.'); return; }
+  _creandoMateria = true;
   const btn = $('btnConfirmarMateria');
   btn.disabled = true; btn.textContent = '⏳';
   const tag = nombre.toLowerCase().normalize('NFD')
@@ -1322,6 +1353,7 @@ $('btnConfirmarMateria').addEventListener('click', async () => {
     $('materiaNombre').value = '';
   } catch(e) { alert('Error al crear materia: ' + e.message); }
   btn.disabled = false; btn.textContent = 'Crear';
+  _creandoMateria = false;
 });
 
 /* ═══════════════════════════════════════════════════
