@@ -258,10 +258,17 @@ async function activarGrupo(groupId) {
   currentGroupId = groupId;
   currentGroupData = grupos.find(g => g.id === groupId) || null;
   isAdmin = currentGroupData?.adminUid === currentUser.uid;
-  localStorage.setItem('ze_last_group', groupId); // recordar grupo activo
+  localStorage.setItem('ze_last_group', groupId); 
+  
   $('userRole').textContent = isAdmin ? 'Admin' : 'Miembro';
   $('topbarGroupBadge').textContent = currentGroupData
     ? `${currentGroupData.icon||'👥'} ${currentGroupData.name}` : '';
+    
+  // --- ESTO ES LO NUEVO PARA MOSTRAR/OCULTAR EL BOTÓN ---
+  const btnDelete = $('btnDeleteGroup');
+  if (btnDelete) btnDelete.style.display = isAdmin ? 'inline-block' : 'none';
+  // ------------------------------------------------------
+
   renderGroupSelector();
   renderSidebarMiembros();
   if (feedUnsub)    { feedUnsub();    feedUnsub    = null; }
@@ -276,33 +283,29 @@ function renderSidebarMiembros() {
   const container = $('sidebarMiembros');
   if (!container || !currentGroupData) return;
   const miembros = currentGroupData.miembros || [];
-  const nombres = currentGroupData.miembroNombres || {};
+  const nombres  = currentGroupData.miembroNombres || {};
   if (!miembros.length) { container.innerHTML = ''; return; }
 
   container.innerHTML = `
     <div class="sidebar-members-label">👥 Miembros del grupo</div>
     <div class="sidebar-members-list">
- 
-${miembros.map(email => {
-    const key = email.replace(/\./g, '_');
-    const nombre = nombres[key] || email.split('@')[0];
-    const esYo = email === currentUser.email;
-    const esAdminGrupo = email === currentGroupData.adminEmail;
+      ${miembros.map(email => {
+        const key    = email.replace(/\./g,'_');
+        const nombre = nombres[key] || email.split('@')[0];
+        const esYo   = email === currentUser.email;
+        const esAdminGrupo = email === currentGroupData.adminEmail;
+        
+        // Botón X alineado a la derecha
+        const btnExpulsar = (isAdmin && !esYo) 
+          ? `<button class="btn-sm btn-sm-danger" style="margin-left:auto; padding:2px 8px; font-size:12px; border-radius:4px;" onclick="event.stopPropagation(); expulsarMiembro('${escHtml(email)}')">✕</button>` 
+          : '';
 
-    // Botón de expulsar: Solo aparece si YO soy admin, y no me estoy viendo a mí mismo
-    const btnExpulsar = (isAdmin && !esYo)
-      ? `<button class="btn-sm btn-sm-danger" style="margin-left:auto; padding:2px 6px; font-size:10px;" onclick="event.stopPropagation(); expulsarMiembro('${escHtml(email)}')">X</button>`
-      : '';
-
-    return `<button class="sidebar-member-btn ${esYo ? 'me' : ''}"
-    data-email="${escHtml(email)}"
-    onclick="verMuroDeUsuario('${escHtml(email)}','${escHtml(nombre)}')"
-    title="${escHtml(email)}">
-    <span class="sidebar-member-initial">${escHtml(nombre.charAt(0).toUpperCase())}</span>
-    <span class="sidebar-member-name">${escHtml(nombre)}${esYo ? ' (tú)' : ''}${esAdminGrupo ? ' ⭐' : ''}</span>
-    ${btnExpulsar}
-  </button>`;
-  }).join('')}
+        return `<div class="sidebar-member-btn ${esYo?'me':''}" style="display:flex; align-items:center; cursor:pointer;" onclick="verMuroDeUsuario('${escHtml(email)}','${escHtml(nombre)}')">
+          <span class="sidebar-member-initial">${escHtml(nombre.charAt(0).toUpperCase())}</span>
+          <span class="sidebar-member-name" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escHtml(nombre)}${esYo?' (tú)':''}${esAdminGrupo?' ⭐':''}</span>
+          ${btnExpulsar}
+        </div>`;
+      }).join('')}
     </div>`;
 }
 
@@ -1804,5 +1807,25 @@ waitForFirebase(() => initAuth());
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => { });
+  });
+}
+
+// --- ELIMINAR GRUPO ---
+const btnDeleteGroup = $('btnDeleteGroup');
+if (btnDeleteGroup) {
+  btnDeleteGroup.addEventListener('click', async () => {
+    if (!isAdmin) return;
+    if (!confirm(`¿Estás 100% seguro de eliminar el grupo "${currentGroupData.name}"? Esto lo borrará para todos los miembros.`)) return;
+
+    const { doc, deleteDoc } = lib();
+    try {
+      // Borrar el documento del grupo en Firestore
+      await deleteDoc(doc(db(), 'ec_grupos', currentGroupId));
+      alert('Grupo eliminado correctamente.');
+      // Refrescar la página para limpiar todo
+      window.location.reload();
+    } catch (e) {
+      alert('Error al eliminar grupo: ' + e.message);
+    }
   });
 }

@@ -100,6 +100,8 @@
         </select>
         <div class="sidebar-actions">
           <button class="btn-sm" id="btnCreateGroup">+ Crear grupo</button>
+          <button class="btn-sm btn-sm-danger" id="btnDeleteGroup" style="display:none;"
+            title="Eliminar Grupo Actual">🗑️ Grupo</button>
           <button class="btn-sm btn-sm-danger" id="btnLogout">Salir</button>
         </div>
       </div>
@@ -218,7 +220,8 @@
         </div>
         <div class="chat-compose">
           <div class="chat-input-wrap">
-            <textarea class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" rows="1" maxlength="500"></textarea>
+            <textarea class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" rows="1"
+              maxlength="500"></textarea>
           </div>
           <button class="chat-send" id="chatSend">➤</button>
         </div>
@@ -301,9 +304,11 @@
       <h3 class="modal-title">Crear grupo privado</h3>
       <p class="modal-desc">Solo tú (el admin) podrás agregar miembros.</p>
       <label class="modal-label">Nombre del grupo</label>
-      <input type="text" id="nuevoGrupoNombre" class="modal-input" placeholder="Ej: Ingeniería 4to semestre" maxlength="50">
+      <input type="text" id="nuevoGrupoNombre" class="modal-input" placeholder="Ej: Ingeniería 4to semestre"
+        maxlength="50">
       <label class="modal-label">Descripción (opcional)</label>
-      <input type="text" id="nuevoGrupoDesc" class="modal-input" placeholder="Ej: Grupo cerrado del equipo azul" maxlength="100">
+      <input type="text" id="nuevoGrupoDesc" class="modal-input" placeholder="Ej: Grupo cerrado del equipo azul"
+        maxlength="100">
       <label class="modal-label">Icono</label>
       <div class="emoji-picker" id="grupoEmojiPicker"></div>
       <div class="modal-actions">
