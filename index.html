@@ -85,6 +85,9 @@
         <button class="nav-item" data-section="tareas">
           <span class="nav-icon">✅</span> Tareas
         </button>
+        <button class="nav-item" data-section="biblioteca">
+          <span class="nav-icon">📚</span> Biblioteca
+        </button>
         <button class="nav-item" data-section="dinamicas">
           <span class="nav-icon">🎮</span> Dinámicas
         </button>
@@ -321,6 +324,25 @@
         </div>
       </section>
 
+      <!-- ── SECCIÓN: BIBLIOTECA ── -->
+      <section class="section" id="sectionBiblioteca">
+        <div class="biblio-shell biblio-section-root">
+          <div class="biblio-header">
+            <div>
+              <div class="biblio-title">📚 Biblioteca del grupo</div>
+              <div class="biblio-subtitle">PDF, Word y otros archivos (enlaces desde TeraBox)</div>
+            </div>
+            <div class="biblio-actions">
+              <button class="btn-sm" type="button" id="btnAbrirTeraBoxBiblio">☁️ TeraBox</button>
+              <button class="btn-primary" type="button" id="btnAgregarArchivoBiblioMain">+ Agregar archivo</button>
+            </div>
+          </div>
+          <div class="biblio-list" id="biblioList">
+            <div class="feed-loading">Cargando biblioteca…</div>
+          </div>
+        </div>
+      </section>
+
       <!-- ── SECCIÓN: DINÁMICAS ── -->
       <section class="section" id="sectionDinamicas">
         <div class="dinamicas-grid">
@@ -366,6 +388,9 @@
       </button>
       <button class="bottom-nav-item" data-section="tareas">
         <span class="bnav-icon">✅</span>Tareas
+      </button>
+      <button class="bottom-nav-item" data-section="biblioteca">
+        <span class="bnav-icon">📚</span>Biblio
       </button>
       <button class="bottom-nav-item" data-section="dinamicas">
         <span class="bnav-icon">🎮</span>Más

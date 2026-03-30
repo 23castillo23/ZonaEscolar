@@ -1206,12 +1206,12 @@ a {
 
 /* Cuando el semestre está abierto, ocupa toda la fila */
 .semestre-group2.open {
-  grid-column: 1 / -1;
+  grid-column: auto;
 }
 
 /* Dentro del semestre abierto, las materias forman su propio grid de 2+ columnas */
 .semestre-group2.open .materias-grid2 {
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .semestre-group2:hover {
@@ -3767,6 +3767,30 @@ a {
   color: var(--accent2);
 }
 
+.sidebar-member-initial-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+}
+
+.sidebar-online-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid var(--bg2);
+  box-sizing: border-box;
+  display: none;
+}
+
+.sidebar-member-online .sidebar-online-dot {
+  display: block;
+}
+
 .sidebar-member-initial {
   width: 28px;
   height: 28px;
@@ -4155,6 +4179,161 @@ a {
   font-weight: 600;
   color: var(--text0);
   flex: 1;
+}
+
+.cal-header {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.cal-grid {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.cal-dia {
+  min-height: 50px;
+  border-radius: 12px;
+}
+
+.cal-dia.tiene-tarea {
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3) inset;
+}
+
+/* Biblioteca (Tareas) */
+.biblio-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.biblio-header {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.biblio-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text0);
+}
+
+.biblio-subtitle {
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.biblio-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.biblio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.biblio-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.biblio-item-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.biblio-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.biblio-item-meta {
+  min-width: 0;
+}
+
+.biblio-item-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.biblio-item-sub {
+  font-size: 11px;
+  color: var(--text2);
+}
+
+@media (max-width: 768px) {
+  .tareas-toolbar {
+    gap: 8px;
+  }
+
+  .btn-calendario {
+    margin-left: 0;
+  }
+
+  .biblio-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 390px) {
+  #apuntesGroupsContainer {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .semestre-banner {
+    min-height: 74px;
+    padding: 14px 14px;
+  }
+
+  .materias-grid2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .cal-grid {
+    gap: 3px;
+    padding: 8px;
+  }
+
+  .cal-dia {
+    min-height: 42px;
+  }
 }
 
 /* Adaptador para iniciales en Feed y Chat */
@@ -5051,6 +5230,11 @@ a {
   background: rgba(124, 106, 247, 0.08); /* Fondo morado sutil */
   transform: translateY(-2px); /* Se levanta un poquito */
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.feed-votacion-opcion.votacion-opcion-seleccionada {
+  border-color: var(--accent2);
+  background: rgba(124, 106, 247, 0.2);
 }
 
 /* Circulito tipo radio-button para que se entienda que es para elegir */

@@ -27,6 +27,11 @@ let chatUnsub = null;
 let tareasUnsub = null;
 let votacionUnsub = null;
 let gruposUnsub = null;
+let chatTypingUnsub = null;
+let chatOnlineUnsub = null;
+let _typingTimeout = null;
+let _onlineHeartbeatTimer = null;
+let chatLastReadMs = 0;
 
 let currentSection = 'feed';
 let tareasFilter = 'all';
@@ -41,6 +46,8 @@ let triviaBanco = [];
 let triviaIdx = 0;
 let triviaScore = 0;
 let puntosMarcador = [];
+let bibliotecaUnsub = null;
+let sidebarOnlineUnsub = null;
 
 const EMOJIS_SEMESTRE = [
   '📅', '📚', '🎓', '🌱', '☀️', '🍂', '❄️', '📖', '🏫', '✏️',
@@ -90,16 +97,40 @@ function fmtTime(ts) {
 function fmtTimeChat(ts) {
   if (!ts) return 'Enviando...'; // Evita que se rompa si el mensaje es nuevo
   const d = ts.toDate ? ts.toDate() : new Date(ts);
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return 'Enviando...';
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }
 function fmtDateChat(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '';
   const hoy = new Date();
   if (d.toDateString() === hoy.toDateString()) return 'Hoy';
   const ayer = new Date(hoy); ayer.setDate(ayer.getDate() - 1);
   if (d.toDateString() === ayer.toDateString()) return 'Ayer';
   return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+function getChatMsgMillis(m) {
+  const ts = m?.createdAt ?? m?.timestamp ?? m?.fecha ?? m?.date ?? null;
+  if (!ts) return 0;
+  if (typeof ts?.toMillis === 'function') return ts.toMillis();
+  if (typeof ts?.toDate === 'function') {
+    const d = ts.toDate();
+    return Number.isFinite(d?.getTime?.()) ? d.getTime() : 0;
+  }
+  const d = new Date(ts);
+  const ms = d.getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+function getChatMsgDate(m) {
+  const ts = m?.createdAt ?? m?.timestamp ?? m?.fecha ?? m?.date ?? null;
+  if (!ts) return null;
+  if (typeof ts?.toDate === 'function') {
+    const d = ts.toDate();
+    return (d instanceof Date && Number.isFinite(d.getTime())) ? d : null;
+  }
+  const d = new Date(ts);
+  return Number.isFinite(d.getTime()) ? d : null;
 }
 function waitForFirebase(cb) {
   if (window._firebaseReady) { cb(); return; }
@@ -393,15 +424,27 @@ async function activarGrupo(groupId) {
 
   // ------------------------------------------
 
-  renderGroupSelector();
-  renderSidebarMiembros();
-
   if (feedUnsub) { feedUnsub(); feedUnsub = null; }
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
+  if (bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
   if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
   if (votacionUnsub) { votacionUnsub(); votacionUnsub = null; }
   if (semestresUnsub) { semestresUnsub(); semestresUnsub = null; }
   if (galeriasUnsub) { galeriasUnsub(); galeriasUnsub = null; }
+  if (chatTypingUnsub) { chatTypingUnsub(); chatTypingUnsub = null; }
+  if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
+  if (sidebarOnlineUnsub) { sidebarOnlineUnsub(); sidebarOnlineUnsub = null; }
+  if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
+  if (_typingTimeout) { clearTimeout(_typingTimeout); _typingTimeout = null; }
+
+  renderGroupSelector();
+  renderSidebarMiembros();
+
+  _setOnlineStatus();
+  _onlineHeartbeatTimer = setInterval(() => {
+    if (currentGroupId && currentUser) _setOnlineStatus();
+  }, 25000);
+  initSidebarOnlinePresence();
 
   hookBurbujaEnGrupo();
 
@@ -443,8 +486,11 @@ function renderSidebarMiembros() {
       ? `<button class="btn-expulsar" title="Quitar miembro" onclick="event.stopPropagation(); expulsarMiembro('${escHtml(email)}')">✕</button>`
       : '';
 
-    return `<div class="sidebar-member-btn ${esYo ? 'me' : ''}" style="display:flex; align-items:center; cursor:pointer;" onclick="verMuroDeUsuario('${escHtml(email)}','${escHtml(nombre)}')">
-          <span class="sidebar-member-initial">${escHtml(nombre.charAt(0).toUpperCase())}</span>
+    return `<div class="sidebar-member-btn ${esYo ? 'me' : ''}" data-email="${escHtml(email)}" style="display:flex; align-items:center; cursor:pointer;" onclick="verMuroDeUsuario('${escHtml(email)}','${escHtml(nombre)}')">
+          <span class="sidebar-member-initial-wrap">
+            <span class="sidebar-member-initial">${escHtml(nombre.charAt(0).toUpperCase())}</span>
+            <span class="sidebar-online-dot" title="En línea"></span>
+          </span>
           <span class="sidebar-member-name" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escHtml(nombre)}${esYo ? ' (tú)' : ''}${esAdminGrupo ? ' ⭐' : ''}</span>
           ${btnExpulsar}
         </div>`;
@@ -630,7 +676,7 @@ $('btnConfirmarMiembro').addEventListener('click', async () => {
 ═══════════════════════════════════════════════════ */
 const sectionTitles = {
   feed: 'Novedades', muro: 'Mi Muro', apuntes: 'Apuntes',
-  chat: 'Chat', tareas: 'Tareas', dinamicas: 'Dinámicas'
+  chat: 'Chat', tareas: 'Tareas', biblioteca: 'Biblioteca', dinamicas: 'Dinámicas'
 };
 
 function setActiveNav(section) {
@@ -665,30 +711,57 @@ qsa('.bottom-nav-item').forEach(btn => {
 function activarSeccion(section) {
   if (!currentGroupId && section !== 'muro') { showSection('noGroup'); return; }
 
-  // --- FIX: CERRAR BURBUJA AL ENTRAR AL CHAT GRANDE ---
+  if (section !== 'biblioteca' && bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
+
+  // --- CERRAR BURBUJA AL ENTRAR AL CHAT GRANDE ---
   if (section === 'chat') {
     const panel = $('chatBurbujaPanel');
     const fab = $('chatFab');
     if (panel) panel.classList.remove('open');
     if (fab) fab.classList.remove('active');
     chatBurbujaAbierta = false;
-    
-    // Detener el listener de la burbuja para ahorrar recursos
-    if (chatBurbujaUnsub) { 
-      chatBurbujaUnsub(); 
-      chatBurbujaUnsub = null; 
-    }
+    if (chatBurbujaUnsub) { chatBurbujaUnsub(); chatBurbujaUnsub = null; }
+    resetBurbujaUnread();
+    markChatAsRead();
   }
-  // ---------------------------------------------------
+
+  // --- LIMPIAR TYPING/ONLINE AL SALIR DEL CHAT (el heartbeat de presencia sigue activo en todo el grupo) ---
+  if (section !== 'chat') {
+    if (chatTypingUnsub) { chatTypingUnsub(); chatTypingUnsub = null; }
+    if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
+    const indicator = $('chatTypingIndicator');
+    if (indicator) { indicator.style.display = 'none'; indicator.textContent = ''; }
+    const onlineList = $('chatOnlineList');
+    if (onlineList) onlineList.style.display = 'none';
+  }
 
   showSection(section);
-  
+
+  // FAB: invisible + no clickeable dentro del chat
   const chatFabEl = $('chatFab');
-  if (chatFabEl) chatFabEl.style.opacity = section === 'chat' ? '0' : '1';
-  
+  if (chatFabEl) {
+    const hideFab = section === 'chat';
+    chatFabEl.style.opacity = hideFab ? '0' : '1';
+    chatFabEl.style.pointerEvents = hideFab ? 'none' : '';
+  }
+
   if (section === 'feed') initFeed();
-  if (section === 'chat') { if (!chatUnsub) initChat(); }
+  if (section === 'chat') {
+    if (!chatUnsub) initChat();
+    else {
+      initChatOnline();
+      initChatTypingListener();
+      markChatAsRead();
+    }
+    // Al abrir el chat: posicionar en el último mensaje que enviaste (el listener ya pintó si existía).
+    const scrollToMine = () => scrollChatToMyLastMessage();
+    requestAnimationFrame(() => {
+      scrollToMine();
+      setTimeout(scrollToMine, 0);
+    });
+  }
   if (section === 'tareas') initTareas();
+  if (section === 'biblioteca') initBiblioteca();
   if (section === 'apuntes') initApuntes();
   if (section === 'dinamicas') initDinamicas();
   if (section === 'muro') initMuro();
@@ -700,7 +773,7 @@ function showSection(name) {
     loading: 'sectionLoading', noGroup: 'sectionNoGroup',
     feed: 'sectionFeed', muro: 'sectionMuro',
     apuntes: 'sectionApuntes', chat: 'sectionChat',
-    tareas: 'sectionTareas', dinamicas: 'sectionDinamicas'
+    tareas: 'sectionTareas', biblioteca: 'sectionBiblioteca', dinamicas: 'sectionDinamicas'
   };
   const el = $(map[name]);
   if (el) el.classList.add('active');
@@ -874,36 +947,42 @@ function buildFeedCard(p) {
   // Card especial para votación inline
   if (p.type === 'votacion' && p.votacionId) {
     const yaVoto = p.votantes?.includes(currentUser.uid);
+    const miVoto = Number(p?.userVotes?.[currentUser.uid]);
     const activa = p.activa !== false; // true por defecto
     const totalVotos = Object.values(p.votos || {}).reduce((a, b) => a + b, 0);
 
     let pollHtml = '';
-    // Si ya votó o si la encuesta está cerrada, mostramos resultados
-    if (!activa) {
-      pollHtml = (p.opciones || []).map((op, i) => {
-        const cnt = p.votos?.[i] || 0;
-        const pct = totalVotos ? Math.round((cnt / totalVotos) * 100) : 0;
-        return `
-          <div class="feed-votacion-resultado-bar">
-            <div class="feed-votacion-bar-fill" style="width:${pct}%"></div>
-            <div class="feed-votacion-bar-text">
-              <span>${escHtml(op)}</span>
-              <span>${cnt} voto${cnt !== 1 ? 's' : ''} (${pct}%)</span>
-            </div>
+    // Siempre mostrar porcentajes para transparencia.
+    const resultadosHtml = (p.opciones || []).map((op, i) => {
+      const cnt = p.votos?.[i] || 0;
+      const pct = totalVotos ? Math.round((cnt / totalVotos) * 100) : 0;
+      const isMine = Number.isInteger(miVoto) && miVoto === i;
+      return `
+        <div class="feed-votacion-resultado-bar ${isMine ? 'mi-voto' : ''}">
+          <div class="feed-votacion-bar-fill" style="width:${pct}%"></div>
+          <div class="feed-votacion-bar-text">
+            <span>${escHtml(op)} ${isMine ? '✔' : ''}</span>
+            <span>${cnt} voto${cnt !== 1 ? 's' : ''} (${pct}%)</span>
           </div>
-        `;
-      }).join('');
-      
+        </div>
+      `;
+    }).join('');
+
+    if (!activa) {
+      pollHtml = resultadosHtml;
       pollHtml += `<div style="text-align:center; font-size:12px; color:var(--text2); margin-top:10px;">
-        ${!activa ? '🔒 Votación cerrada' : '✅ Tu voto fue registrado'} · ${totalVotos} votos en total
+        🔒 Votación cerrada · ${totalVotos} votos en total
       </div>`;
     } else {
-      // Si está activa y no ha votado, mostramos botones
-      pollHtml = (p.opciones || []).map((op, i) =>
-        `<button class="feed-votacion-opcion" onclick="votarDesdeFeed('${p.votacionId}',${i},'${p.id}')">
-          ${escHtml(op)}
+      const botones = (p.opciones || []).map((op, i) =>
+        `<button class="feed-votacion-opcion ${Number.isInteger(miVoto) && miVoto === i ? 'votacion-opcion-seleccionada' : ''}" onclick="votarDesdeFeed('${p.votacionId}',${i},'${p.id}')">
+          ${escHtml(op)}${Number.isInteger(miVoto) && miVoto === i ? ' ✔' : ''}
         </button>`
       ).join('');
+      pollHtml = `<div class="feed-votacion-opciones-cta">${botones}</div>
+      <div style="font-size:12px;color:var(--text2);margin:8px 0 6px;">${yaVoto ? 'Puedes cambiar tu voto mientras esté abierta.' : 'Elige una opción para votar.'}</div>
+      ${resultadosHtml}
+      <div style="text-align:center; font-size:12px; color:var(--text2); margin-top:8px;">${totalVotos} votos en total</div>`;
     }
 
     return `<div class="feed-card" data-id="${p.id}">
@@ -1605,6 +1684,19 @@ function ajustarScrollChat(isInitialLoad) {
   }, 50);
 }
 
+/** Baja el scroll hasta el último mensaje enviado por el usuario; si no hay, al final del hilo. */
+function scrollChatToMyLastMessage() {
+  const box = $('chatMessages');
+  if (!box) return;
+  const mine = qsa('.chat-msg.mine', box);
+  const lastMine = mine[mine.length - 1];
+  if (lastMine) {
+    lastMine.scrollIntoView({ behavior: 'instant', block: 'end' });
+  } else {
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
 function initChat() {
   if (!currentGroupId) return;
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
@@ -1612,57 +1704,73 @@ function initChat() {
   const box = $('chatMessages');
   box.innerHTML = '<div class="feed-loading" id="chatLoading">Conectando…</div>';
   lastChatDateStr = '';
-
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
-  const q = query(
-    collection(db(), 'ec_chat'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'asc'),
-    limit(100)
-  );
-
   let isFirst = true;
+  let usingOrdered = true;
 
-  // includeMetadataChanges: true es VITAL para ver lo que escribes al segundo
-  chatUnsub = onSnapshot(q, { includeMetadataChanges: true }, snap => {
-    const loading = $('chatLoading');
-    if (loading) loading.remove();
+  const startListener = (ordered) => {
+    if (chatUnsub) { chatUnsub(); chatUnsub = null; }
+    const q = ordered
+      ? query(
+        collection(db(), 'ec_chat'),
+        where('groupId', '==', currentGroupId),
+        orderBy('createdAt', 'desc'),
+        limit(120)
+      )
+      : query(
+        collection(db(), 'ec_chat'),
+        where('groupId', '==', currentGroupId),
+        limit(120)
+      );
 
-    if (isFirst) {
-      isFirst = false;
+    chatUnsub = onSnapshot(q, snap => {
+      const loading = $('chatLoading');
+      if (loading) loading.remove();
+      const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 220;
+      const mensajes = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => getChatMsgMillis(a) - getChatMsgMillis(b));
+
       box.innerHTML = '';
-      snap.docs.forEach(d => {
-        appendChatMessageObj({ id: d.id, ...d.data() }, box);
-      });
-      box.scrollTop = box.scrollHeight;
-    } else {
-      snap.docChanges().forEach(change => {
-        if (change.type === 'added') {
-          const m = { id: change.doc.id, ...change.doc.data() };
-          if (box.querySelector(`.chat-msg[data-id="${m.id}"]`)) return;
+      lastChatDateStr = '';
+      mensajes.forEach(m => appendChatMessageObj(m, box));
 
-          appendChatMessageObj(m, box);
-          
-          if (m.authorUid === currentUser.uid || (box.scrollHeight - box.scrollTop - box.clientHeight < 200)) {
-            box.scrollTop = box.scrollHeight;
-          }
-        }
-      });
-    }
-  }, err => {
-    console.error("Error en Chat:", err);
-    // Si el error es por falta de índice, verás un link en la consola (F12)
-    if (err.code === 'failed-precondition') {
-      box.innerHTML = '<div class="feed-loading" style="color:var(--amber);">⚠️ Falta crear un índice en Firestore. Revisa la consola F12.</div>';
-    }
-  });
+      if (isFirst) {
+        requestAnimationFrame(() => scrollChatToMyLastMessage());
+      } else if (wasNearBottom) {
+        requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+      }
+      isFirst = false;
+    }, err => {
+      console.error('Chat error:', err);
+      if (ordered && err.code === 'failed-precondition') {
+        // Fallback para grupos viejos sin índice compuesto.
+        usingOrdered = false;
+        isFirst = true;
+        startListener(false);
+        return;
+      }
+      if (err.code === 'failed-precondition' && !usingOrdered) {
+        box.innerHTML = '<div class="feed-loading" style="color:var(--amber);">⚠️ Falta un índice en Firestore. Revisa la consola (F12).</div>';
+      } else {
+        box.innerHTML = '<div class="feed-loading" style="color:var(--red);">⚠️ Error de conexión</div>';
+      }
+    });
+  };
+
+  startListener(true);
+
+  // Iniciar presencia online y escucha de typing
+  initChatOnline();
+  initChatTypingListener();
+  markChatAsRead();
 }
 
 function appendChatMessageObj(m, box) {
   const mine = m.authorUid === currentUser?.uid;
   
-  // Si no hay fecha (mensaje enviándose), usamos la hora actual de la PC
-  const rawDate = m.createdAt ? (m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt)) : new Date();
+  // Soporta varios formatos históricos de fecha sin romper el render.
+  const rawDate = getChatMsgDate(m) || new Date();
   const msgDate = fmtDateChat(rawDate);
 
   if (msgDate && msgDate !== lastChatDateStr) {
@@ -1686,7 +1794,7 @@ function appendChatMessageObj(m, box) {
       <div class="chat-msg-author" style="${mine ? 'text-align:right;color:var(--accent2);' : ''}">${escHtml(m.authorName || 'Compañero')}</div>
       <div class="chat-msg-bubble">${bubbleContent}</div>
       <div class="chat-msg-time">
-        ${fmtTimeChat(m.createdAt)}
+        ${fmtTimeChat(getChatMsgDate(m) || m.createdAt)}
         ${mine ? `<button class="chat-del-btn" onclick="eliminarMensaje('${m.id}')" title="Eliminar">🗑️</button>` : ''}
       </div>
     </div>`;
@@ -1719,6 +1827,142 @@ async function enviarMensaje() {
     console.error("Error al enviar:", e);
     alert("No se pudo enviar el mensaje.");
   }
+}
+
+/* ══════════════════════════════════════════════════════
+   CHAT — FEATURES v1.4: seenBy ✔✔ · Typing · Online
+══════════════════════════════════════════════════════ */
+
+/* ── seenBy: marcar mensaje como visto ── */
+async function marcarMensajeVisto(msgId) {
+  if (!currentUser || !msgId) return;
+  try {
+    const { doc, updateDoc } = lib();
+    await updateDoc(doc(db(), 'ec_chat', msgId), {
+      [`seenBy.${currentUser.uid}`]: true
+    });
+  } catch (_) { /* silencioso — no bloquear el chat */ }
+}
+
+/* ── Typing indicator: escuchar quién está escribiendo ── */
+function initChatTypingListener() {
+  if (chatTypingUnsub) { chatTypingUnsub(); chatTypingUnsub = null; }
+  if (!currentGroupId) return;
+
+  const { collection, query, where, onSnapshot } = lib();
+  const q = query(
+    collection(db(), 'ec_typing'),
+    where('groupId', '==', currentGroupId)
+  );
+
+  chatTypingUnsub = onSnapshot(q, snap => {
+    const indicator = $('chatTypingIndicator');
+    if (!indicator) return;
+    const now = Date.now();
+    const typing = [];
+    snap.docs.forEach(d => {
+      const data = d.data();
+      if (data.uid === currentUser.uid) return; // ignorar el propio
+      const ts = data.updatedAt?.toMillis ? data.updatedAt.toMillis() : (data.updatedAt || 0);
+      if (now - ts < 3000) typing.push(data.name || 'Compañero');
+    });
+    if (typing.length === 0) {
+      indicator.style.display = 'none';
+      indicator.textContent = '';
+    } else {
+      const names = typing.slice(0, 2).join(', ');
+      indicator.textContent = `${names} ${typing.length === 1 ? 'está escribiendo…' : 'están escribiendo…'}`;
+      indicator.style.display = 'block';
+    }
+  });
+}
+
+async function enviarTypingSignal() {
+  if (!currentGroupId || !currentUser) return;
+  try {
+    const { doc, setDoc, serverTimestamp } = lib();
+    await setDoc(doc(db(), 'ec_typing', `${currentGroupId}_${currentUser.uid}`), {
+      groupId: currentGroupId,
+      uid: currentUser.uid,
+      name: getUserAlias(),
+      updatedAt: serverTimestamp()
+    });
+  } catch (_) { /* silencioso */ }
+}
+
+/* ── Online presence: quién está conectado ahora ── */
+function initChatOnline() {
+  if (!currentGroupId || !currentUser) return;
+  _setOnlineStatus();
+
+  if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
+  const { collection, query, where, onSnapshot } = lib();
+  const q = query(
+    collection(db(), 'ec_online'),
+    where('groupId', '==', currentGroupId)
+  );
+
+  chatOnlineUnsub = onSnapshot(q, snap => {
+    const list = $('chatOnlineList');
+    if (!list) return;
+    const now = Date.now();
+    const online = [];
+    snap.docs.forEach(d => {
+      const data = d.data();
+      const ts = data.updatedAt?.toMillis ? data.updatedAt.toMillis() : (data.updatedAt || 0);
+      if (now - ts < 35000) online.push(data);
+    });
+    // Mostrar solo si hay otros conectados (no solo yo)
+    const others = online.filter(d => d.uid !== currentUser.uid);
+    if (others.length === 0) {
+      list.style.display = 'none';
+    } else {
+      list.style.display = 'flex';
+      list.innerHTML = others
+        .map(d => `<span class="chat-online-pill"><span class="online-dot"></span>${escHtml(d.name || 'Compañero')}</span>`)
+        .join('');
+    }
+  });
+}
+
+function initSidebarOnlinePresence() {
+  if (!currentGroupId) return;
+  if (sidebarOnlineUnsub) { sidebarOnlineUnsub(); sidebarOnlineUnsub = null; }
+  const { collection, query, where, onSnapshot } = lib();
+  const q = query(
+    collection(db(), 'ec_online'),
+    where('groupId', '==', currentGroupId)
+  );
+  sidebarOnlineUnsub = onSnapshot(q, snap => {
+    const now = Date.now();
+    const onlineEmails = new Set();
+    snap.docs.forEach(d => {
+      const data = d.data();
+      const ts = data.updatedAt?.toMillis ? data.updatedAt.toMillis() : (data.updatedAt || 0);
+      if (now - ts >= 35000) return;
+      const em = (data.email || '').toString().trim().toLowerCase();
+      if (em) onlineEmails.add(em);
+    });
+    qsa('.sidebar-member-btn[data-email]').forEach(el => {
+      const raw = (el.dataset.email || '').trim().toLowerCase();
+      el.classList.toggle('sidebar-member-online', Boolean(raw && onlineEmails.has(raw)));
+    });
+  });
+}
+
+async function _setOnlineStatus() {
+  if (!currentGroupId || !currentUser) return;
+  try {
+    const { doc, setDoc, serverTimestamp } = lib();
+    const emailNorm = (currentUser.email || '').toString().trim().toLowerCase();
+    await setDoc(doc(db(), 'ec_online', `${currentGroupId}_${currentUser.uid}`), {
+      groupId: currentGroupId,
+      uid: currentUser.uid,
+      email: emailNorm,
+      name: getUserAlias(),
+      updatedAt: serverTimestamp()
+    });
+  } catch (_) { /* silencioso */ }
 }
 
 window.eliminarMensaje = async function (msgId) {
@@ -1755,6 +1999,11 @@ $('chatInput').addEventListener('keydown', e => {
 $('chatInput').addEventListener('input', function () {
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+  // Typing signal con throttle — solo si hay texto
+  if (this.value.trim()) {
+    if (_typingTimeout) clearTimeout(_typingTimeout);
+    _typingTimeout = setTimeout(() => enviarTypingSignal(), 400);
+  }
 });
 
 $('chatInput').addEventListener('focus', () => {
@@ -1802,7 +2051,6 @@ $('chatImgInput').addEventListener('change', async e => {
 function initTareas() {
   if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
 
-  // SOLUCIÓN: Quitamos la línea que forzaba tareasVistaCalendario a false.
   // Solo reseteamos el mes si NO estamos viendo el calendario.
   if (!tareasVistaCalendario) {
     calMesOffset = 0;
@@ -1857,6 +2105,85 @@ function renderTareas(tareas) {
       <button class="tarea-delete" onclick="eliminarTarea('${t.id}')">🗑️</button>
     </div>`;
   }).join('');
+}
+
+let bibliotecaUiBound = false;
+function initBiblioteca() {
+  if (!currentGroupId) return;
+  if (!bibliotecaUiBound) {
+    bibliotecaUiBound = true;
+    $('btnAbrirTeraBoxBiblio')?.addEventListener('click', () => {
+      window.open('https://www.terabox.com', '_blank', 'noopener,noreferrer');
+    });
+    $('btnAgregarArchivoBiblioMain')?.addEventListener('click', agregarArchivoBiblioteca);
+  }
+  renderBiblioteca();
+}
+
+function renderBiblioteca() {
+  const list = $('biblioList');
+  if (!list) return;
+  list.innerHTML = '<div class="feed-loading">Cargando biblioteca…</div>';
+
+  if (bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
+  const { collection, query, where, onSnapshot } = lib();
+  const q = query(
+    collection(db(), 'ec_biblioteca'),
+    where('groupId', '==', currentGroupId)
+  );
+  bibliotecaUnsub = onSnapshot(q, snap => {
+    const listEl = $('biblioList');
+    if (!listEl) return;
+    const items = [];
+    snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+    if (!items.length) {
+      listEl.innerHTML = '<div class="feed-loading">No hay archivos aún. Agrega el primero desde TeraBox.</div>';
+      return;
+    }
+    items.sort((a, b) => getChatMsgMillis(b) - getChatMsgMillis(a));
+    listEl.innerHTML = items.map(it => {
+      const ext = (it.ext || 'archivo').toUpperCase();
+      const by = escHtml(it.authorName || 'Compañero');
+      return `<div class="biblio-item">
+        <div class="biblio-item-main">
+          <div class="biblio-item-icon">${ext === 'PDF' ? '📕' : ext === 'DOC' || ext === 'DOCX' ? '📘' : '📎'}</div>
+          <div class="biblio-item-meta">
+            <div class="biblio-item-name">${escHtml(it.name || 'Archivo')}</div>
+            <div class="biblio-item-sub">${ext} · por ${by}</div>
+          </div>
+        </div>
+        <div class="biblio-item-actions">
+          <a class="btn-sm" href="${escHtml(it.url || '#')}" target="_blank" rel="noopener noreferrer">Abrir</a>
+        </div>
+      </div>`;
+    }).join('');
+  }, () => {
+    const listErr = $('biblioList');
+    if (listErr) listErr.innerHTML = '<div class="feed-loading" style="color:var(--red)">Error al cargar biblioteca.</div>';
+  });
+}
+
+async function agregarArchivoBiblioteca() {
+  if (!currentGroupId) return;
+  const url = prompt('Pega el enlace público de TeraBox del archivo:');
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url.trim())) { alert('El enlace debe iniciar con http:// o https://'); return; }
+  const nombre = prompt('Nombre del archivo (ej: Guía examen parcial):') || 'Archivo';
+  const ext = (nombre.split('.').pop() || '').trim().toLowerCase();
+  const { collection, addDoc, serverTimestamp } = lib();
+  try {
+    await addDoc(collection(db(), 'ec_biblioteca'), {
+      groupId: currentGroupId,
+      name: nombre.trim(),
+      url: url.trim(),
+      ext: ext || 'link',
+      authorUid: currentUser.uid,
+      authorName: getUserAlias(),
+      createdAt: serverTimestamp()
+    });
+  } catch (e) {
+    alert('No se pudo guardar en biblioteca: ' + e.message);
+  }
 }
 
 /* ── VISTA CALENDARIO DE TAREAS ── */
@@ -2791,7 +3118,7 @@ $('btnLanzarVotacion').addEventListener('click', async () => {
   const { collection, addDoc, serverTimestamp } = lib();
   try {
     const ref = await addDoc(collection(db(), 'ec_votaciones'), {
-      groupId: currentGroupId, pregunta, opciones, votos: {}, votantes: [],
+      groupId: currentGroupId, pregunta, opciones, votos: {}, votantes: [], userVotes: {},
       activa: true, createdAt: serverTimestamp()
     });
     // Publicar en el feed para que todos lo vean
@@ -2803,6 +3130,7 @@ $('btnLanzarVotacion').addEventListener('click', async () => {
       opciones,
       votos: {},        // <-- ESTO ES LO NUEVO
       votantes: [],     // <-- ESTO ES LO NUEVO
+      userVotes: {},
       activa: true,     // <-- ESTO ES LO NUEVO
       text: `🗳️ Votación: "${pregunta}"`,
       images: [],
@@ -2849,18 +3177,15 @@ function renderVotacionActiva(v) {
   $('votacionCrear').style.display = 'none';
   $('votacionPreguntaText').textContent = v.pregunta;
   const yaVoto = v.votantes?.includes(currentUser.uid);
+  const votoActual = Number(v?.userVotes?.[currentUser.uid]);
   const totalVotos = Object.values(v.votos || {}).reduce((a, b) => a + b, 0);
-
-  // Recuperar el índice del voto anterior desde localStorage
-  const storageKey = `ze_prev_vote_${currentUser?.uid}_${v.id}`;
-  const votoAnteriorIdx = localStorage.getItem(storageKey);
 
   // Siempre mostrar los botones de opciones (para votar o cambiar voto)
   $('votacionOpciones').innerHTML = v.opciones.map((op, i) => {
-    const esMiVoto = yaVoto && votoAnteriorIdx !== null && parseInt(votoAnteriorIdx) === i;
+    const esMiVoto = yaVoto && Number.isInteger(votoActual) && votoActual === i;
     const claseExtra = esMiVoto ? ' votacion-opcion-seleccionada' : '';
     const icono = esMiVoto ? ' ✔' : '';
-    return `<button class="votacion-opcion-btn${claseExtra}" onclick="votar('${v.id}',${i},'${escHtml(op)}')">${escHtml(op)}${icono}</button>`;
+    return `<button class="votacion-opcion-btn${claseExtra}" onclick="votar('${v.id}',${i})">${escHtml(op)}${icono}</button>`;
   }).join('');
 
   // Texto de ayuda según estado
@@ -2872,7 +3197,7 @@ function renderVotacionActiva(v) {
   $('votacionResultados').innerHTML = v.opciones.map((op, i) => {
     const cnt = v.votos?.[i] || 0;
     const pct = totalVotos ? Math.round(cnt / totalVotos * 100) : 0;
-    const esMiVoto = yaVoto && votoAnteriorIdx !== null && parseInt(votoAnteriorIdx) === i;
+    const esMiVoto = yaVoto && Number.isInteger(votoActual) && votoActual === i;
     return `<div class="votacion-resultado-item${esMiVoto ? ' mi-voto' : ''}">
       <span class="votacion-bar-label">${escHtml(op)}${esMiVoto ? ' <span style=\'font-size:11px;opacity:0.8\'>(tu voto)</span>' : ''}</span>
       <div class="votacion-bar-wrap"><div class="votacion-bar" style="width:${pct}%"></div></div>
@@ -2889,28 +3214,14 @@ window.votar = async function (votacionId, opcionIdx) {
     const vData = vSnap.data();
     if (!vData.activa) { alert('Esta votación ya cerró.'); return; }
 
-    const storageKey = `ze_prev_vote_${currentUser.uid}_${votacionId}`;
-    const votoAnterior = localStorage.getItem(storageKey);
-
-    if (votoAnterior !== null) {
-      if (parseInt(votoAnterior) === opcionIdx) { alert('Ya votaste por esta opción.'); return; }
-      if (!confirm('¿Quieres cambiar tu voto?')) return;
-      // Restar 1 a la opción anterior
-      const dec = { [`votos.${votoAnterior}`]: increment(-1) };
-      await updateDoc(doc(db(), 'ec_votaciones', votacionId), dec);
-      const feedSnap = await getDocs(query(collection(db(), 'ec_feed'), where('votacionId', '==', votacionId)));
-      if (!feedSnap.empty) await updateDoc(doc(db(), 'ec_feed', feedSnap.docs[0].id), dec);
-    } else if (vData.votantes?.includes(currentUser.uid)) {
-      if (!confirm('Ya habías votado antes. ¿Quieres cambiar tu voto?')) return;
-    }
-
-    // Sumar 1 a la opción nueva
-    const inc = { [`votos.${opcionIdx}`]: increment(1), votantes: arrayUnion(currentUser.uid) };
-    await updateDoc(doc(db(), 'ec_votaciones', votacionId), inc);
-    const feedSnap2 = await getDocs(query(collection(db(), 'ec_feed'), where('votacionId', '==', votacionId)));
-    if (!feedSnap2.empty) await updateDoc(doc(db(), 'ec_feed', feedSnap2.docs[0].id), inc);
-
-    localStorage.setItem(storageKey, opcionIdx);
+    const votoAnterior = Number(vData?.userVotes?.[currentUser.uid]);
+    if (Number.isInteger(votoAnterior) && votoAnterior === opcionIdx) return;
+    const patch = { votantes: arrayUnion(currentUser.uid), [`userVotes.${currentUser.uid}`]: opcionIdx };
+    if (Number.isInteger(votoAnterior)) patch[`votos.${votoAnterior}`] = increment(-1);
+    patch[`votos.${opcionIdx}`] = increment(1);
+    await updateDoc(doc(db(), 'ec_votaciones', votacionId), patch);
+    const feedSnap = await getDocs(query(collection(db(), 'ec_feed'), where('votacionId', '==', votacionId)));
+    if (!feedSnap.empty) await updateDoc(doc(db(), 'ec_feed', feedSnap.docs[0].id), patch);
   } catch (e) { alert('Error al votar: ' + e.message); }
 };
 
@@ -2923,33 +3234,16 @@ window.votarDesdeFeed = async function (votacionId, opcionIdx, feedPostId) {
     const data = snap.data();
     if (!data.activa) { alert('Esta votación ya cerró.'); return; }
 
-    const storageKey = `ze_prev_vote_${currentUser.uid}_${votacionId}`;
-    const votoAnterior = localStorage.getItem(storageKey);
-
-    // Si ya había votado antes en esta misma sesión/navegador
-    if (votoAnterior !== null) {
-      if (parseInt(votoAnterior) === opcionIdx) { alert('Ya votaste por esta opción.'); return; }
-      if (!confirm('¿Quieres cambiar tu voto anterior?')) return;
-      
-      // Restamos 1 a la opción vieja
-      const dec = { [`votos.${votoAnterior}`]: increment(-1) };
-      await updateDoc(doc(db(), 'ec_votaciones', votacionId), dec);
-      if (feedPostId) await updateDoc(doc(db(), 'ec_feed', feedPostId), dec);
-    } else if (data.votantes?.includes(currentUser.uid)) {
-      // Si ya votó pero no tenemos el índice en local, simplemente sumamos el nuevo
-      if (!confirm('Ya habías votado. ¿Quieres sumar este nuevo voto?')) return;
-    }
-
-    // Sumamos 1 a la nueva opción
-    const inc = { 
+    const votoAnterior = Number(data?.userVotes?.[currentUser.uid]);
+    if (Number.isInteger(votoAnterior) && votoAnterior === opcionIdx) return;
+    const patch = {
       [`votos.${opcionIdx}`]: increment(1),
-      votantes: arrayUnion(currentUser.uid)
+      votantes: arrayUnion(currentUser.uid),
+      [`userVotes.${currentUser.uid}`]: opcionIdx
     };
-    await updateDoc(doc(db(), 'ec_votaciones', votacionId), inc);
-    if (feedPostId) await updateDoc(doc(db(), 'ec_feed', feedPostId), inc);
-    
-    localStorage.setItem(storageKey, opcionIdx);
-    alert('✅ Voto registrado con éxito.');
+    if (Number.isInteger(votoAnterior)) patch[`votos.${votoAnterior}`] = increment(-1);
+    await updateDoc(doc(db(), 'ec_votaciones', votacionId), patch);
+    if (feedPostId) await updateDoc(doc(db(), 'ec_feed', feedPostId), patch);
   } catch (e) { alert('Error: ' + e.message); }
 };
 
@@ -3447,15 +3741,15 @@ function initChatBurbuja() {
     if (!text || !currentGroupId || !currentUser) return;
     input.value = '';
     input.style.height = 'auto';
-    const { collection, addDoc } = lib();
+    const { collection, addDoc, serverTimestamp } = lib();
     try {
       await addDoc(collection(db(), 'ec_chat'), {
         groupId: currentGroupId,
         text,
         authorUid: currentUser.uid,
-        authorName: currentUser.name,
+        authorName: getUserAlias(),
         authorAvatar: currentUser.avatar || '',
-        createdAt: new Date()
+        createdAt: serverTimestamp()
       });
       msgBox.scrollTop = msgBox.scrollHeight;
     } catch (e) { console.error('Burbuja send:', e); }
@@ -3477,43 +3771,57 @@ function conectarChatBurbuja() {
   chatBurbujaLastDate = '';
   const msgBox = $('chatBurbujaMsgs');
   if (msgBox) msgBox.innerHTML = '<div class="chat-burbuja-loading">Cargando…</div>';
-
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
-  const q = query(
-    collection(db(), 'ec_chat'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'asc'),
-    limit(60)
-  );
-
   let isFirst = true;
-  chatBurbujaUnsub = onSnapshot(q, { includeMetadataChanges: true }, snap => {
-    const msgBox = $('chatBurbujaMsgs');
-    if (!msgBox) return;
 
-    if (isFirst) {
+  const startListener = (ordered) => {
+    if (chatBurbujaUnsub) { chatBurbujaUnsub(); chatBurbujaUnsub = null; }
+    const q = ordered
+      ? query(
+        collection(db(), 'ec_chat'),
+        where('groupId', '==', currentGroupId),
+        orderBy('createdAt', 'desc'),
+        limit(80)
+      )
+      : query(
+        collection(db(), 'ec_chat'),
+        where('groupId', '==', currentGroupId),
+        limit(80)
+      );
+
+    chatBurbujaUnsub = onSnapshot(q, snap => {
+      const msgBox = $('chatBurbujaMsgs');
+      if (!msgBox) return;
+      const loading = msgBox.querySelector('.chat-burbuja-loading');
+      if (loading) loading.remove();
+      const wasNearBottom = msgBox.scrollHeight - msgBox.scrollTop - msgBox.clientHeight < 120;
+      const prevIds = new Set([...msgBox.querySelectorAll('[data-id]')].map(el => el.dataset.id));
+
+      const mensajes = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => getChatMsgMillis(a) - getChatMsgMillis(b));
+
+      const nuevosExternos = !isFirst && !chatBurbujaAbierta && mensajes.some(m => (
+        !prevIds.has(m.id) && m.authorUid !== currentUser?.uid
+      ));
+
+      chatBurbujaLastDate = '';
       msgBox.innerHTML = '';
-      snap.docs.forEach(d => appendBurbujaMsg({ id: d.id, ...d.data() }, msgBox));
-      msgBox.scrollTop = msgBox.scrollHeight;
+      mensajes.forEach(m => appendBurbujaMsg(m, msgBox));
+
+      if (isFirst || wasNearBottom) msgBox.scrollTop = msgBox.scrollHeight;
+      if (nuevosExternos) incrementBurbujaUnread();
       isFirst = false;
-    } else {
-      snap.docChanges().forEach(ch => {
-        if (ch.type === 'added') {
-          const m = { id: ch.doc.id, ...ch.doc.data() };
-          if (msgBox.querySelector(`[data-id="${m.id}"]`)) return;
+    }, err => {
+      console.error('Burbuja chat error:', err);
+      if (ordered && err.code === 'failed-precondition') {
+        isFirst = true;
+        startListener(false);
+      }
+    });
+  };
 
-          const loading = msgBox.querySelector('.chat-burbuja-loading');
-          if (loading) loading.remove();
-
-          appendBurbujaMsg(m, msgBox);
-          
-          if (msgBox.scrollHeight - msgBox.scrollTop - msgBox.clientHeight < 100 || m.authorUid === currentUser.uid) {
-            msgBox.scrollTop = msgBox.scrollHeight;
-          }
-        }
-      });
-    }
-  });
+  startListener(true);
 }
 
 function appendBurbujaMsg(m, box) {
@@ -3553,6 +3861,35 @@ function resetBurbujaUnread() {
   if (badge) { badge.style.display = 'none'; badge.textContent = '0'; }
 }
 
+function setBurbujaUnreadCount(n) {
+  const count = Math.max(0, Number(n) || 0);
+  chatBurbujaUnreadCount = count;
+  const badge = $('chatFabBadge');
+  if (!badge) return;
+  if (count <= 0) {
+    badge.style.display = 'none';
+    badge.textContent = '0';
+    return;
+  }
+  badge.textContent = count > 9 ? '9+' : String(count);
+  badge.style.display = 'flex';
+}
+
+async function markChatAsRead() {
+  if (!currentGroupId || !currentUser) return;
+  try {
+    const { doc, setDoc, serverTimestamp } = lib();
+    const nowMs = Date.now();
+    chatLastReadMs = Math.max(chatLastReadMs, nowMs);
+    await setDoc(doc(db(), 'ec_chat_reads', `${currentGroupId}_${currentUser.uid}`), {
+      groupId: currentGroupId,
+      uid: currentUser.uid,
+      lastReadAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (_) { /* silencioso */ }
+}
+
 // Reconectar burbuja y activar Notificaciones Globales
 let globalNotifUnsub = null;
 let _lastNotifMsgId = null;
@@ -3562,50 +3899,90 @@ function hookBurbujaEnGrupo() {
   _lastNotifMsgId = null;
   if (!currentGroupId) return;
 
-  const { collection, query, where, onSnapshot, orderBy, limit } = lib();
-  const q = query(
-    collection(db(), 'ec_chat'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'desc'),
-    limit(1)
-  );
-
+  const { collection, query, where, onSnapshot, orderBy, limit, doc, getDoc } = lib();
   let isFirstNotif = true;
-  globalNotifUnsub = onSnapshot(q, snap => {
-    if (snap.empty) return;
-    const latest = snap.docs[0];
 
-    // Ignorar el primer snapshot (carga inicial)
-    if (isFirstNotif) {
-      isFirstNotif = false;
-      _lastNotifMsgId = latest.id;
-      return;
-    }
-
-    // Solo actuar si es un mensaje realmente nuevo
-    if (latest.id === _lastNotifMsgId) return;
-    _lastNotifMsgId = latest.id;
-
-    const panel = $('chatBurbujaPanel');
-    const panelAbierto = panel && panel.classList.contains('open');
-    const seccionChatActiva = (currentSection === 'chat');
-    const data = latest.data();
-    const esMio = data.authorUid === currentUser?.uid;
-
-    if (!panelAbierto && !seccionChatActiva && !esMio) {
-      // Incrementar badge del FAB (usa el elemento chatFabBadge del HTML)
-      incrementBurbujaUnread();
-
-      // Notificación del sistema si la pestaña está en segundo plano
-      if (document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        new Notification(`💬 ${data.authorName || 'Compañero'}`, {
-          body: data.imageUrl ? '📷 Imagen' : (data.text || ''),
-          icon: './icons/icon.png',
-          tag: 'ze-chat-msg'
-        });
+  chatLastReadMs = 0;
+  getDoc(doc(db(), 'ec_chat_reads', `${currentGroupId}_${currentUser.uid}`))
+    .then(s => {
+      if (!s.exists()) return;
+      const data = s.data() || {};
+      const ts = data.lastReadAt;
+      if (ts?.toMillis) chatLastReadMs = ts.toMillis();
+      else if (ts) {
+        const d = new Date(ts);
+        if (Number.isFinite(d.getTime())) chatLastReadMs = d.getTime();
       }
-    }
-  });
+    })
+    .catch(() => { });
+
+  const startNotifListener = (ordered) => {
+    if (globalNotifUnsub) { globalNotifUnsub(); globalNotifUnsub = null; }
+    const q = ordered
+      ? query(
+        collection(db(), 'ec_chat'),
+        where('groupId', '==', currentGroupId),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      )
+      : query(
+        collection(db(), 'ec_chat'),
+        where('groupId', '==', currentGroupId),
+        limit(40)
+      );
+
+    globalNotifUnsub = onSnapshot(q, snap => {
+      if (snap.empty) return;
+      const sorted = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => getChatMsgMillis(b) - getChatMsgMillis(a));
+      const latest = sorted[0];
+      if (!latest) return;
+
+      const panel = $('chatBurbujaPanel');
+      const panelAbierto = panel && panel.classList.contains('open');
+      const seccionChatActiva = (currentSection === 'chat');
+
+      if (!panelAbierto && !seccionChatActiva) {
+        const unread = sorted.filter(m => (
+          m.authorUid !== currentUser?.uid &&
+          getChatMsgMillis(m) > chatLastReadMs
+        )).length;
+        setBurbujaUnreadCount(unread);
+      } else {
+        setBurbujaUnreadCount(0);
+      }
+
+      if (isFirstNotif) {
+        isFirstNotif = false;
+        _lastNotifMsgId = latest.id;
+        return;
+      }
+      if (latest.id === _lastNotifMsgId) return;
+      _lastNotifMsgId = latest.id;
+
+      const data = latest;
+      const esMio = data.authorUid === currentUser?.uid;
+
+      if (!panelAbierto && !seccionChatActiva && !esMio) {
+        if (document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification(`💬 ${data.authorName || 'Compañero'}`, {
+            body: data.imageUrl ? '📷 Imagen' : (data.text || ''),
+            icon: './icons/icon.png',
+            tag: 'ze-chat-msg'
+          });
+        }
+      }
+    }, err => {
+      console.error('Notif chat error:', err);
+      if (ordered && err.code === 'failed-precondition') {
+        isFirstNotif = true;
+        startNotifListener(false);
+      }
+    });
+  };
+
+  startNotifListener(true);
 }
 initTheme();
 waitForFirebase(() => initAuth());
