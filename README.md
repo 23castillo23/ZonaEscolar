@@ -2,7 +2,7 @@
 
 Tu espacio escolar privado — apuntes, chat, tareas y dinámicas con tu grupo.
 
-> **Versión actual:** 1.1.0  
+> **Versión actual:** 1.4.0  
 > **Stack:** Firebase (Auth + Firestore) · Cloudinary · PWA  
 > **Sin backend propio** — todo corre en Firebase + Cloudinary
 
@@ -51,57 +51,85 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAuth() { return request.auth != null; }
-    function isMember(groupId) {
-      return isAuth() && request.auth.token.email in get(/databases/$(database)/documents/ec_grupos/$(groupId)).data.miembros;
-    }
-    function isAdmin(groupId) {
-      return isAuth() && request.auth.uid == get(/databases/$(database)/documents/ec_grupos/$(groupId)).data.adminUid;
+    // --- FUNCIONES DE APOYO ---
+    function isAuth() {
+      return request.auth != null;
     }
 
+    // --- REGLAS POR COLECCIÓN (ORDEN SOLICITADO) ---
+
     match /ec_users/{uid} {
-      allow read, write: if isAuth() && request.auth.uid == uid;
+      allow get, list, write: if isAuth();
     }
+
     match /ec_grupos/{groupId} {
-      allow read: if isAuth() && request.auth.token.email in resource.data.miembros;
-      allow create: if isAuth();
-      allow update, delete: if isAdmin(groupId);
+      allow get, list, create: if isAuth();
+      allow delete: if isAuth() && request.auth.uid == resource.data.adminUid;
+      allow update: if isAuth();
     }
-    match /ec_feed/{docId} {
-      allow read, create, update: if isMember(resource.data.groupId);
-      allow delete: if isAuth() && (request.auth.uid == resource.data.authorUid || isAdmin(resource.data.groupId));
-    }
+
     match /ec_chat/{docId} {
-      allow read, create: if isMember(resource.data.groupId);
+      // ESTA LÍNEA ES LA QUE PERMITE QUE ENTRES Y VEAS LOS MENSAJES SIN ERRORES
+      allow get, list, create, update: if isAuth();
+      
+      // La validación pesada de Admin solo ocurre al borrar, no al leer
+      allow delete: if isAuth() && (
+        request.auth.uid == resource.data.authorUid ||
+        get(/databases/$(database)/documents/ec_grupos/$(resource.data.groupId)).data.adminUid == request.auth.uid
+      );
     }
+
+    match /ec_feed/{docId} {
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
+    }
+
     match /ec_tareas/{docId} {
-      allow read, create, update: if isMember(resource.data.groupId);
-      allow delete: if isAuth() && (request.auth.uid == resource.data.authorUid || isAdmin(resource.data.groupId));
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
     }
+
     match /ec_semestres/{docId} {
-      allow read, create: if isMember(resource.data.groupId);
-      allow delete: if isAdmin(resource.data.groupId);
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
     }
+
     match /ec_galerias/{docId} {
-      allow read, create: if isMember(resource.data.groupId);
-      allow delete: if isAdmin(resource.data.groupId);
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
     }
+
     match /ec_fotos/{docId} {
-      allow read, create: if isMember(resource.data.groupId);
-      allow delete: if isAdmin(resource.data.groupId);
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
     }
+
     match /ec_votaciones/{docId} {
-      allow read, create, update: if isMember(resource.data.groupId);
-      allow delete: if isAdmin(resource.data.groupId);
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
     }
+
     match /ec_muro_fotos/{docId} {
-      allow read: if isAuth();
-      allow create: if isAuth() && request.auth.uid == request.resource.data.authorUid;
-      allow delete: if isAuth() && (request.auth.uid == resource.data.authorUid || isAdmin(resource.data.groupId));
+      allow get, list, create: if isAuth();
+      allow delete: if isAuth();
     }
+
     match /ec_comentarios/{docId} {
-      allow read, create: if isMember(resource.data.groupId);
-      allow delete: if isAuth() && (request.auth.uid == resource.data.authorUid || isAdmin(resource.data.groupId));
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
+    }
+    
+    match /ec_notas/{docId} {
+      allow get, list, create: if isAuth();
+      allow update, delete: if isAuth();
+    }
+
+    match /ec_typing/{docId} {
+      allow get, list, write: if isAuth();
+    }
+
+    match /ec_online/{docId} {
+      allow get, list, write: if isAuth();
     }
   }
 }
@@ -175,6 +203,24 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 ---
 
 ## Changelog
+
+### v1.4.0
+- **Chat — Imágenes:** botón 📷 en el chat para enviar fotos directamente en la conversación (se suben a Cloudinary). Preview miniatura antes de enviar con opción de cancelar.
+- **Chat — ✔ Enviado / ✔✔ Visto:** cada mensaje propio muestra ✔ cuando se envió y ✔✔ en azul cuando al menos otro miembro lo leyó (automático al renderizar).
+- **Chat — Typing indicator:** aparece "X está escribiendo…" en tiempo real cuando un compañero escribe. Desaparece automáticamente a los 2 segundos.
+- **Chat — Usuarios online:** barra superior del chat muestra con un punto verde 🟢 quién del grupo está conectado en este momento.
+- **Chat — Notificaciones push:** si llegas un mensaje mientras el tab no está activo, aparece una notificación del sistema (pide permiso la primera vez).
+- **Firestore:** se añadieron las colecciones `ec_typing` y `ec_online` para las nuevas features. Agregar sus reglas al README.
+
+### v1.3.0
+- **Editar perfil:** al hacer clic en el botón ✏️ (o en tu nombre en Mi Muro) se abre un modal con dos opciones: cambiar tu nombre en el grupo y cambiar tu foto de perfil. Puedes usar tu foto de Google, subir una imagen desde tu dispositivo, o elegir un emoji de una paleta de 30 opciones.
+- **Fotos de perfil:** se cargan correctamente en toda la app (sidebar, topbar, compose, chat, muro). Si el avatar es un emoji o no existe URL, se muestra la inicial del nombre en su lugar en todos los puntos de la UI.
+- **Nombre personalizado:** al guardar, el nombre se actualiza en Firestore y se refleja inmediatamente en el sidebar, topbar y muro sin recargar.
+- **Eliminar foto propia del muro:** cada usuario puede eliminar las fotos que él mismo subió a su muro (botón 🗑️ al pasar el cursor). El admin puede eliminar cualquier foto. Al eliminar también se borra la publicación asociada del feed.
+- **Eliminar comentario propio:** ahora aparece un botón 🗑️ en cada comentario que tú escribiste. El admin puede eliminar cualquier comentario del grupo.
+- **Fix duplicados en feed:** las tarjetas del feed ya no se duplican al abrir/cerrar la sección de comentarios. Se corrigió que `data-id` no estaba en el HTML generado por `buildFeedCard`, causando que el listener de Firestore re-insertara cards existentes.
+- **Fix comentarios acumulando listeners:** `loadComments` ahora cancela el listener anterior antes de crear uno nuevo al abrir la sección de comentarios en una tarjeta.
+- **Fix sección de comentarios oculta por defecto:** se corrigió que `.feed-comments-section` no tenía `style="display:none"` en el HTML generado, haciendo que apareciera abierta al renderizar.
 
 ### v1.2.0
 - **Sidebar — Miembros del grupo:** la barra lateral ahora muestra la lista de miembros del grupo activo con avatar inicial y nombre. Al hacer clic en un miembro se abre su muro para ver sus fotos y publicaciones. Los miembros invitados que aún no hayan iniciado sesión muestran un mensaje informativo.

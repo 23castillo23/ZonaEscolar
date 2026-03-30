@@ -71,7 +71,7 @@
 
       <nav class="sidebar-nav">
         <button class="nav-item active" data-section="feed">
-          <span class="nav-icon">⚡</span> Feed
+          <span class="nav-icon">⚡</span> Novedades
         </button>
         <button class="nav-item" data-section="muro">
           <span class="nav-icon">🙋</span> Mi Muro
@@ -118,7 +118,8 @@
         <button class="topbar-menu" id="topbarMenu">☰</button>
         <div class="topbar-title" id="topbarTitle">Feed</div>
         <div class="topbar-right">
-          <button class="btn-sm" id="btnInvitarCompa" style="margin-right: 4px;"><span>+ Invitar</span></button>
+          <button class="btn-sm" id="btnInvitarCompa" style="margin-right: 4px; display: none;"><span>+
+              Invitar</span></button>
           <button class="btn-theme-toggle" id="btnThemeToggle" title="Cambiar tema">🌙</button>
           <span class="topbar-group-badge" id="topbarGroupBadge"></span>
           <img class="topbar-avatar" id="topbarAvatar" src="" alt="">
@@ -140,6 +141,9 @@
           <h2 class="empty-hero-title">Bienvenido a ZonaEscolar</h2>
           <p class="empty-hero-text">Aún no perteneces a ningún grupo.<br>Crea uno o pide al admin que te agregue.</p>
           <button class="btn-primary" id="btnCreateGroupEmpty">Crear mi primer grupo</button>
+
+          <button class="btn-sm" onclick="activarSeccion('muro')" style="margin-top: 15px;">Ver mis publicaciones e
+            historial</button>
         </div>
       </section>
 
@@ -162,9 +166,16 @@
       <!-- ── SECCIÓN: MI MURO ── -->
       <section class="section" id="sectionMuro">
         <div class="muro-header">
-          <img class="muro-avatar-large" id="muroAvatar" src="" alt="">
+          <!-- Avatar inteligente: foto / inicial / emoji -->
+          <div class="muro-avatar-wrap" id="muroAvatarWrap">
+            <img class="muro-avatar-large" id="muroAvatar" src="" alt="" style="display:none">
+            <div class="muro-avatar-fallback" id="muroAvatarFallback"></div>
+            <!-- Botón editar avatar (solo muro propio) -->
+            <button class="muro-avatar-edit-btn" id="btnEditarAvatar" title="Cambiar foto de perfil"
+              style="display:none">✏️</button>
+          </div>
           <div class="muro-user-info">
-            <div class="muro-user-name" id="muroNombre"></div>
+            <div class="muro-user-name" id="muroNombre" title="Clic para editar tu nombre"></div>
             <div class="muro-user-stats" id="muroStats">0 publicaciones</div>
           </div>
           <button class="btn-sm" id="btnMuroSubir">+ Foto</button>
@@ -181,49 +192,116 @@
 
       <!-- ── SECCIÓN: APUNTES ── -->
       <section class="section" id="sectionApuntes">
-        <div class="apuntes-toolbar">
-          <button class="btn-new-group" id="btnNewSubjectGroup">+ Semestre</button>
-          <button class="btn-new-gallery" id="btnNewMateria">+ Materia</button>
+        <div class="apuntes-toolbar" id="apuntesToolbar" style="display:none">
+          <button class="btn-sm" id="btnNewSubjectGroup">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 5v14M5 12h14" />
+            </svg> Semestre
+          </button>
+          <button class="btn-sm" id="btnNewMateria">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 5v14M5 12h14" />
+            </svg> Materia
+          </button>
         </div>
+
+        <div class="apuntes-search-wrap">
+          <input type="search" id="apuntesSearch" class="apuntes-search" placeholder="🔍 Buscar semestre o materia…">
+        </div>
+
         <div id="apuntesGroupsContainer"></div>
+
         <div id="apuntesGaleriaView" style="display:none">
           <div class="galeria-header">
-            <button class="btn-back" id="btnApuntesBack">← Volver</button>
-            <h2 class="galeria-title" id="galeriaTitle"></h2>
-            <button class="btn-upload-top" id="btnUploadApunte">↑ Subir fotos</button>
-          </div>
-          <div class="upload-zone" id="apuntesUploadZone" style="display:none">
-            <div class="upload-drop-area">
-              <label class="btn-file-pick" for="apunteFileInput">Desde archivo</label>
-              <input type="file" id="apunteFileInput" accept="image/*" multiple style="display:none">
-              <label class="btn-camera-pick" for="apunteCameraInput">Tomar foto</label>
-              <input type="file" id="apunteCameraInput" accept="image/*" capture="environment" style="display:none">
+            <div class="galeria-header-top">
+              <button class="btn-back-galeria" id="btnApuntesBack">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg> Volver
+              </button>
+              <h2 class="galeria-title" id="galeriaTitle">Materia</h2>
+              <button class="btn-sm" id="btnUploadApunte">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg> Subir fotos
+              </button>
             </div>
-            <div class="upload-meta">
-              <input type="text" id="apunteCaption" class="upload-input" placeholder="Descripción (opcional)">
-              <button class="btn-upload-send" id="btnApunteSend" disabled>Subir</button>
-            </div>
-            <div id="apuntePreviewList" class="upload-preview-list"></div>
-            <div class="upload-progress" id="apunteProgress" style="display:none">
-              <div class="upload-progress-bar" id="apunteProgressBar"></div>
-              <p id="apunteProgressText">Subiendo…</p>
+            <div class="galeria-actions-bar">
+              <button class="galeria-action-btn" id="btnNotasMateria">📝 Notas de materia</button>
             </div>
           </div>
-          <div class="photos-grid" id="apuntesGrid"></div>
+
+          <div class="apuntes-upload-zone" id="apuntesUploadZone" style="display:none">
+            <div class="upload-drop-area2" id="apuntesDropArea">
+              <div class="upload-drop-icon">📷</div>
+              <p class="upload-drop-text">Arrastra fotos aquí o elige una opción:</p>
+              <div class="upload-btn-row2">
+                <label class="btn-file-pick2" for="apunteFileInput">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18M9 21V9" />
+                  </svg> Archivo
+                </label>
+                <input type="file" id="apunteFileInput" accept="image/*" multiple style="display:none">
+                <label class="btn-camera-pick2" for="apunteCameraInput">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg> Cámara
+                </label>
+                <input type="file" id="apunteCameraInput" accept="image/*" capture="environment" style="display:none">
+              </div>
+            </div>
+            <div class="upload-meta2">
+              <input type="text" id="apunteCaption" class="upload-caption-input"
+                placeholder="Descripción del apunte (opcional)">
+              <button class="btn-upload-send2" id="btnApunteSend" disabled>Subir</button>
+            </div>
+            <div class="upload-preview-list2" id="apuntePreviewList"></div>
+            <div class="apunte-progress" id="apunteProgress" style="display:none">
+              <div class="apunte-progress-bar" id="apunteProgressBar"></div>
+              <p class="apunte-progress-text" id="apunteProgressText">Subiendo…</p>
+            </div>
+          </div>
+
+          <div class="apuntes-photos-grid" id="apuntesGrid"></div>
         </div>
       </section>
 
       <!-- ── SECCIÓN: CHAT ── -->
       <section class="section" id="sectionChat">
+        <!-- Barra de usuarios online -->
+        <div class="chat-online-bar" id="chatOnlineBar">
+          <div class="chat-online-list" id="chatOnlineList" style="display:none"></div>
+        </div>
+        <!-- Mensajes -->
         <div class="chat-messages" id="chatMessages">
           <div class="feed-loading">Conectando al chat…</div>
         </div>
-        <div class="chat-compose">
-          <div class="chat-input-wrap">
-            <textarea class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" rows="1"
-              maxlength="500"></textarea>
+        <!-- Typing indicator -->
+        <div class="chat-typing-indicator" id="chatTypingIndicator" style="display:none"></div>
+        <!-- Compose -->
+        <div class="chat-compose-wrapper">
+          <div class="chat-compose">
+            <button class="chat-img-btn" id="chatImgBtn" title="Enviar imagen">📷</button>
+            <input type="file" id="chatImgInput" accept="image/*" style="display:none">
+            <div class="chat-input-wrap">
+              <textarea class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" rows="1" maxlength="500"></textarea>
+            </div>
+            <button class="chat-send" id="chatSend">➤</button>
           </div>
-          <button class="chat-send" id="chatSend">➤</button>
+          <div class="chat-quick-emojis">
+            <span class="q-emoji">👍</span>
+            <span class="q-emoji">😂</span>
+            <span class="q-emoji">❤️</span>
+            <span class="q-emoji">🙏</span>
+            <span class="q-emoji">😮</span>
+            <span class="q-emoji">👀</span>
+            <span class="q-emoji">🔥</span>
+            <span class="q-emoji">🎉</span>
+          </div>
         </div>
       </section>
 
@@ -236,6 +314,7 @@
             <button class="filter-btn" data-filter="pending">Pendientes</button>
             <button class="filter-btn" data-filter="done">Completadas</button>
           </div>
+          <button class="btn-calendario" id="btnCalendarioTareas" title="Ver calendario">📅 Calendario</button>
         </div>
         <div class="tareas-list" id="tareasList">
           <div class="feed-loading">Cargando tareas…</div>
@@ -301,16 +380,25 @@
   <div class="modal-overlay" id="modalCrearGrupo">
     <div class="modal-box">
       <button class="modal-close" data-close="modalCrearGrupo">✕</button>
-      <h3 class="modal-title">Crear grupo privado</h3>
-      <p class="modal-desc">Solo tú (el admin) podrás agregar miembros.</p>
+      <h3 class="modal-title">Configura tu perfil y grupo</h3>
+
+      <label class="modal-label">¿Cómo quieres aparecer en este grupo?</label>
+      <input type="text" id="creadorNombrePerfil" class="modal-input" placeholder="Tu nombre o apodo" maxlength="30">
+      <p style="font-size:10px; color:var(--text3); margin-bottom:15px;">Esto evitará que se vea tu correo como nombre.
+      </p>
+
+      <hr style="border:none; border-top:1px solid var(--border); margin:15px 0;">
+
       <label class="modal-label">Nombre del grupo</label>
       <input type="text" id="nuevoGrupoNombre" class="modal-input" placeholder="Ej: Ingeniería 4to semestre"
         maxlength="50">
+
       <label class="modal-label">Descripción (opcional)</label>
-      <input type="text" id="nuevoGrupoDesc" class="modal-input" placeholder="Ej: Grupo cerrado del equipo azul"
-        maxlength="100">
-      <label class="modal-label">Icono</label>
+      <input type="text" id="nuevoGrupoDesc" class="modal-input" placeholder="Ej: Equipo de sistemas" maxlength="100">
+
+      <label class="modal-label">Icono del grupo</label>
       <div class="emoji-picker" id="grupoEmojiPicker"></div>
+
       <div class="modal-actions">
         <button class="btn-cancel" data-close="modalCrearGrupo">Cancelar</button>
         <button class="btn-primary" id="btnConfirmarGrupo">Crear grupo</button>
@@ -322,7 +410,7 @@
   <div class="modal-overlay" id="modalAgregarMiembro">
     <div class="modal-box">
       <button class="modal-close" data-close="modalAgregarMiembro">✕</button>
-      <h3 class="modal-title">👥 Miembros del grupo</h3>
+      <h3 class="modal-title">👥 Integrantes del grupo</h3>
       <div id="miembrosListContainer" style="margin-bottom:14px;max-height:160px;overflow-y:auto;"></div>
       <hr style="border:none;border-top:1px solid var(--border);margin:0 0 12px">
       <p class="modal-desc" style="margin-bottom:6px">Agrega a alguien nuevo con su correo de Google:</p>
@@ -343,7 +431,11 @@
       <button class="modal-close" data-close="modalNuevoSemestre">✕</button>
       <h3 class="modal-title">Nuevo Semestre / Ciclo</h3>
       <input type="text" id="semestreNombre" class="modal-input" placeholder="Ej: 4to Semestre 2025" maxlength="50">
+      <label class="modal-label" style="margin-top:10px">Ícono</label>
       <div class="emoji-picker" id="semestreEmojiPicker"></div>
+      <label class="modal-label" style="margin-top:12px">Color del semestre</label>
+      <div id="semestreColorPreview" class="sem-color-preview"></div>
+      <div class="color-picker-grid" id="semestreColorPicker"></div>
       <div class="modal-actions">
         <button class="btn-cancel" data-close="modalNuevoSemestre">Cancelar</button>
         <button class="btn-primary" id="btnConfirmarSemestre">Crear</button>
@@ -357,6 +449,7 @@
       <button class="modal-close" data-close="modalNuevaMateria">✕</button>
       <h3 class="modal-title">Nueva Materia</h3>
       <input type="text" id="materiaNombre" class="modal-input" placeholder="Ej: Cálculo Diferencial" maxlength="40">
+      <label class="modal-label" style="margin-top:10px">Ícono de la materia</label>
       <div class="emoji-picker" id="materiaEmojiPicker"></div>
       <label class="modal-label" style="margin-top:10px">Semestre</label>
       <select id="materiaSemestreSelect" class="modal-input modal-select"></select>
@@ -415,8 +508,9 @@
       <div id="votacionActiva" style="display:none">
         <div class="votacion-pregunta" id="votacionPreguntaText"></div>
         <div class="votacion-opciones" id="votacionOpciones"></div>
+        <p id="votacionAyuda" style="font-size:12px;color:var(--accent);margin:4px 0 8px;min-height:16px"></p>
         <div class="votacion-resultados" id="votacionResultados"></div>
-        <button class="btn-sm btn-sm-danger" id="btnCerrarVotacion">Cerrar votación</button>
+        <button class="btn-sm btn-sm-danger" id="btnCerrarVotacion" style="margin-top:10px">Cerrar votación</button>
       </div>
       <div id="votacionCrear">
         <input type="text" id="votacionPregunta" class="modal-input" placeholder="¿Pregunta de la votación?">
@@ -476,6 +570,112 @@
     </div>
   </div>
 
+  <!-- MODAL: EDITAR PERFIL (avatar + nombre) -->
+  <div class="modal-overlay" id="modalEditarAvatar">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalEditarAvatar">✕</button>
+      <h3 class="modal-title">✏️ Editar mi perfil</h3>
+
+      <!-- Nombre de usuario -->
+      <div style="margin-bottom:16px">
+        <div class="modal-label">Tu nombre en el grupo</div>
+        <input type="text" id="editPerfilNombre" class="modal-input" placeholder="¿Cómo te llamas?" maxlength="40"
+          style="margin-top:6px">
+      </div>
+
+      <div class="modal-label" style="margin-bottom:10px">Foto de perfil</div>
+
+      <!-- Opción 1: Foto de Google (si tiene) -->
+      <div id="avatarOpcionGoogle" style="display:none; margin-bottom:14px">
+        <div class="modal-label" style="font-size:12px;opacity:0.7">Tu foto de Google</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+          <img id="avatarPreviewGoogle" src="" alt=""
+            style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--accent)">
+          <button class="btn-sm" id="btnUsarFotoGoogle">Usar esta foto</button>
+        </div>
+      </div>
+
+      <!-- Opción 2: Subir imagen -->
+      <div style="margin-bottom:14px">
+        <div class="modal-label" style="font-size:12px;opacity:0.7">Subir imagen</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <label class="btn-sm" for="avatarFileInput" style="cursor:pointer">📁 Elegir archivo</label>
+          <input type="file" id="avatarFileInput" accept="image/*" style="display:none">
+          <span id="avatarFileNombre" style="font-size:12px;color:var(--text3)">Sin archivo</span>
+        </div>
+      </div>
+
+      <!-- Opción 3: Emoji -->
+      <div style="margin-bottom:14px">
+        <div class="modal-label" style="font-size:12px;opacity:0.7">O elige un emoji como avatar</div>
+        <div class="avatar-emoji-grid" id="avatarEmojiGrid"></div>
+      </div>
+
+      <div id="avatarPreviewWrap" style="text-align:center;margin:12px 0;display:none">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Vista previa</div>
+        <div class="muro-avatar-fallback" id="avatarModalPreview"
+          style="width:64px;height:64px;font-size:28px;margin:0 auto"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalEditarAvatar">Cancelar</button>
+        <button class="btn-primary" id="btnGuardarAvatar">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NOTAS DE MATERIA (comentarios por usuario) -->
+  <div class="modal-overlay" id="modalNotasGaleria">
+    <div class="modal-box" style="max-width:480px;width:100%">
+      <button class="modal-close" data-close="modalNotasGaleria">✕</button>
+      <h3 class="modal-title" id="notasGaleriaTitulo">📝 Notas</h3>
+      <!-- Lista de notas existentes -->
+      <div class="notas-lista" id="notasLista">
+        <div class="notas-vacio">Sin notas aún.</div>
+      </div>
+      <!-- Compose nueva nota -->
+      <div class="notas-compose">
+        <textarea id="notasGaleriaTexto" placeholder="Escribe una nota, fórmula, fecha importante..."
+          rows="3"></textarea>
+        <div class="notas-compose-actions">
+          <button class="btn-primary" id="btnGuardarNotas" style="padding:8px 22px;font-size:13px">💾 Publicar
+            nota</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ CHAT BURBUJA FLOTANTE ══════════ -->
+  <!-- FAB: botón flotante de chat -->
+  <button class="chat-fab" id="chatFab" title="Chat del grupo" style="display:none">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <span class="chat-fab-badge" id="chatFabBadge" style="display:none">0</span>
+  </button>
+
+  <!-- Panel del chat burbuja -->
+  <div class="chat-burbuja-panel" id="chatBurbujaPanel">
+    <div class="chat-burbuja-header">
+      <div class="chat-burbuja-header-info">
+        <span class="chat-burbuja-header-icon">💬</span>
+        <span class="chat-burbuja-header-title">Chat del grupo</span>
+      </div>
+      <button class="chat-burbuja-close" id="chatBurbujaClose">✕</button>
+    </div>
+    <div class="chat-burbuja-msgs" id="chatBurbujaMsgs">
+      <div class="chat-burbuja-loading">Conectando…</div>
+    </div>
+    <div class="chat-burbuja-compose">
+      <textarea class="chat-burbuja-input" id="chatBurbujaInput" placeholder="Escribe un mensaje…" rows="1" maxlength="500"></textarea>
+      <button class="chat-burbuja-send" id="chatBurbujaEnviar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
   <!-- LIGHTBOX -->
   <div class="lightbox" id="lightbox">
     <button class="lightbox-close" id="lightboxClose">✕</button>
@@ -494,10 +694,10 @@
       getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
     import {
-      initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+      getFirestore, // ← USAMOS LA VERSIÓN ESTÁNDAR SIN CACHÉ PROBLEMÁTICO
       collection, addDoc, query, where, getDocs, orderBy, limit,
       onSnapshot, serverTimestamp, doc, setDoc, increment,
-      getDoc, deleteDoc, updateDoc, writeBatch, arrayUnion, arrayRemove
+      getDoc, deleteDoc, updateDoc, writeBatch, arrayUnion, arrayRemove, Timestamp
     } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -511,16 +711,16 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-    });
+
+    // AQUÍ ESTÁ LA MAGIA: Conexión directa, rápida y sin congelamientos
+    const db = getFirestore(app);
 
     window._auth = auth;
     window._db = db;
     window._fbLib = {
       collection, addDoc, query, where, getDocs, orderBy, limit,
       onSnapshot, serverTimestamp, doc, setDoc, increment,
-      getDoc, deleteDoc, updateDoc, writeBatch, arrayUnion, arrayRemove,
+      getDoc, deleteDoc, updateDoc, writeBatch, arrayUnion, arrayRemove, Timestamp,
       GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
     };
     window._firebaseReady = true;
