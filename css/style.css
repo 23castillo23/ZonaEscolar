@@ -863,16 +863,37 @@ a {
   padding: 8px 14px 12px;
 }
 
+.feed-comments-list {
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  padding-right: 2px;
+}
+
+.feed-comments-list::-webkit-scrollbar {
+  width: 3px;
+}
+.feed-comments-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
 .feed-comment-item {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  animation: cardIn 0.2s ease;
+  gap: 7px;
+  margin-bottom: 5px;
+  animation: cardIn 0.15s ease;
+}
+
+/* Comentarios del mismo autor seguidos: ocultar avatar repetido */
+.feed-comment-item.same-author .feed-comment-avatar {
+  visibility: hidden;
 }
 
 .feed-comment-avatar {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   object-fit: cover;
   background: var(--bg4);
@@ -882,28 +903,57 @@ a {
 
 .feed-comment-bubble {
   background: var(--bg3);
-  border-radius: var(--radius-md) var(--radius-md) var(--radius-md) 4px;
-  padding: 7px 11px;
+  border-radius: 4px var(--radius-md) var(--radius-md) 4px;
+  padding: 5px 10px;
   flex: 1;
+  min-width: 0;
+}
+
+/* Primer comentario de un bloque tiene esquina redondeada arriba-izquierda */
+.feed-comment-item:not(.same-author) .feed-comment-bubble {
+  border-radius: var(--radius-md) var(--radius-md) var(--radius-md) 4px;
 }
 
 .feed-comment-author {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--accent2);
-  margin-bottom: 2px;
+  margin-bottom: 1px;
+}
+
+/* Ocultar nombre si es el mismo autor que el anterior */
+.feed-comment-item.same-author .feed-comment-author {
+  display: none;
 }
 
 .feed-comment-text {
   font-size: 13px;
   color: var(--text0);
   line-height: 1.4;
+  word-break: break-word;
 }
 
 .feed-comment-time {
   font-size: 10px;
   color: var(--text3);
-  margin-top: 2px;
+  margin-top: 1px;
+}
+
+/* Botón ver más comentarios */
+.comments-show-more {
+  font-size: 11.5px;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 3px 0 5px;
+  display: block;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: var(--transition);
+}
+.comments-show-more:hover {
+  color: var(--accent2);
 }
 
 .feed-comment-compose {
@@ -3211,9 +3261,9 @@ a {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 6px 4px;
+  padding: 6px 0px; /* Quitamos padding lateral para que quepan los 7 */
   color: var(--text2);
-  font-size: 9px;
+  font-size: 8.5px; /* Letra un poquitito más pequeña */
   font-weight: 600;
   transition: var(--transition);
   cursor: pointer;
@@ -3225,7 +3275,7 @@ a {
 }
 
 .bottom-nav-item .bnav-icon {
-  font-size: 22px;
+  font-size: 20px; /* Íconos a 20px en lugar de 22px */
   line-height: 1;
 }
 
@@ -3261,7 +3311,7 @@ a {
 
   .main-content {
     margin-left: 0;
-    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); /* Reducido a 48px */
   }
 
   .section {
@@ -3273,13 +3323,13 @@ a {
     display: flex;
   }
 
-  /* Chat ocupa toda la pantalla disponible */
+  
   /* Chat ocupa toda la pantalla disponible, respetando el teclado */
   #sectionChat {
-    height: calc(100dvh - 56px - 58px);
+    /* 56px de topbar y 48px de bottom nav */
+    height: calc(100dvh - 56px - 48px - env(safe-area-inset-bottom, 0px)); 
     padding: 0;
     position: relative;
-    /* Ayuda a que la barra no flote a lo loco */
   }
 
   .chat-messages {
@@ -3292,16 +3342,12 @@ a {
   }
 
   /* Ajuste de la nueva barra de chat y emojis en móvil */
-  /* Ajuste de la nueva barra de chat y emojis en móvil */
-  /* Ajuste de la nueva barra de chat y emojis en móvil (Pegada abajo) */
   .chat-compose-wrapper {
     width: 100%;
     margin: 0;
-    /* Quitamos el margen para que no baile */
-    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
-    /* El safe-area va aquí, no en el height */
+    /* Quitamos el safe-area de aquí porque el bottom-nav ya lo tiene */
+    padding: 10px 12px; 
     border-radius: 0;
-    /* Que toque los bordes */
     border-left: none;
     border-right: none;
     border-bottom: none;
@@ -3540,11 +3586,11 @@ a {
   /* Bottom nav más compacta */
   .bottom-nav-item {
     font-size: 8px;
-    padding: 5px 2px;
+    padding: 5px 0px;
   }
 
   .bottom-nav-item .bnav-icon {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   /* Dinámicas */

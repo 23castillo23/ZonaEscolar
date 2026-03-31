@@ -252,7 +252,7 @@ function showApp() {
   $('appShell').style.display = 'flex';
   refreshAvatarUI();
   $('userName').textContent = getUserAlias();
-  $('userRole').textContent = 'Miembro';
+  $('userRole').textContent = 'Integrante';
   if ($('muroNombre')) $('muroNombre').textContent = getUserAlias();
   initChatBurbuja();
   showSection('loading');
@@ -408,7 +408,7 @@ async function activarGrupo(groupId) {
   isAdmin = currentGroupData?.adminUid === currentUser.uid;
   localStorage.setItem('ze_last_group', groupId);
 
-  $('userRole').textContent = isAdmin ? 'Admin' : 'Miembro';
+  $('userRole').textContent = isAdmin ? 'Admin' : 'Integrante';
   $('topbarGroupBadge').textContent = currentGroupData
     ? `${currentGroupData.icon || '👥'} ${currentGroupData.name}` : '';
 
@@ -483,7 +483,7 @@ function renderSidebarMiembros() {
 
     // Botón de expulsar respetuoso (solo 'X')
     const btnExpulsar = (isAdmin && !esYo)
-      ? `<button class="btn-expulsar" title="Quitar miembro" onclick="event.stopPropagation(); expulsarMiembro('${escHtml(email)}')">✕</button>`
+      ? `<button class="btn-expulsar" title="Quitar integrante" onclick="event.stopPropagation(); expulsarMiembro('${escHtml(email)}')">✕</button>`
       : '';
 
     return `<div class="sidebar-member-btn ${esYo ? 'me' : ''}" data-email="${escHtml(email)}" style="display:flex; align-items:center; cursor:pointer;" onclick="verMuroDeUsuario('${escHtml(email)}','${escHtml(nombre)}')">
@@ -639,8 +639,8 @@ function renderMiembrosList() {
   if (!container || !currentGroupData) return;
   const miembros = currentGroupData.miembros || [];
   const nombres = currentGroupData.miembroNombres || {};
-  if (!miembros.length) { container.innerHTML = '<p style="font-size:12px;color:var(--text3)">Sin miembros aún.</p>'; return; }
-  container.innerHTML = '<p style="font-size:11px;color:var(--text3);margin-bottom:6px">Miembros actuales:</p>' +
+  if (!miembros.length) { container.innerHTML = '<p style="font-size:12px;color:var(--text3)">Sin integrantes aún.</p>'; return; }
+  container.innerHTML = '<p style="font-size:11px;color:var(--text3);margin-bottom:6px">Integrantes actuales:</p>' +
     miembros.map(email => {
       const key = email.replace(/\./g, '_');
       const nombre = nombres[key] || email.split('@')[0];
@@ -1099,19 +1099,25 @@ function loadComments(postId, sectionEl) {
   const list = sectionEl.querySelector('.feed-comments-list');
   if (sectionEl._commentsUnsub) sectionEl._commentsUnsub();
   sectionEl._commentsUnsub = onSnapshot(q, snap => {
-    // Diff incremental: evita parpadeo al re-renderizar toda la lista
     snap.docChanges().forEach(change => {
       if (change.type === 'added') {
         const c = { id: change.doc.id, ...change.doc.data() };
-        // Evitar duplicados
         if (list.querySelector(`[data-comment-id="${c.id}"]`)) return;
         const esMio = c.authorUid === currentUser.uid;
         const btnDel = (esMio || isAdmin)
           ? `<button class="comment-del-btn" onclick="eliminarComentario('${c.id}','${postId}')" title="Eliminar">🗑️</button>`
           : '';
+
+        // Detectar si el comentario anterior es del mismo autor (agrupa visualmente)
+        const items = list.querySelectorAll('.feed-comment-item');
+        const lastItem = items.length ? items[items.length - 1] : null;
+        const lastAuthor = lastItem ? lastItem.dataset.authorUid : null;
+        const sameAuthor = lastAuthor === c.authorUid;
+
         const el = document.createElement('div');
-        el.className = 'feed-comment-item';
+        el.className = 'feed-comment-item' + (sameAuthor ? ' same-author' : '');
         el.dataset.commentId = c.id;
+        el.dataset.authorUid = c.authorUid;
         el.innerHTML = `
           <img class="feed-comment-avatar" src="${escHtml(c.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
           <div class="feed-comment-bubble">
@@ -1119,20 +1125,27 @@ function loadComments(postId, sectionEl) {
             <div class="feed-comment-text">${escHtml(c.text)}</div>
             <div class="feed-comment-time">${fmtTime(c.createdAt)} ${btnDel}</div>
           </div>`;
-        // Quitar mensaje "Sé el primero"
         const empty = list.querySelector('.comment-empty-msg');
         if (empty) empty.remove();
         list.appendChild(el);
+        // Scroll suave al último comentario
+        list.scrollTop = list.scrollHeight;
       }
       if (change.type === 'removed') {
         const el = list.querySelector(`[data-comment-id="${change.doc.id}"]`);
-        if (el) el.remove();
+        if (el) {
+          // Si era el primero de un bloque, el siguiente deja de ser same-author
+          const next = el.nextElementSibling;
+          if (next && next.classList.contains('same-author') && !el.classList.contains('same-author')) {
+            next.classList.remove('same-author');
+          }
+          el.remove();
+        }
         if (!list.querySelector('.feed-comment-item')) {
           list.innerHTML = '<div class="comment-empty-msg" style="font-size:12px;color:var(--text3);padding:4px 0">Sé el primero en comentar.</div>';
         }
       }
     });
-    // Si está vacío al inicio
     if (!list.querySelector('.feed-comment-item') && !list.querySelector('.comment-empty-msg')) {
       list.innerHTML = '<div class="comment-empty-msg" style="font-size:12px;color:var(--text3);padding:4px 0">Sé el primero en comentar.</div>';
     }
@@ -1489,7 +1502,7 @@ function cargarMuroFotos(uid, esPropio) {
 
     if (!fotos.length) {
       grid.innerHTML = `<div class="feed-loading" style="grid-column:1/-1;padding:30px">
-        ${prop ? 'No has subido fotos todavía.' : 'Este miembro aún no tiene fotos.'}<br>
+        ${prop ? 'No has subido fotos todavía.' : 'Este integrante aún no tiene fotos.'}<br>
         ${prop ? '<span style="font-size:12px;color:var(--text3)">Usa el botón "+ Foto" para subir al muro.</span>' : ''}
       </div>`;
       return;
@@ -1607,7 +1620,7 @@ function cargarMuroPublicaciones() {
     const posts = [];
     snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
     if (!posts.length) {
-      list.innerHTML = `<div class="feed-loading">${esPropio ? 'Aún no tienes publicaciones en este grupo.' : 'Este miembro aún no tiene publicaciones.'}</div>`;
+      list.innerHTML = `<div class="feed-loading">${esPropio ? 'Aún no tienes publicaciones en este grupo.' : 'Este integrante aún no tiene publicaciones.'}</div>`;
       return;
     }
 
