@@ -713,14 +713,33 @@ function activarSeccion(section) {
 
   if (section !== 'biblioteca' && bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
 
-  // --- CERRAR BURBUJA AL ENTRAR AL CHAT GRANDE ---
-  if (section === 'chat') {
-    const panel = $('chatBurbujaPanel');
-    const fab = $('chatFab');
-    if (panel) panel.classList.remove('open');
+  const panelBurbuja = $('chatBurbujaPanel');
+  const fab = $('chatFab');
+
+  // --- 1. CERRAR BURBUJA SIEMPRE AL CAMBIAR DE SECCIÓN ---
+  if (panelBurbuja && panelBurbuja.classList.contains('open')) {
+    panelBurbuja.classList.remove('open');
     if (fab) fab.classList.remove('active');
     chatBurbujaAbierta = false;
-    if (chatBurbujaUnsub) { chatBurbujaUnsub(); chatBurbujaUnsub = null; }
+    
+    // Detenemos la escucha de mensajes de la burbuja para ahorrar recursos
+    if (typeof chatBurbujaUnsub !== 'undefined' && chatBurbujaUnsub) { 
+      chatBurbujaUnsub(); 
+      chatBurbujaUnsub = null; 
+    }
+  }
+
+  // --- 2. OCULTAR EL BOTÓN FLOTANTE SI ESTAMOS EN EL CHAT GRANDE ---
+  if (fab) {
+    if (section === 'chat') {
+      fab.style.display = 'none'; // Desaparece la burbuja flotante
+    } else {
+      fab.style.display = ''; // Vuelve a aparecer en Feed, Tareas, etc.
+    }
+  }
+
+  // --- 3. RESETEOS ESPECÍFICOS AL ENTRAR AL CHAT GRANDE ---
+  if (section === 'chat') {
     resetBurbujaUnread();
     markChatAsRead();
   }

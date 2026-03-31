@@ -3326,8 +3326,7 @@ a {
   
   /* Chat ocupa toda la pantalla disponible, respetando el teclado */
   #sectionChat {
-    /* 56px de topbar y 48px de bottom nav */
-    height: calc(100dvh - 56px - 48px - env(safe-area-inset-bottom, 0px)); 
+    height: calc(100dvh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     padding: 0;
     position: relative;
   }
@@ -3440,7 +3439,8 @@ a {
     bottom: calc(130px + env(safe-area-inset-bottom, 0px));
     right: 14px;
     width: calc(100vw - 28px);
-    max-height: 380px;
+    /* MAGIA AQUÍ: Se adapta dinámicamente al espacio que deja el teclado */
+    max-height: calc(100dvh - 150px); 
   }
 }
 
@@ -3636,6 +3636,8 @@ a {
 ═══════════════════════════════════════════════════════ */
 @supports (padding-top: env(safe-area-inset-top)) {
   .topbar {
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
     padding-left: max(16px, env(safe-area-inset-left));
     padding-right: max(16px, env(safe-area-inset-right));
   }
