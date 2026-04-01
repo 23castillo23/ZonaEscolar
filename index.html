@@ -508,6 +508,15 @@
       <h3 class="modal-title">Nueva Tarea</h3>
       <input type="text" id="tareaTitulo" class="modal-input" placeholder="Título de la tarea" maxlength="80">
       <textarea id="tareaDesc" class="modal-input modal-textarea" placeholder="Descripción (opcional)"></textarea>
+
+      <div style="margin-top:15px; margin-bottom:10px; background:var(--bg3); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label class="modal-label" style="margin:0;">Dividir temas (Opcional)</label>
+            <button type="button" class="btn-sm" id="btnAddSubtarea" style="padding:4px 8px; font-size:10px;">+ Agregar tema</button>
+        </div>
+        <div id="subtareasList" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+
       <label class="modal-label">Responsable</label>
       <input type="text" id="tareaResponsable" class="modal-input" placeholder="¿Quién la entrega?">
       <label class="modal-label">Fecha límite</label>

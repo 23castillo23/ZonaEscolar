@@ -61,6 +61,7 @@ let selectedBiblioColor = 'book-pdf';
 let catBiblioUnsub = null;
 let biblioCategorias = [];
 let bibliotecaUiBound = false;
+let calDiaSeleccionado = null;
 
 const EMOJIS_SEMESTRE = [
   '📅', '📚', '🎓', '🌱', '☀️', '🍂', '❄️', '📖', '🏫', '✏️',
@@ -840,8 +841,8 @@ function closeSidebar() {
    FEED
 ═══════════════════════════════════════════════════ */
 function initFeed() {
-  // Siempre cancelar listener anterior y crear uno nuevo para garantizar tiempo real
   if (feedUnsub) { feedUnsub(); feedUnsub = null; }
+  
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_feed'),
@@ -849,15 +850,33 @@ function initFeed() {
     orderBy('createdAt', 'desc'),
     limit(40)
   );
+
   $('feedList').innerHTML = '<div class="feed-loading">Cargando…</div>';
+
   feedUnsub = onSnapshot(q, { includeMetadataChanges: false }, snap => {
     const posts = [];
     snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
     renderFeed(posts);
   }, err => {
-    console.error('Feed error:', err);
-    // Ahora imprimirá el error real en color rojo
-    $('feedList').innerHTML = `<div class="feed-loading" style="color:var(--red);">⚠️ Error Firebase: ${err.message}</div>`;
+    // ─── AQUÍ ESTÁ EL MANEJO DE ERRORES MEJORADO ───
+    console.error('Error en el Feed:', err.code, err.message);
+
+    if (err.code === 'failed-precondition') {
+      // Este error suele significar que falta un índice compuesto
+      console.warn(
+        "%c⚠️ ÍNDICE FALTANTE EN FIRESTORE", 
+        "color: white; background: #f59e0b; padding: 4px 8px; border-radius: 4px; font-weight: bold;"
+      );
+      console.warn("Haz clic aquí para crearlo automáticamente:\n", err.message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0] || "URL no encontrada en el mensaje de error.");
+      
+      $('feedList').innerHTML = `
+        <div class="feed-loading" style="color:var(--amber);">
+          ⚠️ Falta configurar un índice en la base de datos.<br>
+          <small>Revisa la consola del navegador (F12) para el enlace de creación.</small>
+        </div>`;
+    } else {
+      $('feedList').innerHTML = `<div class="feed-loading" style="color:var(--red);">⚠️ Error de conexión: ${err.code}</div>`;
+    }
   });
 }
 
@@ -2105,31 +2124,34 @@ $('chatImgInput').addEventListener('change', async e => {
    TAREAS
 ═══════════════════════════════════════════════════ */
 function initTareas() {
-  if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
+    if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
 
-  // Solo reseteamos el mes si NO estamos viendo el calendario.
-  if (!tareasVistaCalendario) {
-    calMesOffset = 0;
-  }
+    const { collection, query, where, orderBy, onSnapshot } = lib();
+    const q = query(
+        collection(db(), 'ec_tareas'),
+        where('groupId', '==', currentGroupId),
+        orderBy('createdAt', 'desc')
+    );
 
-  const { collection, query, where, orderBy, onSnapshot } = lib();
-  const q = query(
-    collection(db(), 'ec_tareas'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'desc')
-  );
-  $('tareasList').innerHTML = '<div class="feed-loading">Cargando…</div>';
-  tareasUnsub = onSnapshot(q, snap => {
-    const tareas = [];
-    snap.forEach(d => tareas.push({ id: d.id, ...d.data() }));
-    if (tareasVistaCalendario) {
-      const hoy = new Date();
-      renderCalMes(tareas, hoy.getFullYear() + Math.floor((hoy.getMonth() + calMesOffset) / 12),
-        ((hoy.getMonth() + calMesOffset) % 12 + 12) % 12);
-    } else {
-      renderTareas(tareas);
+    // En lugar de limpiar TODO el contenedor, solo ponemos el loading en la parte de la lista
+    // Si la vista es calendario, mantenemos la estructura.
+    if (!tareasVistaCalendario) {
+        $('tareasList').innerHTML = '<div class="feed-loading">Cargando tareas…</div>';
     }
-  });
+
+    tareasUnsub = onSnapshot(q, snap => {
+        const tareas = [];
+        snap.forEach(d => tareas.push({ id: d.id, ...d.data() }));
+        
+        if (tareasVistaCalendario) {
+            const hoy = new Date();
+            const año = hoy.getFullYear() + Math.floor((hoy.getMonth() + calMesOffset) / 12);
+            const mes = ((hoy.getMonth() + calMesOffset) % 12 + 12) % 12;
+            renderCalMes(tareas, año, mes);
+        } else {
+            renderTareas(tareas);
+        }
+    });
 }
 
 function renderTareas(tareas) {
@@ -2162,6 +2184,94 @@ function renderTareas(tareas) {
     </div>`;
   }).join('');
 }
+
+function buildTareaHTML(t) {
+    const esMio = t.authorUid === currentUser.uid;
+    const tienePermiso = isAdmin || esMio;
+
+    // --- NUEVO: Renderizar sub-tareas si existen ---
+    let subTareasHtml = '';
+    if (t.subtareas && t.subtareas.length > 0) {
+        const total = t.subtareas.length;
+        const completadas = t.subtareas.filter(s => s.done).length;
+        const progreso = total === 0 ? 0 : Math.round((completadas / total) * 100);
+
+        subTareasHtml = `
+        <div style="margin-top:12px; background:var(--bg1); padding:10px; border-radius:8px; border:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:11px; color:var(--text2);">
+                <span>Progreso del equipo: ${completadas}/${total}</span>
+                <span>${progreso}%</span>
+            </div>
+            <div style="width:100%; height:4px; background:var(--bg3); border-radius:2px; margin-bottom:12px; overflow:hidden;">
+                <div style="width:${progreso}%; height:100%; background:var(--green); transition:width 0.3s ease;"></div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                ${t.subtareas.map((sub, idx) => `
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" style="accent-color:var(--accent); width:14px; height:14px; cursor:pointer;" 
+                               ${sub.done ? 'checked' : ''} 
+                               onchange="toggleSubtarea('${t.id}', ${idx}, this.checked)">
+                        <span style="font-size:12px; ${sub.done ? 'text-decoration:line-through; opacity:0.5;' : 'color:var(--text0);'} flex:1;">
+                            ${escHtml(sub.texto)}
+                        </span>
+                        ${sub.responsable ? `<span style="font-size:10px; background:var(--bg3); padding:2px 6px; border-radius:4px; color:var(--text2);">${escHtml(sub.responsable)}</span>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    }
+
+    return `
+    <div class="tarea-card ${t.done ? 'done' : ''}" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%;">
+            <div style="display:flex; gap:12px; flex:1;">
+                <button class="tarea-check ${t.done ? 'checked' : ''}" onclick="toggleTarea('${t.id}', ${!t.done})">
+                    ${t.done ? '✓' : ''}
+                </button>
+                <div class="tarea-body">
+                    <div class="tarea-titulo">${escHtml(t.titulo)}</div>
+                    <div class="tarea-meta" style="margin-top:6px;">
+                        ${t.materia ? `<span class="tarea-badge badge-materia">📖 ${escHtml(t.materia)}</span>` : ''}
+                        ${t.responsable && (!t.subtareas || t.subtareas.length === 0) ? `<span class="tarea-badge badge-responsable" style="opacity:0.7;">👤 ${escHtml(t.responsable)}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            ${tienePermiso ? `
+                <button class="tarea-delete" onclick="eliminarTarea('${t.id}')" style="margin-left:10px;">
+                    🗑️
+                </button>
+            ` : ''}
+        </div>
+        ${subTareasHtml}
+    </div>`;
+}
+
+window.toggleSubtarea = async function(tareaId, subIdx, isDone) {
+    const { doc, getDoc, updateDoc } = lib();
+    try {
+        const ref = doc(db(), 'ec_tareas', tareaId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return;
+        
+        const data = snap.data();
+        const subs = data.subtareas || [];
+        
+        if (subs[subIdx]) {
+            subs[subIdx].done = isDone;
+            
+            // Evaluamos si todas las sub-tareas ya se completaron
+            const todasCompletadas = subs.every(s => s.done);
+            
+            // Actualizamos el array en Firestore y, si todas están listas, marcamos la tarea principal como "done"
+            await updateDoc(ref, { 
+                subtareas: subs, 
+                done: todasCompletadas 
+            });
+        }
+    } catch (e) {
+        console.error("Error al actualizar sub-tarea:", e);
+    }
+};
 
 /* ═══════════════════════════════════════════════════
    BIBLIOTECA - SISTEMA DE REPISAS Y DRIVE (FINAL)
@@ -2459,10 +2569,11 @@ window.calNavegar = function (dir) {
 };
 
 function renderCalMes(tareas, año, mes) {
-  // Actualizar renderCalendarioTareas con el mes correcto
   const container = $('tareasList');
   const hoy = new Date();
   const tareasPorDia = {};
+  
+  // 1. Agrupar las tareas del mes
   tareas.filter(t => t.fecha && !t.done).forEach(t => {
     const d = new Date(t.fecha);
     if (d.getFullYear() === año && d.getMonth() === mes) {
@@ -2471,78 +2582,200 @@ function renderCalMes(tareas, año, mes) {
       tareasPorDia[key].push(t);
     }
   });
+  
   const primerDia = new Date(año, mes, 1).getDay();
   const diasMes = new Date(año, mes + 1, 0).getDate();
   const nombresMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const nombresDia = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  
+  // 2. Construir el Header y los días de la semana
   let html = `<div class="cal-header">
     <button class="cal-nav" onclick="calNavegar(-1)">‹</button>
     <span class="cal-mes-label">${nombresMes[mes]} ${año}</span>
     <button class="cal-nav" onclick="calNavegar(1)">›</button>
   </div><div class="cal-grid">
     ${nombresDia.map(d => `<div class="cal-dia-header">${d}</div>`).join('')}`;
-  for (let i = 0; i < primerDia; i++) html += `<div class="cal-dia vacio"></div>`;
+    
+  // 3. Espacios vacíos antes del día 1
+  for (let i = 0; i < primerDia; i++) {
+    html += `<div class="cal-dia vacio"></div>`;
+  }
+  
+  // 4. Dibujar los números del mes
   for (let dia = 1; dia <= diasMes; dia++) {
     const esHoy = dia === hoy.getDate() && mes === hoy.getMonth() && año === hoy.getFullYear();
     const tsDia = tareasPorDia[String(dia)] || [];
+    
     html += `<div class="cal-dia ${esHoy ? 'hoy' : ''} ${tsDia.length ? 'tiene-tarea' : ''}"
       onclick="calVerDia(${dia},${mes},${año})">
       <span class="cal-num">${dia}</span>
       ${tsDia.length ? `<span class="cal-punto">${tsDia.length}</span>` : ''}
     </div>`;
   }
-  html += `</div>`;
+  
+  // AQUI CERRAMOS EL CALENDARIO CORRECTAMENTE
+  html += `</div>`; 
+
+  // -------------------------------------------------------------------------
+  // 5. EL CONTENEDOR PARA CUANDO HACES CLIC EN UN DÍA (Vacío al principio)
+  // -------------------------------------------------------------------------
+  html += `<div id="calListaTareasAbajo" style="margin-top:20px;"></div>`;
+
+  // -------------------------------------------------------------------------
+  // 6. EL CONTENEDOR DE PRÓXIMAS TAREAS (Visible al principio)
+  // -------------------------------------------------------------------------
   const proximas = tareas.filter(t => t.fecha && !t.done).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 8);
-  if (proximas.length) {
-    html += `<div class="cal-proximas-label">📋 Próximas tareas</div>`;
-    html += proximas.map(t => {
-      const d = new Date(t.fecha);
-      const dr = Math.ceil((d - hoy) / 86400000);
-      const u = dr <= 2 && dr >= 0; const v = dr < 0;
-      return `<div class="cal-tarea-item ${u ? 'urgente' : ''} ${v ? 'vencida-cal' : ''}">
-        <div class="cal-tarea-fecha">${d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
-          <span class="cal-dias-rest">${v ? '⚠️ Vencida' : dr === 0 ? '¡Hoy!' : `en ${dr}d`}</span>
-        </div>
-        <div class="cal-tarea-titulo">${escHtml(t.titulo)}</div>
-        ${t.materia ? `<span class="tarea-badge badge-materia">📖 ${escHtml(t.materia)}</span>` : ''}
-      </div>`;
-    }).join('');
+  
+  html += `<div id="contenedorProximasTareas">`;
+  if (proximas.length > 0) {
+    html += `<div class="cal-proximas-label" style="margin-top:20px; margin-bottom:10px;">📋 Próximas tareas</div>`;
+    // Usamos la nueva tarjeta de diseño
+    html += proximas.map(t => buildTareaHTML(t)).join('');
   }
+  html += `</div>`;
+
+  // Finalmente insertamos todo de golpe sin parpadeos
   container.innerHTML = html;
 }
 
 window.calVerDia = function (dia, mes, año) {
-  // Resaltar día seleccionado (visual)
-  document.querySelectorAll('.cal-dia').forEach(el => el.classList.remove('selected'));
-  // Buscar el día clickeado y resaltarlo
-  const num = parseInt(dia);
-  document.querySelectorAll('.cal-num').forEach(el => {
-    if (parseInt(el.textContent) === num) el.closest('.cal-dia')?.classList.add('selected');
-  });
+    // 1. UI: Resaltar día en el calendario
+    qsa('.cal-dia').forEach(el => el.classList.remove('selected'));
+    const target = qsa('.cal-num').find(el => 
+        parseInt(el.textContent) === dia && !el.closest('.cal-dia').classList.contains('vacio')
+    );
+    if (target) target.closest('.cal-dia').classList.add('selected');
+
+    calDiaSeleccionado = { dia, mes, año };
+
+    // 2. Ocultamos las "Próximas Tareas" generales para que no haya duplicados
+    const proxDiv = $('contenedorProximasTareas');
+    if (proxDiv) proxDiv.style.display = 'none';
+
+    // 3. Consultamos Firebase para obtener las tareas
+    const { collection, query, where, getDocs } = lib();
+    const q = query(collection(db(), 'ec_tareas'), where('groupId', '==', currentGroupId));
+
+    getDocs(q).then(snap => {
+        const filtradas = [];
+        snap.forEach(d => {
+            const t = d.data();
+            if (t.fecha) {
+                // Hay que usar Date local, no toDate() directamente porque viene en string desde tu input type="datetime-local"
+                const dTarea = new Date(t.fecha);
+                if (dTarea.getDate() === dia && dTarea.getMonth() === mes && dTarea.getFullYear() === año) {
+                    filtradas.push({ id: d.id, ...t });
+                }
+            }
+        });
+
+        // 4. Renderizamos el resultado en el contenedor de abajo
+        const listaAbajo = $('calListaTareasAbajo');
+        if (!listaAbajo) return;
+
+        const nombresMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        
+        listaAbajo.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h4 style="font-size:14px; color:var(--accent2); margin:0;">📌 Tareas del ${dia} de ${nombresMes[mes]}</h4>
+                <button onclick="resetVistaCalendario()" style="background:none; border:none; color:var(--text3); font-size:11px; cursor:pointer; text-decoration:underline;">
+                    Ver próximas tareas
+                </button>
+            </div>
+            ${filtradas.length === 0 
+                ? `<div style="padding:20px; text-align:center; background:var(--bg3); border-radius:12px; border:1px dashed var(--border); font-size:13px; color:var(--text2);">No hay tareas para este día.</div>` 
+                : filtradas.map(t => buildTareaHTML(t)).join('')
+            }
+        `;
+    });
 };
+
+// Función para volver al estado inicial (Quitar el filtro)
+window.resetVistaCalendario = function() {
+    qsa('.cal-dia').forEach(el => el.classList.remove('selected'));
+    calDiaSeleccionado = null; // Borramos la selección
+    
+    const listaAbajo = $('calListaTareasAbajo');
+    if (listaAbajo) listaAbajo.innerHTML = ''; // Limpiamos el detalle
+    
+    const proxDiv = $('contenedorProximasTareas');
+    if (proxDiv) proxDiv.style.display = 'block'; // Mostramos las próximas de nuevo
+};
+
+function renderTareasEnListaPrincipal(tareas, dia, mes) {
+    const nombresMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const contenedor = $('tareasList'); // El contenedor que ya tienes abajo
+    
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h4 style="font-size:14px; color:var(--accent2); margin:0;">
+                📌 Tareas del ${dia} de ${nombresMes[mes]}
+            </h4>
+            <button onclick="initTareas()" style="background:none; border:none; color:var(--text2); font-size:11px; cursor:pointer; text-decoration:underline;">
+                Ver todas las tareas
+            </button>
+        </div>
+    `;
+
+    if (tareas.length === 0) {
+        html += `
+            <div style="padding:30px; text-align:center; opacity:0.6; border:1px dashed var(--border); border-radius:12px;">
+                <p>No hay tareas pendientes para este día.</p>
+            </div>`;
+    } else {
+        html += `<div class="tareas-grid-propia">
+                    ${tareas.map(t => buildTareaHTML(t)).join('')}
+                 </div>`;
+    }
+
+    contenedor.innerHTML = html;
+    
+    // Opcional: Hacer scroll suave hacia la lista para ver los resultados
+    contenedor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 
 window.toggleTarea = async function (id, done) {
   const { doc, updateDoc } = lib();
   await updateDoc(doc(db(), 'ec_tareas', id), { done });
 };
 
-// SOLUCIÓN: Solo el administrador puede borrar tareas ahora
 window.eliminarTarea = async function (id) {
-  if (!isAdmin) {
-    alert("Acceso denegado: Solo el administrador del grupo puede eliminar tareas.");
-    return;
-  }
-  if (!confirm('¿Estás seguro de eliminar esta tarea?')) return;
-  const { doc, deleteDoc } = lib();
-  try {
-    await deleteDoc(doc(db(), 'ec_tareas', id));
-  } catch (e) { alert("Error: " + e.message); }
+    const { doc, getDoc, deleteDoc } = lib();
+    try {
+        const snap = await getDoc(doc(db(), 'ec_tareas', id));
+        if (!snap.exists()) return;
+        const data = snap.data();
+
+        // LÓGICA DE PERMISOS: Admin O Creador de la tarea
+        const esCreador = data.authorUid === currentUser.uid;
+
+        if (!isAdmin && !esCreador) {
+            alert("Acceso denegado: Solo el administrador o quien creó la tarea pueden eliminarla.");
+            return;
+        }
+
+        if (!confirm('¿Estás seguro de eliminar esta tarea?')) return;
+        
+        await deleteDoc(doc(db(), 'ec_tareas', id));
+        
+        // Si hay un detalle abierto, refrescar
+        if (calDiaSeleccionado) calVerDia(calDiaSeleccionado.dia, calDiaSeleccionado.mes, calDiaSeleccionado.año);
+        
+    } catch (e) { 
+        alert("Error: " + e.message); 
+    }
 };
 
+// 1. Botones de Filtro (Todas, Pendientes, Completadas)
 qsa('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     tareasFilter = btn.dataset.filter;
     tareasVistaCalendario = false;
+    
+    // --- MAGIA: Limpiar memoria del calendario al salir ---
+    calMesOffset = 0; 
+    calDiaSeleccionado = null; 
+    
     qsa('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     $('btnCalendarioTareas')?.classList.remove('active');
@@ -2551,24 +2784,69 @@ qsa('.filter-btn').forEach(btn => {
   });
 });
 
+// 2. Botón para abrir/cerrar el Calendario
 $('btnCalendarioTareas')?.addEventListener('click', () => {
   tareasVistaCalendario = !tareasVistaCalendario;
   $('btnCalendarioTareas').classList.toggle('active', tareasVistaCalendario);
-  // Quitar filtros activos
+  
   if (tareasVistaCalendario) {
     qsa('.filter-btn').forEach(b => b.classList.remove('active'));
     $('tareasList').innerHTML = '<div class="feed-loading">Cargando calendario…</div>';
+    
+    calMesOffset = 0; // Asegurar que abra en el mes actual
+    // --- MAGIA: Pre-seleccionar HOY automáticamente al entrar ---
+    const hoy = new Date();
+    calDiaSeleccionado = { dia: hoy.getDate(), mes: hoy.getMonth(), año: hoy.getFullYear() };
+    
   } else {
     qsa('.filter-btn')[0]?.classList.add('active');
+    
+    // --- MAGIA: Limpiar memoria al cerrar el calendario ---
+    calMesOffset = 0; 
+    calDiaSeleccionado = null; 
   }
+  
   if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
   initTareas();
 });
 
-$('btnNuevaTarea').addEventListener('click', () => openModal('modalNuevaTarea'));
+// 1. Abrir el modal de nueva tarea y limpiar la lista de temas si había algo escrito antes
+$('btnNuevaTarea').addEventListener('click', () => {
+  const lista = $('subtareasList');
+  if (lista) lista.innerHTML = ''; 
+  openModal('modalNuevaTarea');
+});
+
+// 2. Darle función al botón de "+ Agregar tema"
+$('btnAddSubtarea')?.addEventListener('click', () => {
+  const list = $('subtareasList');
+  if (!list) return;
+  const div = document.createElement('div');
+  div.style.display = 'flex';
+  div.style.gap = '6px';
+  div.innerHTML = `
+      <input type="text" class="modal-input sub-texto" placeholder="Ej: Tema" style="flex:2; margin:0; padding:6px 10px; font-size:12px;">
+      <input type="text" class="modal-input sub-resp" placeholder="¿Quién?" style="flex:1; margin:0; padding:6px 10px; font-size:12px;">
+      <button type="button" onclick="this.parentElement.remove()" style="background:var(--bg4); color:var(--red); border:none; border-radius:6px; padding:0 8px; font-size:12px; cursor:pointer;">✕</button>
+  `;
+  list.appendChild(div);
+});
+
+// 3. Confirmar y guardar la tarea (AQUÍ ESTÁ TU CÓDIGO ANTERIOR INTEGRADO CON LOS SUB-TEMAS)
 $('btnConfirmarTarea').addEventListener('click', async () => {
   const titulo = $('tareaTitulo').value.trim();
   if (!titulo) { alert('Escribe el título de la tarea.'); return; }
+  
+  // --- NUEVO: Recolectar las sub-tareas ---
+  const subtareas = [];
+  qsa('#subtareasList > div').forEach(div => {
+      const texto = div.querySelector('.sub-texto').value.trim();
+      const resp = div.querySelector('.sub-resp').value.trim();
+      if (texto) {
+          subtareas.push({ texto: texto, responsable: resp, done: false });
+      }
+  });
+
   const { collection, addDoc, serverTimestamp } = lib();
   try {
     const tarea = {
@@ -2579,11 +2857,16 @@ $('btnConfirmarTarea').addEventListener('click', async () => {
       fecha: $('tareaFecha').value || null,
       materia: $('tareaMateria').value.trim(),
       done: false,
+      subtareas: subtareas, // <-- Guardamos la lista dinámica en Firebase
       authorUid: currentUser.uid,
       authorName: currentUser.name,
       createdAt: serverTimestamp()
     };
+    
+    // Guardar en la colección de tareas
     await addDoc(collection(db(), 'ec_tareas'), tarea);
+    
+    // Publicar en el Feed
     await addDoc(collection(db(), 'ec_feed'), {
       groupId: currentGroupId,
       text: `📋 Nueva tarea: "${titulo}"${tarea.responsable ? ` · Responsable: ${tarea.responsable}` : ''}${tarea.fecha ? ` · Fecha: ${new Date(tarea.fecha).toLocaleDateString('es-MX')}` : ''}`,
@@ -2594,8 +2877,13 @@ $('btnConfirmarTarea').addEventListener('click', async () => {
       likes: 0, likedBy: [], commentCount: 0,
       createdAt: serverTimestamp()
     });
+    
     closeModal('modalNuevaTarea');
+    
+    // Limpiamos los campos después de guardar
     ['tareaTitulo', 'tareaDesc', 'tareaResponsable', 'tareaFecha', 'tareaMateria'].forEach(id => $(id).value = '');
+    $('subtareasList').innerHTML = ''; 
+    
   } catch (e) { alert('Error: ' + e.message); }
 });
 

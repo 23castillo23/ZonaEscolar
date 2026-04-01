@@ -2492,12 +2492,14 @@ a {
 .tarea-card {
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px;
+  border-radius: 10px;
+  padding: 12px;
   display: flex;
   gap: 14px;
-  align-items: flex-start;
+  align-items: center;
   transition: var(--transition);
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
 
 .tarea-card:hover {
@@ -4272,8 +4274,21 @@ a {
 }
 
 .cal-dia.selected {
-  background: rgba(124, 106, 247, 0.2);
-  border-color: var(--accent2);
+    background: var(--accent) !important; /* El morado de tu app */
+    border-color: var(--accent2) !important;
+    box-shadow: 0 0 15px rgba(110, 86, 240, 0.3);
+    transform: scale(1.05);
+    z-index: 2;
+}
+
+.cal-dia.selected .cal-num {
+    color: #fff !important;
+    font-weight: bold;
+}
+
+/* Animación para que la lista de abajo no aparezca de golpe */
+#tareasList {
+    transition: all 0.3s ease;
 }
 
 .cal-num {
@@ -4282,14 +4297,22 @@ a {
   line-height: 1;
 }
 
+/* Indicador numérico de tareas (el circulito amarillo) */
 .cal-punto {
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--amber);
-  color: #000;
-  border-radius: 10px;
-  padding: 1px 5px;
-  line-height: 1.4;
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: var(--amber);
+    color: #000;
+    font-size: 9px;
+    font-weight: 800;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--bg2);
 }
 
 /* Lista de próximas tareas en el calendario */
@@ -4370,8 +4393,11 @@ a {
   border-radius: 12px;
 }
 
+/* Día con tarea: un borde más elegante y resplandor */
 .cal-dia.tiene-tarea {
-  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3) inset;
+    border: 1.5px solid var(--amber) !important;
+    background: rgba(251, 191, 36, 0.05);
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.1);
 }
 
 /* Biblioteca (Tareas) */
