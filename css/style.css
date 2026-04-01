@@ -874,6 +874,7 @@ a {
 .feed-comments-list::-webkit-scrollbar {
   width: 3px;
 }
+
 .feed-comments-list::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 4px;
@@ -952,6 +953,7 @@ a {
   text-align: left;
   transition: var(--transition);
 }
+
 .comments-show-more:hover {
   color: var(--accent2);
 }
@@ -1199,8 +1201,9 @@ a {
 }
 
 /* ═══════════════════════════════════════════════════════
-   APUNTES — Diseño Pastel
+   APUNTES — Tarjetas Expansibles (Diseño Unificado)
 ═══════════════════════════════════════════════════════ */
+
 .apuntes-toolbar {
   display: flex;
   gap: 10px;
@@ -1208,17 +1211,11 @@ a {
 }
 
 /* ── Estado vacío ── */
-/* ══════════════════════════════════════════════
-   APUNTES — Rediseño v2
-   Semestres como tarjetas · Materias bien proporcionadas
-   Pastel · Responsive desde 375px
-══════════════════════════════════════════════ */
-
-/* Estado vacío */
 .sem-empty {
   text-align: center;
   padding: 60px 20px;
   color: var(--text2);
+  width: 100%;
 }
 
 .sem-empty-icon {
@@ -1231,359 +1228,427 @@ a {
   line-height: 1.7;
 }
 
-/* ── Contenedor principal de semestres ── */
+/* ── CONTENEDOR PRINCIPAL ── */
 #apuntesGroupsContainer {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  padding: 4px 2px 24px;
+  /* Mínimo 200px por tarjeta. En pantallas grandes cabrán más de 2 */
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
   align-items: start;
+  width: 100%;
 }
 
-/* ── Tarjeta de semestre ── */
-.semestre-group2 {
-  border-radius: 22px;
+/* ── TARJETA DE SEMESTRE (ACORDEÓN) ── */
+.group-accordion {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
-  transition: box-shadow 0.22s, transform 0.22s;
-  background: var(--card);
-  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   display: flex;
   flex-direction: column;
-  /* Importante: alinearse al tope para que las tarjetas cerradas no se estiren */
-  align-self: start;
 }
 
-/* Cuando el semestre está abierto, ocupa toda la fila */
-.semestre-group2.open {
-  grid-column: auto;
+.group-accordion:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
 }
 
-/* Dentro del semestre abierto, las materias forman su propio grid de 2+ columnas */
-.semestre-group2.open .materias-grid2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+/* ── SEMESTRE ABIERTO (Ocupa toda la fila) ── */
+.group-accordion.open {
+  grid-column: 1 / -1;
+  /* Forzamos a ocupar todo el grid horizontalmente */
+  width: 100%;
 }
 
-.semestre-group2:hover {
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.16);
-  transform: translateY(-3px);
-}
-
-/* ── Cabecera pastel de la tarjeta semestre ── */
-.semestre-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 20px 18px;
+/* ── HEADER DEL SEMESTRE ── */
+.group-header {
   cursor: pointer;
-  transition: filter 0.18s;
   user-select: none;
+  display: flex;
+  flex-direction: column;
+  /* Vertical por defecto */
   position: relative;
   overflow: hidden;
-  min-height: 88px;
 }
 
-.semestre-banner::after {
-  content: '';
+.group-accordion.open .group-header {
+  flex-direction: row;
+  /* Horizontal cuando está abierto */
+  align-items: center;
+  padding: 14px 20px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Zona visual superior (Fondo difuminado + Icono) */
+.group-card-top {
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--bg3) 0%, var(--bg1) 100%);
+  position: relative;
+}
+
+.group-accordion.open .group-card-top {
+  height: auto;
+  background: none;
+  margin-right: 14px;
+}
+
+.group-header-bg {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.13);
-  opacity: 0;
-  transition: opacity 0.18s;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.3;
+  transition: opacity 0.3s;
 }
 
-.semestre-banner:hover::after {
-  opacity: 1;
+.group-header:hover .group-header-bg {
+  opacity: 0.5;
 }
 
-.semestre-banner:active {
-  transform: scale(0.985);
-}
-
-.semestre-banner-left {
-  display: flex;
-  align-items: center;
-  gap: 13px;
+.group-icon {
+  font-size: 3.5rem;
   z-index: 1;
+  position: relative;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
 }
 
-.semestre-banner-icon {
-  font-size: 36px;
-  line-height: 1;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
+.group-accordion.open .group-icon {
+  font-size: 2rem;
+  filter: none;
 }
 
-.semestre-banner-info {
+/* Textos del semestre */
+.group-card-info {
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+  text-align: center;
 }
 
-.semestre-banner-name {
+.group-accordion.open .group-card-info {
+  padding: 0;
+  text-align: left;
+  flex: 1;
+}
+
+.group-name {
   font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 800;
-  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.25);
-  letter-spacing: -0.3px;
-  line-height: 1.2;
-}
-
-.semestre-banner-count {
-  font-size: 12px;
-  font-weight: 500;
-  opacity: 0.75;
-}
-
-.semestre-banner-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 1;
-}
-
-.semestre-toggle2 {
-  font-size: 20px;
+  font-size: 1.1rem;
   font-weight: 700;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  line-height: 1;
-  opacity: 0.8;
+  color: var(--text0);
+  line-height: 1.3;
 }
 
-.semestre-group2.open .semestre-toggle2 {
-  transform: rotate(90deg);
+.group-count {
+  font-size: 0.8rem;
+  color: var(--text2);
 }
 
-.sem-del-btn {
-  background: rgba(255, 255, 255, 0.28);
-  border: none;
-  border-radius: 10px;
+/* Botones de acción inferiores */
+.group-mini-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.group-accordion.open .group-mini-actions {
+  padding: 0;
+  margin-left: auto;
+}
+
+.group-mini-btn {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+  color: var(--text0);
+  border: 1px solid var(--border);
+  transition: var(--transition);
+}
+
+.group-mini-btn:hover {
+  background: var(--bg4);
+}
+
+.group-mini-btn.primary {
+  background: var(--accent);
+  color: white;
+  border-color: transparent;
+}
+
+.group-mini-btn.primary:hover {
+  background: var(--accent2);
+}
+
+/* Elementos exclusivos del modo abierto */
+.group-chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--text2);
+  transition: transform 0.3s ease;
+  margin-left: 12px;
+  display: none;
+}
+
+.group-accordion.open .group-chevron {
+  display: block;
+}
+
+.group-delete {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--red);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  margin-left: 12px;
   cursor: pointer;
-  font-size: 14px;
-  padding: 5px 9px;
-  transition: background 0.18s;
-  line-height: 1;
-  backdrop-filter: blur(4px);
+  transition: var(--transition);
+  display: none;
 }
 
-.sem-del-btn:hover {
-  background: rgba(239, 68, 68, 0.5);
+.group-delete:hover {
+  background: var(--red);
+  color: white;
 }
 
-/* ── Grid de materias dentro de la tarjeta ── */
-.materias-grid2 {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  padding: 14px;
-  background: var(--bg2);
+.group-accordion.open .group-delete {
+  display: flex;
+}
+
+/* ── CUERPO DEL SEMESTRE (CARRUSEL DE MATERIAS) ── */
+.group-body {
+  display: none;
+  padding: 20px;
+  background: var(--bg1);
   border-top: 1px solid var(--border);
 }
 
-/* ── Tarjeta de materia ── */
-.materia-card2 {
+.group-accordion.open .group-body {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+.carousel-wrap {
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.albums-carousel {
+  display: flex;
+  gap: 16px;
+  /* Ajusté el gap a px para mantener consistencia con tu código nuevo */
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  /* CORRECCIÓN: Agregamos padding superior de 10px para que el hover no se corte, y mantenemos el inferior para la scrollbar */
+  padding: 10px 4px 12px 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ── TARJETA DE MATERIA ── */
+.album-card-wrap {
+  flex: 0 0 170px;
+  /* Ancho fijo para el carrusel horizontal */
+  scroll-snap-align: start;
   position: relative;
-  background: var(--card);
-  border: 1.5px solid var(--border);
-  border-radius: 16px;
+}
+
+.album-card {
+  height: 280px;
+  background: var(--bg2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
-  min-height: 120px;
-  /* <--- ESTA ES LA SOLUCIÓN AL BUG */
+  transition: transform 0.25s, border-color 0.25s;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
-.materia-card2:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
-  border-color: var(--mat-c1, var(--accent));
+.album-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
 }
 
-/* Header franja pastel */
-.materia-card2-header {
-  background: linear-gradient(135deg, var(--mat-c1, var(--accent)), var(--mat-c2, var(--accent2)));
-  height: 72px;
+.album-cover {
+  height: 110px;
+  /* Altura fija para la portada */
+  background: linear-gradient(135deg, var(--bg3), var(--bg1));
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  flex-shrink: 0;
+  overflow: hidden;
+  /* Esto evita que la imagen se salga de la tarjeta */
 }
 
-.materia-card2-cover {
+/* La imagen de fondo de la materia */
+.album-cover img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.65;
+  /* Recorta la imagen para llenar el recuadro sin deformarla */
+  opacity: 0.5;
+  /* Oscurece la imagen para que el icono se vea claro */
+  z-index: 0;
 }
 
-.materia-card2-icon {
-  font-size: 32px;
-  line-height: 1;
+/* El icono de la materia (sobre la foto) */
+.album-icon {
+  font-size: 2.5rem;
   position: relative;
   z-index: 1;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2));
-  transition: transform 0.2s;
+  /* Asegura que el icono quede SIEMPRE por encima de la foto */
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
 }
 
-.materia-card2:hover .materia-card2-icon {
-  transform: scale(1.12);
-}
-
-/* Body */
-.materia-card2-body {
-  padding: 10px 11px 11px;
+.album-info {
+  padding: 12px;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  flex: 1;
 }
 
-.materia-card2-name {
+.album-name {
   font-family: var(--font-display);
-  font-size: 12.5px;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text0);
-  line-height: 1.3;
-  word-break: break-word;
-}
-
-.materia-card2-tag {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--mat-c2, var(--accent));
-  letter-spacing: 0.3px;
-  background: color-mix(in srgb, var(--mat-c1, var(--accent)) 18%, transparent);
-  border-radius: 6px;
-  padding: 2px 6px;
-  display: inline-block;
-  max-width: 100%;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-[data-theme="light"] .materia-card2-tag {
-  color: var(--mat-txt, #1e293b);
-  background: color-mix(in srgb, var(--mat-c1, var(--accent)) 28%, transparent);
-}
-
-.materia-card2-footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.materia-card2-count {
-  font-size: 10px;
+.album-count {
+  font-size: 0.75rem;
   color: var(--text2);
 }
 
-/* Botones Abrir / Notas */
-.materia-card2-actions {
+.album-tag {
+  font-size: 0.7rem;
+  color: var(--accent2);
+  background: rgba(124, 106, 247, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: auto;
+  width: fit-content;
+}
+
+.album-actions {
   display: flex;
   gap: 6px;
-  margin-top: auto;
-  padding-top: 7px;
+  padding: 0 12px 12px;
 }
 
-.materia-btn-abrir,
-.materia-btn-notas {
+.album-action-btn {
   flex: 1;
   padding: 6px 0;
-  border-radius: 9px;
-  font-size: 11px;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s, filter 0.15s;
-  letter-spacing: 0.2px;
-}
-
-.materia-btn-abrir:active,
-.materia-btn-notas:active {
-  transform: scale(0.95);
-}
-
-.materia-btn-abrir {
-  background: linear-gradient(135deg, var(--mat-c1, var(--accent)), var(--mat-c2, var(--accent2)));
-  color: var(--mat-txt, #1e293b);
-  font-weight: 800;
-}
-
-.materia-btn-abrir:hover {
-  filter: brightness(1.09);
-}
-
-.materia-btn-notas {
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
   background: var(--bg3);
-  color: var(--text1);
-  border: 1px solid var(--border);
-}
-
-.materia-btn-notas:hover {
-  background: var(--bg4);
   color: var(--text0);
+  border: 1px solid var(--border);
+  transition: var(--transition);
 }
 
-/* Tarjeta "Nueva materia" */
-.materia-card-add {
-  border-style: dashed !important;
-  background: transparent !important;
-  opacity: 0.5;
-  min-height: 100px;
-  justify-content: center;
-  align-items: center;
+.album-action-btn:hover {
+  background: var(--bg4);
 }
 
-.materia-card-add:hover {
-  opacity: 1;
-  background: var(--bg3) !important;
+.album-action-btn.primary {
+  background: var(--accent);
+  color: white;
+  border-color: transparent;
 }
 
-.materia-card-add .materia-card2-header {
-  background: transparent !important;
-  height: auto;
+.album-action-btn.primary:hover {
+  background: var(--accent2);
 }
 
-.materia-card-add .materia-card2-icon {
-  font-size: 26px;
-}
-
-.materia-card-add .materia-card2-body {
-  align-items: center;
-}
-
-/* Botón eliminar materia */
-.materia-del-btn {
+/* Botón eliminar materia (X flotante) */
+.materia-delete {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(4px);
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
   border: none;
-  border-radius: 8px;
-  color: #7f1d1d;
+  color: white;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 8px;
   opacity: 0;
-  transition: opacity 0.15s, background 0.15s;
-  z-index: 3;
+  transition: opacity 0.2s, background 0.2s;
+  z-index: 10;
 }
 
-.materia-card2:hover .materia-del-btn {
+.album-card-wrap:hover .materia-delete {
   opacity: 1;
 }
 
-.materia-del-btn:hover {
-  background: rgba(239, 68, 68, 0.85);
-  color: #fff;
+.materia-delete:hover {
+  background: var(--red);
 }
+
+/* Botón agregar materia al final del carrusel */
+.btn-add-to-group {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text1);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.btn-add-to-group:hover {
+  border-color: var(--accent);
+  color: var(--accent2);
+  background: rgba(124, 106, 247, 0.05);
+}
+
+/* ── RESPONSIVE APUNTES ── */
+@media (max-width: 768px) {
+  #apuntesGroupsContainer {
+    /* 2 columnas forzadas en tablets/móviles grandes */
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* En celulares, ponemos 4 columnas para que no sean tan chiquitos */
+@media (max-width: 480px) {
+  .biblio-color-picker {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+}
+
+  .group-card-top {
+    height: 120px;
+  }
+
 
 /* ── NOTAS — comentarios por usuario ── */
 .notas-lista {
@@ -1691,7 +1756,7 @@ a {
 /* ── Responsive apuntes ── */
 @media (max-width: 600px) {
   #apuntesGroupsContainer {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     gap: 14px;
   }
 
@@ -2045,6 +2110,17 @@ a {
   background: var(--accent);
   border-radius: 2px;
   transition: width 0.3s;
+}
+
+/* ── Estilo para el botón de Notas en Semestres ── */
+.group-mini-btn.primary {
+  background: var(--accent);
+  color: white;
+  border-color: transparent;
+}
+
+.group-mini-btn.primary:hover {
+  background: var(--accent2);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -2721,14 +2797,16 @@ a {
   background: var(--bg2);
   border: 1px solid var(--border-hover);
   border-radius: var(--radius-xl);
-  padding: 28px 24px;
+  padding: 24px;
   width: 100%;
   max-width: 420px;
-  max-height: 90dvh;
-  overflow-y: auto;
+  /* IMPORTANTE: Esto evita que se corte */
+  max-height: 85vh; 
+  overflow-y: auto; 
   position: relative;
   box-shadow: var(--shadow-lg);
-  animation: modalIn 0.22s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-box-wide {
@@ -2819,16 +2897,35 @@ a {
   cursor: pointer;
 }
 
+/* Para que los botones de abajo siempre se vean bien */
 .modal-actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-  margin-top: 20px;
+  margin-top: 25px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0; /* Evita que los botones se aplasten */
+}
+
+/* Contenedor de los cuadritos de colores */
+.biblio-color-picker {
+  display: grid !important;
+  grid-template-columns: repeat(8, 1fr); 
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--bg3);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap; /* Permite que bajen a la siguiente fila si no caben */
+  justify-content: center; /* Centra los círculos en el modal */ 
+  border: 1px solid var(--border);
 }
 
 /* ═══════════════════════════════════════════════════════
    EMOJI PICKER
 ═══════════════════════════════════════════════════════ */
+/* ── EMOJI PICKER (FIX SCROLL) ── */
 .emoji-picker {
   display: flex;
   gap: 6px;
@@ -2837,6 +2934,26 @@ a {
   border-radius: var(--radius-sm);
   padding: 8px;
   margin-bottom: 4px;
+  /* NUEVO: Scroll interno para que no ocupe toda la pantalla */
+  max-height: 140px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ── ESPACIADO DE SEMESTRES ── */
+.semestre-group2 {
+  width: calc(50% - 8px);
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
+  transition: width 0.3s ease, box-shadow 0.22s, transform 0.22s;
+  display: flex;
+  flex-direction: column;
+  /* NUEVO: Espacio entre los semestres */
+  margin-bottom: 12px;
 }
 
 .emoji-option {
@@ -2961,6 +3078,7 @@ a {
 .votacion-resultado-item.mi-voto .votacion-bar {
   background: var(--accent2);
 }
+
 .votacion-resultado-item.mi-voto .votacion-bar-label {
   color: var(--accent2);
   font-weight: 600;
@@ -3261,9 +3379,11 @@ a {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 6px 0px; /* Quitamos padding lateral para que quepan los 7 */
+  padding: 6px 0px;
+  /* Quitamos padding lateral para que quepan los 7 */
   color: var(--text2);
-  font-size: 8.5px; /* Letra un poquitito más pequeña */
+  font-size: 8.5px;
+  /* Letra un poquitito más pequeña */
   font-weight: 600;
   transition: var(--transition);
   cursor: pointer;
@@ -3275,7 +3395,8 @@ a {
 }
 
 .bottom-nav-item .bnav-icon {
-  font-size: 20px; /* Íconos a 20px en lugar de 22px */
+  font-size: 20px;
+  /* Íconos a 20px en lugar de 22px */
   line-height: 1;
 }
 
@@ -3311,7 +3432,8 @@ a {
 
   .main-content {
     margin-left: 0;
-    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); /* Reducido a 48px */
+    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+    /* Reducido a 48px */
   }
 
   .section {
@@ -3323,7 +3445,7 @@ a {
     display: flex;
   }
 
-  
+
   /* Chat ocupa toda la pantalla disponible, respetando el teclado */
   #sectionChat {
     height: calc(100dvh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
@@ -3345,7 +3467,7 @@ a {
     width: 100%;
     margin: 0;
     /* Quitamos el safe-area de aquí porque el bottom-nav ya lo tiene */
-    padding: 10px 12px; 
+    padding: 10px 12px;
     border-radius: 0;
     border-left: none;
     border-right: none;
@@ -3440,7 +3562,7 @@ a {
     right: 14px;
     width: calc(100vw - 28px);
     /* MAGIA AQUÍ: Se adapta dinámicamente al espacio que deja el teclado */
-    max-height: calc(100dvh - 150px); 
+    max-height: calc(100dvh - 150px);
   }
 }
 
@@ -5202,13 +5324,16 @@ a {
 ═══════════════════════════════════════════════════════ */
 .feed-votacion-resultado-bar {
   position: relative;
-  background: var(--bg2); /* Fondo más oscuro para dar contraste */
+  background: var(--bg2);
+  /* Fondo más oscuro para dar contraste */
   border-radius: 8px;
   margin-bottom: 8px;
   overflow: hidden;
   display: flex;
-  align-items: stretch; /* Permite que la barra crezca si hay mucho texto */
-  min-height: 40px; /* Ya no es fijo, es el mínimo */
+  align-items: stretch;
+  /* Permite que la barra crezca si hay mucho texto */
+  min-height: 40px;
+  /* Ya no es fijo, es el mínimo */
   border: 1px solid var(--border);
 }
 
@@ -5218,9 +5343,12 @@ a {
   top: 0;
   bottom: 0;
   height: 100%;
-  background: rgba(124, 106, 247, 0.25); /* Morado transparente */
-  border-right: 3px solid var(--accent); /* Línea sólida indicadora de progreso */
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); /* Animación más suave */
+  background: rgba(124, 106, 247, 0.25);
+  /* Morado transparente */
+  border-right: 3px solid var(--accent);
+  /* Línea sólida indicadora de progreso */
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Animación más suave */
   z-index: 0;
 }
 
@@ -5261,13 +5389,15 @@ a {
   border: 1px solid var(--border);
   color: var(--text0);
   padding: 10px 14px;
-  border-radius: 8px; /* Mismo borde que las barras de resultado */
+  border-radius: 8px;
+  /* Mismo borde que las barras de resultado */
   text-align: left;
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-height: 40px; /* Misma altura que las barras */
+  min-height: 40px;
+  /* Misma altura que las barras */
   display: flex;
   align-items: center;
 }
@@ -5275,9 +5405,11 @@ a {
 /* Efecto al pasar el mouse (o tocar en celular) */
 .feed-votacion-opcion:hover {
   border-color: var(--accent);
-  background: rgba(124, 106, 247, 0.08); /* Fondo morado sutil */
-  transform: translateY(-2px); /* Se levanta un poquito */
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  background: rgba(124, 106, 247, 0.08);
+  /* Fondo morado sutil */
+  transform: translateY(-2px);
+  /* Se levanta un poquito */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .feed-votacion-opcion.votacion-opcion-seleccionada {
@@ -5300,4 +5432,284 @@ a {
 
 .feed-votacion-opcion:hover::before {
   border-color: var(--accent);
+}
+
+/* ── Barra de acciones de cada foto (Like y Comentar) ── */
+.photo-actions-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  padding: 18px 8px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.photo-thumb:hover .photo-actions-bar {
+  opacity: 1;
+}
+
+.photo-action-btn {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.photo-action-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.photo-action-btn.liked {
+  color: #f87171;
+  /* Rojo */
+}
+
+/* Ocultar el caption que tapa los botones */
+.photo-thumb-caption {
+  display: none;
+}
+
+/* =========================================
+   FIX: TAMAÑO COMPACTO DE FOTOS EN GALERÍA
+   ========================================= */
+#apuntesGrid,
+.photos-grid,
+.apuntes-photos-grid {
+  display: grid !important;
+  /* AUMENTAMOS EL TAMAÑO AQUÍ: Mínimo 150px, Máximo 220px para PC */
+  grid-template-columns: repeat(auto-fill, minmax(150px, 220px)) !important;
+  justify-content: flex-start !important;
+  /* Un poco más de espacio entre fotos grandes */
+  gap: 16px !important;
+  width: 100%;
+}
+
+.photo-thumb {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  /* Fuerza a que sean un cuadrado perfecto siempre */
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+  background: var(--bg3);
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+
+  10% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  90% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   VISIBILIDAD BOTONES DE SEMESTRE (Abierto vs Cerrado)
+═══════════════════════════════════════════════════════ */
+
+/* Cuando está CERRADO: Ocultar el botón de ordenar */
+.group-accordion:not(.open) .btn-ordenar-materias {
+  display: none !important;
+}
+
+/* Cuando está ABIERTO: Ocultar 'Abrir' y 'Notas' para no amontonar la barra */
+.group-accordion.open .btn-abrir-semestre,
+.group-accordion.open .btn-notas-semestre {
+  display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   BIBLIOTECA — ESTILO REPISA DE LIBROS (CORREGIDO)
+═══════════════════════════════════════════════════════ */
+.bookshelf-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px 20px;
+  /* 30px vertical, 20px horizontal */
+  padding: 30px 20px 10px;
+  background: var(--bg1);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  justify-content: flex-start;
+  align-items: flex-end;
+  /* Alinea los libros a la base */
+}
+
+.book-wrapper {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  padding-bottom: 10px;
+  /* Espacio para que la repisa no pise el libro */
+}
+
+/* La tabla de la repisa que se conecta perfectamente con la de al lado */
+.book-wrapper::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -10px;
+  /* Se estira la mitad del gap izquierdo */
+  right: -10px;
+  /* Se estira la mitad del gap derecho */
+  height: 10px;
+  background: var(--bg4);
+  border-radius: 2px;
+  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.3), 0 4px 6px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+[data-theme="light"] .book-wrapper::after {
+  background: #cbd5e1;
+  box-shadow: inset 0 -2px 4px rgba(255, 255, 255, 0.5), 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.book-item {
+  width: 48px;
+  height: 140px;
+  padding: 0 4px 12px 4px; /* Margen interno para el texto */
+  border-radius: 4px 9px 9px 4px;
+  position: relative;
+  cursor: pointer;
+  z-index: 2;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  transform-origin: bottom center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 12px;
+  box-shadow: inset 4px 0 5px rgba(255, 255, 255, 0.25), inset -3px 0 5px rgba(0, 0, 0, 0.3), 5px 5px 10px rgba(0, 0, 0, 0.4);
+}
+
+.book-item:hover {
+  transform: translateY(-15px) rotate(-4deg);
+  box-shadow: inset 4px 0 5px rgba(255, 255, 255, 0.25), inset -3px 0 5px rgba(0, 0, 0, 0.3), 10px 15px 18px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+}
+
+.book-ext-badge {
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 3px 4px;
+  border-radius: 4px;
+  position: absolute;
+  top: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* Ajuste para que el título del libro se vea limpio dentro del lomo */
+.book-spine-title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  color: white;
+  font-size: 9px; /* Un poco más pequeño para que quepa mejor */
+  font-weight: 700;
+  max-height: 85px;
+  max-width: 40px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Pone los "..." si el nombre es muy largo */
+  text-align: center;
+  pointer-events: none;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;  
+  line-height: 1.2;
+  margin-bottom: 5px;
+}
+
+/* COLORES DE LOS LIBROS (Usados en el Modal y en la Biblioteca) */
+/* Fila 1: Básicos y Fríos */
+.book-doc     { background: linear-gradient(to right, #2563eb, #1e40af); } /* Azul */
+.book-xls     { background: linear-gradient(to right, #16a34a, #065f46); } /* Verde */
+.book-cyan    { background: linear-gradient(to right, #06b6d4, #0e7490); } /* Cian */
+.book-teal    { background: linear-gradient(to right, #14b8a6, #0f766e); } /* Turquesa */
+.book-lime    { background: linear-gradient(to right, #a3e635, #65a30d); } /* Lima */
+.book-indigo  { background: linear-gradient(to right, #6366f1, #3730a3); } /* Indigo */
+.book-default { background: linear-gradient(to right, #7c6af7, #a594f9); } /* Morado */
+.book-pdf     { background: linear-gradient(to right, #dc2626, #991b1b); } /* Rojo */
+
+/* Fila 2: Cálidos y Neutros */
+.book-ppt     { background: linear-gradient(to right, #ea580c, #9a3412); } /* Naranja */
+.book-gold    { background: linear-gradient(to right, #f59e0b, #b45309); } /* Oro */
+.book-pink    { background: linear-gradient(to right, #ec4899, #be185d); } /* Rosa */
+.book-rose    { background: linear-gradient(to right, #fda4af, #e11d48); } /* Fucsia */
+.book-wine    { background: linear-gradient(to right, #881337, #4c0519); } /* Vino */
+.book-brown   { background: linear-gradient(to right, #92400e, #451a03); } /* Café */
+.book-silver  { background: linear-gradient(to right, #94a3b8, #475569); } /* Gris */
+.book-dark    { background: linear-gradient(to right, #475569, #1e293b); } /* Negro */
+/* Gris Plata */
+
+.book-color-opt {
+  width: 32px !important;  /* Tamaño fijo: no más círculos gigantes */
+  height: 32px !important;
+  aspect-ratio: 1 / 1; 
+  border-radius: 6px; 
+  border: 2px solid rgba(255,255,255,0.1);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  flex-shrink: 0; /* Evita que se aplasten */
+}
+
+.book-color-opt:hover {
+  transform: scale(1.2);
+  z-index: 2;
+}
+
+/* Efecto cuando el color está seleccionado */
+.book-color-opt.selected {
+  border-color: white;
+  transform: scale(1.25);
+  box-shadow: 0 0 12px var(--accent), 0 0 0 2px var(--bg2);
+}
+
+.book-wrapper {
+  position: relative;
+  overflow: visible;
+}
+
+.btn-mat-del {
+  position: absolute;
+  z-index: 10;
+  background: var(--bg4);
+  color: var(--red);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
 }

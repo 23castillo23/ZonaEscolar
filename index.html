@@ -291,7 +291,8 @@
             <button class="chat-img-btn" id="chatImgBtn" title="Enviar imagen">📷</button>
             <input type="file" id="chatImgInput" accept="image/*" style="display:none">
             <div class="chat-input-wrap">
-              <textarea class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" rows="1" maxlength="500"></textarea>
+              <textarea class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" rows="1"
+                maxlength="500"></textarea>
             </div>
             <button class="chat-send" id="chatSend">➤</button>
           </div>
@@ -330,10 +331,9 @@
           <div class="biblio-header">
             <div>
               <div class="biblio-title">📚 Biblioteca del grupo</div>
-              <div class="biblio-subtitle">PDF, Word y otros archivos (enlaces desde TeraBox)</div>
+              <div class="biblio-subtitle">PDF, Word y otros archivos</div>
             </div>
             <div class="biblio-actions">
-              <button class="btn-sm" type="button" id="btnAbrirTeraBoxBiblio">☁️ TeraBox</button>
               <button class="btn-primary" type="button" id="btnAgregarArchivoBiblioMain">+ Agregar archivo</button>
             </div>
           </div>
@@ -342,6 +342,19 @@
           </div>
         </div>
       </section>
+
+      <div class="modal-overlay" id="modalNuevaCategoriaBiblio">
+        <div class="modal-box">
+          <button class="modal-close" data-close="modalNuevaCategoriaBiblio">✕</button>
+          <h3 class="modal-title">📂 Nueva Repisa</h3>
+          <label class="modal-label">Nombre (Ej: Matemáticas)</label>
+          <input type="text" id="nombreCatBiblio" class="modal-input" placeholder="Nombre de la categoría...">
+          <div class="modal-actions">
+            <button class="btn-cancel" data-close="modalNuevaCategoriaBiblio">Cancelar</button>
+            <button class="btn-primary" id="btnConfirmarCatBiblio">Crear Repisa</button>
+          </div>
+        </div>
+      </div>
 
       <!-- ── SECCIÓN: DINÁMICAS ── -->
       <section class="section" id="sectionDinamicas">
@@ -504,6 +517,48 @@
       <div class="modal-actions">
         <button class="btn-cancel" data-close="modalNuevaTarea">Cancelar</button>
         <button class="btn-primary" id="btnConfirmarTarea">Guardar tarea</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalAgregarBiblio">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalAgregarBiblio">✕</button>
+      <h3 class="modal-title">📚 Agregar Libro o Archivo</h3>
+
+      <label class="modal-label">Título del archivo</label>
+      <input type="text" id="biblioNombre" class="modal-input" placeholder="Ej: Guía de Cálculo..." maxlength="40">
+
+      <label class="modal-label">¿En qué repisa va?</label>
+      <select id="selectCatBiblio" class="modal-input"></select>
+
+      <label class="modal-label">Enlace (Drive, etc.)</label>
+      <input type="url" id="biblioUrl" class="modal-input" placeholder="https://...">
+
+      <label class="modal-label" style="margin-top: 15px;">Color del libro</label>
+      <div class="biblio-color-picker" id="biblioColorPicker">        
+        <button class="book-color-opt book-doc" data-color="book-doc" title="Azul"></button>
+        <button class="book-color-opt book-xls" data-color="book-xls" title="Verde"></button>
+        <button class="book-color-opt book-cyan" data-color="book-cyan" title="Cian"></button>
+        <button class="book-color-opt book-teal" data-color="book-teal" title="Turquesa"></button>
+        <button class="book-color-opt book-lime" data-color="book-lime" title="Lima"></button>
+        <button class="book-color-opt book-indigo" data-color="book-indigo" title="Indigo"></button>
+        <button class="book-color-opt book-default" data-color="book-default" title="Morado"></button>
+        <button class="book-color-opt book-pdf selected" data-color="book-pdf" title="Rojo"></button>
+
+        <button class="book-color-opt book-ppt" data-color="book-ppt" title="Naranja"></button>
+        <button class="book-color-opt book-gold" data-color="book-gold" title="Oro"></button>
+        <button class="book-color-opt book-pink" data-color="book-pink" title="Rosa"></button>
+        <button class="book-color-opt book-rose" data-color="book-rose" title="Rosa Fucsia"></button>
+        <button class="book-color-opt book-wine" data-color="book-wine" title="Vino"></button>
+        <button class="book-color-opt book-brown" data-color="book-brown" title="Café"></button>
+        <button class="book-color-opt book-silver" data-color="book-silver" title="Gris"></button>
+        <button class="book-color-opt book-dark" data-color="book-dark" title="Negro"></button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalAgregarBiblio">Cancelar</button>
+        <button class="btn-primary" id="btnConfirmarBiblio">Guardar en repisa</button>
       </div>
     </div>
   </div>
@@ -677,7 +732,7 @@
   <!-- FAB: botón flotante de chat -->
   <button class="chat-fab" id="chatFab" title="Chat del grupo" style="display:none">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
     <span class="chat-fab-badge" id="chatFabBadge" style="display:none">0</span>
   </button>
@@ -695,10 +750,12 @@
       <div class="chat-burbuja-loading">Conectando…</div>
     </div>
     <div class="chat-burbuja-compose">
-      <textarea class="chat-burbuja-input" id="chatBurbujaInput" placeholder="Escribe un mensaje…" rows="1" maxlength="500"></textarea>
+      <textarea class="chat-burbuja-input" id="chatBurbujaInput" placeholder="Escribe un mensaje…" rows="1"
+        maxlength="500"></textarea>
       <button class="chat-burbuja-send" id="chatBurbujaEnviar">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          <line x1="22" y1="2" x2="11" y2="13" />
+          <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
       </button>
     </div>
@@ -755,7 +812,7 @@
     window.dispatchEvent(new Event('firebase-ready'));
   </script>
 
-  <script src="js/app.js?v=2"></script>
+  <script src="js/app.js?v=7"></script>
 </body>
 
 </html>

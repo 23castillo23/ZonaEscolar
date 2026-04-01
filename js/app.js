@@ -49,6 +49,19 @@ let puntosMarcador = [];
 let bibliotecaUnsub = null;
 let sidebarOnlineUnsub = null;
 
+
+let semestresAbiertos = new Set(); // Recuerda qué semestres están abiertos
+let scrollPosicionApuntes = 0;
+let ordenSemestres = 'creacion'; // 'creacion' o 'alfabetico'
+let ordenMaterias = 'creacion';  // 'creacion' o 'alfabetico'
+let semestresUnsub = null;
+let galeriasUnsub = null;
+let apuntesSearchTerm = '';
+let selectedBiblioColor = 'book-pdf';
+let catBiblioUnsub = null;
+let biblioCategorias = [];
+let bibliotecaUiBound = false;
+
 const EMOJIS_SEMESTRE = [
   '📅', '📚', '🎓', '🌱', '☀️', '🍂', '❄️', '📖', '🏫', '✏️',
   '🗓️', '🌸', '🌻', '🍃', '🌊', '⭐', '🔖', '🎒', '🖊️', '📋',
@@ -138,6 +151,17 @@ function waitForFirebase(cb) {
 }
 function db() { return window._db; }
 function lib() { return window._fbLib; }
+
+// Función para convertir links de Drive a links directos de previsualización
+function limpiarLinkDrive(url) {
+  if (url.includes('drive.google.com')) {
+    const match = url.match(/\/d\/(.+?)\/(view|edit|usp|preview)/);
+    if (match && match[1]) {
+      return `https://drive.google.com/file/d/${match[1]}/preview`;
+    }
+  }
+  return url;
+}
 
 /* ═══════════════════════════════════════════════════
    MODO OSCURO / CLARO
@@ -453,7 +477,7 @@ async function activarGrupo(groupId) {
 
   // Pedir permiso de notificaciones del sistema (si aún no se ha dado)
   if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-    Notification.requestPermission().catch(() => {});
+    Notification.requestPermission().catch(() => { });
   }
   if (fab) fab.style.display = 'flex';
 
@@ -721,11 +745,11 @@ function activarSeccion(section) {
     panelBurbuja.classList.remove('open');
     if (fab) fab.classList.remove('active');
     chatBurbujaAbierta = false;
-    
+
     // Detenemos la escucha de mensajes de la burbuja para ahorrar recursos
-    if (typeof chatBurbujaUnsub !== 'undefined' && chatBurbujaUnsub) { 
-      chatBurbujaUnsub(); 
-      chatBurbujaUnsub = null; 
+    if (typeof chatBurbujaUnsub !== 'undefined' && chatBurbujaUnsub) {
+      chatBurbujaUnsub();
+      chatBurbujaUnsub = null;
     }
   }
 
@@ -1800,7 +1824,7 @@ function initChat() {
 
 function appendChatMessageObj(m, box) {
   const mine = m.authorUid === currentUser?.uid;
-  
+
   // Soporta varios formatos históricos de fecha sin romper el render.
   const rawDate = getChatMsgDate(m) || new Date();
   const msgDate = fmtDateChat(rawDate);
@@ -1813,7 +1837,7 @@ function appendChatMessageObj(m, box) {
     lastChatDateStr = msgDate;
   }
 
-  let bubbleContent = m.imageUrl 
+  let bubbleContent = m.imageUrl
     ? `<img src="${escHtml(m.imageUrl)}" class="chat-msg-img" onclick="openChatImgLightbox('${escHtml(m.imageUrl)}')" style="cursor:pointer;max-width:220px;border-radius:10px;display:block;margin-top:4px;">`
     : escHtml(m.text);
 
@@ -2139,84 +2163,213 @@ function renderTareas(tareas) {
   }).join('');
 }
 
-let bibliotecaUiBound = false;
-function initBiblioteca() {
-  if (!currentGroupId) return;
-  if (!bibliotecaUiBound) {
-    bibliotecaUiBound = true;
-    $('btnAbrirTeraBoxBiblio')?.addEventListener('click', () => {
-      window.open('https://www.terabox.com', '_blank', 'noopener,noreferrer');
-    });
-    $('btnAgregarArchivoBiblioMain')?.addEventListener('click', agregarArchivoBiblioteca);
+/* ═══════════════════════════════════════════════════
+   BIBLIOTECA - SISTEMA DE REPISAS Y DRIVE (FINAL)
+═══════════════════════════════════════════════════ */
+
+// Esta función ayuda a que los links de Drive funcionen directo
+function limpiarLinkDrive(url) {
+  if (url.includes('drive.google.com')) {
+    const match = url.match(/\/d\/(.+?)\/(view|edit|usp|preview)/);
+    if (match && match[1]) {
+      return `https://drive.google.com/file/d/${match[1]}/preview`;
+    }
   }
-  renderBiblioteca();
+  return url;
 }
 
-function renderBiblioteca() {
-  const list = $('biblioList');
-  if (!list) return;
-  list.innerHTML = '<div class="feed-loading">Cargando biblioteca…</div>';
+function initBiblioteca() {
+  if (!currentGroupId) return;
 
-  if (bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
-  const { collection, query, where, onSnapshot } = lib();
-  const q = query(
-    collection(db(), 'ec_biblioteca'),
-    where('groupId', '==', currentGroupId)
-  );
-  bibliotecaUnsub = onSnapshot(q, snap => {
-    const listEl = $('biblioList');
-    if (!listEl) return;
-    const items = [];
-    snap.forEach(d => items.push({ id: d.id, ...d.data() }));
-    if (!items.length) {
-      listEl.innerHTML = '<div class="feed-loading">No hay archivos aún. Agrega el primero desde TeraBox.</div>';
-      return;
+  // Manejo del botón "Nueva Repisa" para el Admin
+  let btnAddCat = $('btnNuevaCatBiblio');
+  if (!btnAddCat) {
+    const header = document.querySelector('.biblio-actions');
+    if (header) {
+      btnAddCat = document.createElement('button');
+      btnAddCat.id = 'btnNuevaCatBiblio';
+      btnAddCat.className = 'btn-sm';
+      btnAddCat.textContent = '+ Nueva Repisa';
+      btnAddCat.style.marginRight = '8px';
+      btnAddCat.onclick = () => openModal('modalNuevaCategoriaBiblio');
+      header.prepend(btnAddCat);
     }
-    items.sort((a, b) => getChatMsgMillis(b) - getChatMsgMillis(a));
-    listEl.innerHTML = items.map(it => {
-      const ext = (it.ext || 'archivo').toUpperCase();
-      const by = escHtml(it.authorName || 'Compañero');
-      return `<div class="biblio-item">
-        <div class="biblio-item-main">
-          <div class="biblio-item-icon">${ext === 'PDF' ? '📕' : ext === 'DOC' || ext === 'DOCX' ? '📘' : '📎'}</div>
-          <div class="biblio-item-meta">
-            <div class="biblio-item-name">${escHtml(it.name || 'Archivo')}</div>
-            <div class="biblio-item-sub">${ext} · por ${by}</div>
-          </div>
-        </div>
-        <div class="biblio-item-actions">
-          <a class="btn-sm" href="${escHtml(it.url || '#')}" target="_blank" rel="noopener noreferrer">Abrir</a>
-        </div>
-      </div>`;
-    }).join('');
-  }, () => {
-    const listErr = $('biblioList');
-    if (listErr) listErr.innerHTML = '<div class="feed-loading" style="color:var(--red)">Error al cargar biblioteca.</div>';
+  }
+  if (btnAddCat) btnAddCat.style.display = isAdmin ? 'inline-block' : 'none';
+
+  if (!bibliotecaUiBound) {
+    bibliotecaUiBound = true;
+
+// 2. Abrir Modal de Libro
+$('btnAgregarArchivoBiblioMain')?.addEventListener('click', () => {
+  if (biblioCategorias.length === 0) {
+    alert('El administrador debe crear una repisa primero.');
+    return;
+  }
+
+  // Abrimos el modal
+  openModal('modalAgregarBiblio');
+
+  // Limpiamos los campos de texto
+  if ($('biblioNombre')) $('biblioNombre').value = '';
+  if ($('biblioUrl')) $('biblioUrl').value = '';
+
+  // --- SOLUCIÓN PARA EL COLOR POR DEFECTO ---
+  
+  // 1. Buscamos TODOS los botones de colores
+  const todosLosColores = document.querySelectorAll('.book-color-opt');
+  
+  // 2. Quitamos la clase 'selected' de todos para empezar de cero
+  todosLosColores.forEach(b => b.classList.remove('selected'));
+
+  // 3. Seleccionamos el primero de la lista (sea el color que sea)
+  const primerColor = todosLosColores[0]; 
+
+  if (primerColor) {
+    primerColor.classList.add('selected'); // Lo marca visualmente
+    selectedBiblioColor = primerColor.dataset.color; // Guarda el valor para la base de datos
+  }
+});
+
+    // Color picker del modal
+    document.querySelectorAll('.book-color-opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.book-color-opt').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedBiblioColor = btn.dataset.color;
+      });
+    });
+
+    // Guardar Categoría (Admin)
+    $('btnConfirmarCatBiblio')?.addEventListener('click', async () => {
+      const nombre = $('nombreCatBiblio').value.trim();
+      if (!nombre) return;
+      const { collection, addDoc, serverTimestamp } = lib();
+      try {
+        await addDoc(collection(db(), 'ec_biblio_categorias'), {
+          name: nombre,
+          groupId: currentGroupId,
+          createdAt: serverTimestamp()
+        });
+        closeModal('modalNuevaCategoriaBiblio');
+        $('nombreCatBiblio').value = '';
+      } catch (e) { console.error(e); }
+    });
+
+    // Guardar Libro
+    const btnConfLibro = $('btnConfirmarBiblio');
+    if (btnConfLibro) {
+      btnConfLibro.onclick = async () => {
+        const nombre = $('biblioNombre').value.trim();
+        const urlOriginal = $('biblioUrl').value.trim();
+        const catId = $('selectCatBiblio').value;
+
+        if (!nombre || !urlOriginal || !catId) { alert('Faltan datos.'); return; }
+
+        const urlLimpia = limpiarLinkDrive(urlOriginal);
+        btnConfLibro.disabled = true;
+        btnConfLibro.textContent = '⏳...';
+
+        const { collection, addDoc, serverTimestamp } = lib();
+        try {
+          await addDoc(collection(db(), 'ec_biblioteca'), {
+            groupId: currentGroupId,
+            categoriaId: catId,
+            name: nombre,
+            url: urlLimpia,
+            ext: (nombre.split('.').pop() || 'LINK').toUpperCase(),
+            colorClass: selectedBiblioColor,
+            authorUid: currentUser.uid,
+            authorName: getUserAlias(),
+            createdAt: serverTimestamp()
+          });
+          closeModal('modalAgregarBiblio');
+        } catch (e) { alert(e.message); }
+        finally {
+          btnConfLibro.disabled = false;
+          btnConfLibro.textContent = 'Guardar';
+        }
+      };
+    }
+  }
+  loadBiblioCategorias();
+}
+
+function loadBiblioCategorias() {
+  if (catBiblioUnsub) catBiblioUnsub();
+  const { collection, query, where, onSnapshot } = lib();
+  const q = query(collection(db(), 'ec_biblio_categorias'), where('groupId', '==', currentGroupId));
+
+  catBiblioUnsub = onSnapshot(q, snap => {
+    biblioCategorias = [];
+    snap.forEach(d => biblioCategorias.push({ id: d.id, ...d.data() }));
+
+    const sel = $('selectCatBiblio');
+    if (sel) {
+      sel.innerHTML = biblioCategorias.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('')
+        || '<option value="">Crea una repisa primero</option>';
+    }
+    renderBiblioteca();
   });
 }
 
-async function agregarArchivoBiblioteca() {
-  if (!currentGroupId) return;
-  const url = prompt('Pega el enlace público de TeraBox del archivo:');
-  if (!url) return;
-  if (!/^https?:\/\//i.test(url.trim())) { alert('El enlace debe iniciar con http:// o https://'); return; }
-  const nombre = prompt('Nombre del archivo (ej: Guía examen parcial):') || 'Archivo';
-  const ext = (nombre.split('.').pop() || '').trim().toLowerCase();
-  const { collection, addDoc, serverTimestamp } = lib();
-  try {
-    await addDoc(collection(db(), 'ec_biblioteca'), {
-      groupId: currentGroupId,
-      name: nombre.trim(),
-      url: url.trim(),
-      ext: ext || 'link',
-      authorUid: currentUser.uid,
-      authorName: getUserAlias(),
-      createdAt: serverTimestamp()
-    });
-  } catch (e) {
-    alert('No se pudo guardar en biblioteca: ' + e.message);
-  }
+function renderBiblioteca() {
+  const container = $('biblioList');
+  if (!container) return;
+
+  if (bibliotecaUnsub) bibliotecaUnsub();
+  const { collection, query, where, onSnapshot } = lib();
+  const q = query(collection(db(), 'ec_biblioteca'), where('groupId', '==', currentGroupId));
+
+  bibliotecaUnsub = onSnapshot(q, snap => {
+    const todosLosLibros = [];
+    snap.forEach(d => todosLosLibros.push({ id: d.id, ...d.data() }));
+
+    if (biblioCategorias.length === 0) {
+      container.innerHTML = '<div class="feed-loading">El admin debe crear una repisa.</div>';
+      return;
+    }
+
+    container.innerHTML = biblioCategorias.map(cat => {
+      const librosDeEstaCat = todosLosLibros.filter(l => l.categoriaId === cat.id);
+      return `
+        <div class="repisa-bloque" style="margin-bottom: 40px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--border); padding-bottom:5px;">
+            <h3 style="font-family:var(--font-display); font-size:16px;">📚 ${escHtml(cat.name)}</h3>
+            ${isAdmin ? `<button class="btn-sm" style="color:var(--red);" onclick="eliminarCategoria('${cat.id}', '${cat.name}')">🗑️ Borrar</button>` : ''}
+          </div>
+          <div class="bookshelf-container">
+            ${librosDeEstaCat.map(it => {
+        const puedeBorrar = isAdmin || it.authorUid === currentUser.uid;
+        return `
+                <div class="book-wrapper" title="${escHtml(it.name)}">
+                  <div class="book-item ${it.colorClass || 'book-default'}" onclick="window.open('${escHtml(it.url)}', '_blank')">
+                    <div class="book-ext-badge">${escHtml(it.ext.substring(0, 4))}</div>
+                    <div class="book-spine-title">${escHtml(it.name)}</div>
+                  </div>
+                  ${puedeBorrar ? `<button class="btn-mat-del" style="top:-10px; right:5px;" onclick="eliminarLibro('${it.id}')">✕</button>` : ''}
+                </div>`;
+      }).join('') || '<p style="font-size:12px; opacity:0.4; padding:20px; width:100%; text-align:center;">Vacía</p>'}
+          </div>
+        </div>`;
+    }).join('');
+  });
 }
+
+window.eliminarLibro = async function (id) {
+  if (!confirm('¿Eliminar archivo?')) return;
+  const { doc, deleteDoc } = lib();
+  try { await deleteDoc(doc(db(), 'ec_biblioteca', id)); } catch (e) { }
+};
+
+window.eliminarCategoria = async function (id, nombre) {
+  if (!confirm(`¿Eliminar repisa "${nombre}"?`)) return;
+  const { doc, deleteDoc, collection, query, where, getDocs } = lib();
+  const q = query(collection(db(), 'ec_biblioteca'), where('categoriaId', '==', id));
+  const snap = await getDocs(q);
+  for (const d of snap.docs) await deleteDoc(doc(db(), 'ec_biblioteca', d.id));
+  await deleteDoc(doc(db(), 'ec_biblio_categorias', id));
+};
 
 /* ── VISTA CALENDARIO DE TAREAS ── */
 function renderCalendarioTareas(tareas) {
@@ -2449,28 +2602,57 @@ $('btnConfirmarTarea').addEventListener('click', async () => {
 /* ═══════════════════════════════════════════════════
    APUNTES
 ═══════════════════════════════════════════════════ */
-let semestresUnsub = null;
-let galeriasUnsub = null;
+
+
+$('apuntesSearch')?.addEventListener('input', e => {
+  apuntesSearchTerm = e.target.value.trim().toLowerCase();
+  renderSemestres();
+});
 
 function initApuntes() {
-  // Mostrar/ocultar toolbar de admin
   const toolbar = document.querySelector('.apuntes-toolbar');
   if (toolbar) toolbar.style.display = isAdmin ? 'flex' : 'none';
+
+  // Agregar botón de Ordenar Semestres al lado del buscador
+  const searchWrap = document.querySelector('.apuntes-search-wrap');
+  if (searchWrap && !$('btnOrdenarSemestres')) {
+    searchWrap.style.display = 'flex';
+    searchWrap.style.gap = '10px';
+    searchWrap.style.alignItems = 'center';
+
+    const searchInput = $('apuntesSearch');
+    if (searchInput) searchInput.style.flex = '1';
+
+    const btnSortSem = document.createElement('button');
+    btnSortSem.id = 'btnOrdenarSemestres';
+    btnSortSem.className = 'btn-sm';
+    btnSortSem.innerHTML = `↕️ Sem: ${ordenSemestres === 'alfabetico' ? 'A-Z' : 'Fecha'}`;
+    btnSortSem.onclick = () => {
+      ordenSemestres = (ordenSemestres === 'creacion') ? 'alfabetico' : 'creacion';
+      btnSortSem.innerHTML = `↕️ Sem: ${ordenSemestres === 'alfabetico' ? 'A-Z' : 'Fecha'}`;
+      renderSemestres();
+    };
+    searchWrap.appendChild(btnSortSem);
+  }
+
   loadSemestres();
   setupApunteUpload();
 }
 
+window.toggleOrdenMaterias = function (e) {
+  e.stopPropagation(); // Evita que se abra/cierre el semestre al dar clic
+  ordenMaterias = (ordenMaterias === 'creacion') ? 'alfabetico' : 'creacion';
+  renderSemestres();
+};
+
 function loadSemestres() {
-  // Cancelar listener anterior para evitar duplicados
   if (semestresUnsub) { semestresUnsub(); semestresUnsub = null; }
   if (galeriasUnsub) { galeriasUnsub(); galeriasUnsub = null; }
 
-  const { collection, query, where, orderBy, onSnapshot } = lib();
-  const q = query(
-    collection(db(), 'ec_semestres'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'asc')
-  );
+  const { collection, query, where, onSnapshot } = lib();
+  // Traemos todos, el ordenamiento lo haremos en memoria (renderSemestres)
+  const q = query(collection(db(), 'ec_semestres'), where('groupId', '==', currentGroupId));
+
   semestresUnsub = onSnapshot(q, snap => {
     semestres = [];
     snap.forEach(d => semestres.push({ id: d.id, ...d.data() }));
@@ -2479,15 +2661,10 @@ function loadSemestres() {
 }
 
 function loadGalerias() {
-  // Cancelar listener anterior para evitar duplicados
   if (galeriasUnsub) { galeriasUnsub(); galeriasUnsub = null; }
+  const { collection, query, where, onSnapshot } = lib();
+  const q = query(collection(db(), 'ec_galerias'), where('groupId', '==', currentGroupId));
 
-  const { collection, query, where, orderBy, onSnapshot } = lib();
-  const q = query(
-    collection(db(), 'ec_galerias'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'asc')
-  );
   galeriasUnsub = onSnapshot(q, snap => {
     galerias = [];
     snap.forEach(d => galerias.push({ id: d.id, ...d.data() }));
@@ -2495,138 +2672,198 @@ function loadGalerias() {
   });
 }
 
-/* Paleta de colores PASTEL para semestres */
-const SEM_COLORS = [
-  ['#c4b5fd', '#a78bfa'], ['#fda4af', '#fb7185'], ['#6ee7b7', '#34d399'],
-  ['#fde68a', '#fcd34d'], ['#bae6fd', '#7dd3fc'], ['#fed7aa', '#fdba74'],
-  ['#a5f3fc', '#67e8f9'], ['#d9f99d', '#bef264'], ['#fecaca', '#fca5a5'],
-  ['#c7d2fe', '#a5b4fc'], ['#f5d0fe', '#e879f9'], ['#bbf7d0', '#86efac'],
-];
-
 const SEM_PASTEL_PALETTE = [
   { label: 'Lila', c1: '#c4b5fd', c2: '#a78bfa', text: '#4c1d95' },
   { label: 'Rosa', c1: '#fda4af', c2: '#fb7185', text: '#881337' },
   { label: 'Menta', c1: '#6ee7b7', c2: '#34d399', text: '#064e3b' },
   { label: 'Amarillo', c1: '#fde68a', c2: '#fcd34d', text: '#78350f' },
   { label: 'Cielo', c1: '#bae6fd', c2: '#7dd3fc', text: '#0c4a6e' },
-  { label: 'Durazno', c1: '#fed7aa', c2: '#fdba74', text: '#7c2d12' },
-  { label: 'Aqua', c1: '#a5f3fc', c2: '#67e8f9', text: '#164e63' },
-  { label: 'Lima', c1: '#d9f99d', c2: '#bef264', text: '#365314' },
-  { label: 'Coral', c1: '#fecaca', c2: '#fca5a5', text: '#7f1d1d' },
-  { label: 'Indigo', c1: '#c7d2fe', c2: '#a5b4fc', text: '#312e81' },
-  { label: 'Malva', c1: '#f5d0fe', c2: '#e879f9', text: '#581c87' },
-  { label: 'Esmeralda', c1: '#bbf7d0', c2: '#86efac', text: '#14532d' },
-  { label: 'Tiza', c1: '#e2e8f0', c2: '#cbd5e1', text: '#1e293b' },
-  { label: 'Lavanda', c1: '#ede9fe', c2: '#ddd6fe', text: '#4c1d95' },
-  { label: 'Salmón', c1: '#ffe4e6', c2: '#fecdd3', text: '#9f1239' },
+  { label: 'Durazno', c1: '#fed7aa', c2: '#fdba74', text: '#7c2d12' }
 ];
 
 function renderSemestres() {
   const container = $('apuntesGroupsContainer');
-  if (!semestres.length) {
-    container.innerHTML = isAdmin
-      ? `<div class="sem-empty"><div class="sem-empty-icon">📚</div><p>Aún no hay semestres.<br>Crea el primero con <strong>"+ Semestre"</strong>.</p></div>`
-      : `<div class="sem-empty"><div class="sem-empty-icon">📚</div><p>Aún no hay semestres en este grupo.</p></div>`;
+  if (!container) return;
+  const term = apuntesSearchTerm;
+
+  // 1. Ordenar semestres en memoria según selección
+  let semestresOrdenados = [...semestres];
+  if (ordenSemestres === 'alfabetico') {
+    semestresOrdenados.sort((a, b) => a.name.localeCompare(b.name));
+  } else {
+    // Por fecha de creación
+    semestresOrdenados.sort((a, b) => {
+      const timeA = a.createdAt?.seconds || 0;
+      const timeB = b.createdAt?.seconds || 0;
+      return timeA - timeB;
+    });
+  }
+
+  // 2. Filtrar por búsqueda
+  let semestresMostrar = semestresOrdenados.map(sem => {
+    let mats = galerias.filter(g => g.semestreId === sem.id);
+    if (term) {
+      const matchSem = sem.name.toLowerCase().includes(term);
+      const matsFiltradas = mats.filter(m => m.name.toLowerCase().includes(term));
+      if (!matchSem && matsFiltradas.length === 0) return null;
+      if (!matchSem) mats = matsFiltradas;
+    }
+    return { ...sem, mats };
+  }).filter(Boolean);
+
+  if (!semestresMostrar.length) {
+    container.innerHTML = `<div class="sem-empty"><p>${term ? 'Sin resultados' : 'Sin semestres aún'}</p></div>`;
     return;
   }
-  container.innerHTML = semestres.map((sem, idx) => {
-    const mats = galerias.filter(g => g.semestreId === sem.id);
-    // Use stored color or fallback to palette by index
-    let c1, c2, textColor;
-    if (sem.color) {
-      const found = SEM_PASTEL_PALETTE.find(p => p.c1 === sem.color);
-      c1 = sem.color; c2 = found ? found.c2 : sem.color; textColor = found ? found.text : '#1e293b';
-    } else {
-      const pal = SEM_PASTEL_PALETTE[idx % SEM_PASTEL_PALETTE.length];
-      c1 = pal.c1; c2 = pal.c2; textColor = pal.text;
-    }
-    const btnDelSem = isAdmin
-      ? `<button class="sem-del-btn" onclick="event.stopPropagation(); eliminarSemestre('${sem.id}','${escHtml(sem.name)}')" title="Eliminar semestre">🗑️</button>`
-      : '';
-    const addMatBtn = isAdmin
-      ? `<div class="materia-card2 materia-card-add" onclick="openNewMateriaModal('${sem.id}')">
-           <div class="materia-card2-icon">➕</div>
-           <div class="materia-card2-name">Nueva materia</div>
-         </div>`
-      : '';
 
-    return `<div class="semestre-group2" id="sem-${sem.id}">
-      <div class="semestre-banner" style="background:linear-gradient(135deg,${c1},${c2})" onclick="toggleSemestre('${sem.id}')">
-        <div class="semestre-banner-left">
-          <span class="semestre-banner-icon">${escHtml(sem.icon || '📅')}</span>
-          <div class="semestre-banner-info">
-            <span class="semestre-banner-name" style="color:${textColor}">${escHtml(sem.name)}</span>
-            <span class="semestre-banner-count" style="color:${textColor}99">${mats.length} materia${mats.length !== 1 ? 's' : ''}</span>
+  // CORRECCIÓN CRUCIAL: Solo forzamos el display: grid si NO estamos en la vista de galería.
+  // Esto evita el bug donde la pantalla se parte en dos al poner una portada.
+  if (!galeriaActual) {
+    container.style.display = 'grid';
+  }
+
+  container.innerHTML = semestresMostrar.map((semData) => {
+    const { mats, ...sem } = semData;
+    const isSavedOpen = semestresAbiertos.has(sem.id);
+    const isOpenClass = (term || isSavedOpen) ? 'open' : '';
+    const rotateStyle = (term || isSavedOpen) ? 'style="transform:rotate(90deg)"' : '';
+    const primeraCover = sem.coverImage || mats.find(m => m.coverImage)?.coverImage || '';
+
+    // --- NUEVO: Lógica para ordenar las materias ---
+    let matsOrdenadas = [...mats];
+    if (ordenMaterias === 'alfabetico') {
+      matsOrdenadas.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else {
+      // Ordenar por fecha de creación (de más antiguo a más nuevo)
+      matsOrdenadas.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeA - timeB;
+      });
+    }
+
+    // Usamos matsOrdenadas en lugar de mats
+    const materiasHtml = matsOrdenadas.map(m => {
+      const tag = (m.name || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
+      return `
+        <div class="album-card-wrap">
+          <article class="album-card" onclick="abrirGaleria('${m.id}')">
+            <div class="album-cover">
+              ${m.coverImage ? `<img src="${escHtml(m.coverImage)}" alt="">` : ''}
+              <span class="album-icon">${escHtml(m.icon || '📚')}</span>
+            </div>
+            <div class="album-info">
+              <h3 class="album-name">${escHtml(m.name)}</h3>
+              <p class="album-count">${m.fotosCount || 0} fotos</p>
+              <p class="album-tag">#${tag}</p>
+            </div>
+            <div class="album-actions" onclick="event.stopPropagation()">
+              <button class="album-action-btn primary" onclick="abrirGaleria('${m.id}')">Abrir</button>
+              <button class="album-action-btn" onclick="abrirNotas('${m.id}')">Notas</button>
+            </div>
+          </article>
+          ${isAdmin ? `<button class="materia-delete" onclick="event.stopPropagation(); eliminarMateria('${m.id}','${escHtml(m.name)}')">🗑️</button>` : ''}
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="group-accordion ${isOpenClass}" id="sem-${sem.id}">
+        <div class="group-header" onclick="toggleSemestre('${sem.id}')">
+          <div class="group-card-top">
+            ${primeraCover ? `<div class="group-header-bg" style="background-image:url('${primeraCover}')"></div>` : ''}
+            <span class="group-icon">${escHtml(sem.icon || '📅')}</span>
           </div>
+          <div class="group-card-info">
+            <span class="group-name">${escHtml(sem.name)}</span>
+            <span class="group-count">${mats.length} materias</span>
+          </div>
+          <div class="group-mini-actions" onclick="event.stopPropagation()">
+            <button class="group-mini-btn btn-abrir-semestre" onclick="toggleSemestre('${sem.id}')">Abrir</button>
+            <button class="group-mini-btn primary btn-notas-semestre" onclick="abrirNotasSemestre('${sem.id}')">Notas</button>
+            <button class="group-mini-btn btn-ordenar-materias" onclick="toggleOrdenMaterias(event)" title="Ordenar materias" style="flex: 0 0 auto; padding: 8px 14px;">
+              ${ordenMaterias === 'alfabetico' ? '↕️ A-Z' : '📅 Fecha'}
+            </button>
+          </div>
+          <svg class="group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ${rotateStyle}>
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+          ${isAdmin ? `<button class="group-delete" onclick="event.stopPropagation(); eliminarSemestre('${sem.id}','${escHtml(sem.name)}')">🗑️</button>` : ''}
         </div>
-        <div class="semestre-banner-right">
-          ${btnDelSem}
-          <span class="semestre-toggle2" style="color:${textColor}">›</span>
+        <div class="group-body">
+          <div class="carousel-wrap">
+            <div class="albums-carousel">${mats.length ? materiasHtml : '<p style="font-size:12px;opacity:0.6;padding:10px;">Sin materias</p>'}</div>
+          </div>
+          ${isAdmin ? `<button class="btn-add-to-group" onclick="openNewMateriaModal('${sem.id}')">➕ Agregar materia</button>` : ''}
         </div>
-      </div>
-      <div class="materias-grid2" style="display:none">
-        ${mats.map(m => buildMateriaCard(m, c1, c2, textColor)).join('')}
-        ${addMatBtn}
-      </div>
-    </div>`;
+      </div>`;
   }).join('');
 }
 
 window.toggleSemestre = function (id) {
   const grup = $('sem-' + id);
-  const grid = grup?.querySelector('.materias-grid2');
-  const tog = grup?.querySelector('.semestre-toggle2');
-  if (!grid) return;
-  const open = grid.style.display !== 'none';
-  grid.style.display = open ? 'none' : 'grid';
-  if (tog) tog.style.transform = open ? '' : 'rotate(90deg)';
-  grup.classList.toggle('open', !open);
+  if (!grup) return;
+  const isNowOpen = grup.classList.toggle('open');
+  const tog = grup.querySelector('.group-chevron');
+  if (tog) tog.style.transform = isNowOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+  isNowOpen ? semestresAbiertos.add(id) : semestresAbiertos.delete(id);
+
+  if (isNowOpen) {
+    setTimeout(() => {
+      const yOffset = -70;
+      const y = grup.getBoundingClientRect().top + window.scrollY + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }, 50);
+  }
 };
 
-function buildMateriaCard(m, accentColor, accentColor2, textColor) {
-  const btnDelMat = isAdmin
-    ? `<button class="materia-del-btn" onclick="event.stopPropagation(); eliminarMateria('${m.id}','${escHtml(m.name)}')" title="Eliminar materia">✕</button>`
-    : '';
-  const c1 = accentColor || 'var(--accent)';
-  const c2 = accentColor2 || accentColor || 'var(--accent)';
-  const txt = textColor || '#1e293b';
-  const tag = (m.name || '').toLowerCase().normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+window.abrirNotasSemestre = function (semestreId) {
+  const sem = semestres.find(s => s.id === semestreId);
+  if (!sem) return;
+  $('notasGaleriaTitulo').textContent = `${sem.icon || '📅'} Notas de ${sem.name}`;
+  $('notasGaleriaTexto').value = '';
+  $('modalNotasGaleria').dataset.galeriaId = `sem_${semestreId}`;
+  openModal('modalNotasGaleria');
+  cargarNotas(`sem_${semestreId}`);
+};
 
-  return `<div class="materia-card2" onclick="abrirGaleria('${m.id}')" style="--mat-c1:${c1};--mat-c2:${c2};--mat-txt:${txt}">
-    ${btnDelMat}
-    <div class="materia-card2-header">
-      ${m.coverImage ? `<img class="materia-card2-cover" src="${escHtml(m.coverImage)}" alt="">` : ''}
-      <div class="materia-card2-icon">${escHtml(m.icon || '📚')}</div>
-    </div>
-    <div class="materia-card2-body">
-      <div class="materia-card2-name">${escHtml(m.name)}</div>
-      <div class="materia-card2-tag">#${tag}</div>
-      <div class="materia-card2-footer">
-        <span class="materia-card2-count">${m.fotosCount || 0} fotos</span>
-      </div>
-      <div class="materia-card2-actions" onclick="event.stopPropagation()">
-        <button class="materia-btn-abrir" onclick="abrirGaleria('${m.id}')">Abrir</button>
-        <button class="materia-btn-notas" onclick="abrirNotas('${m.id}')">Notas</button>
-      </div>
-    </div>
-  </div>`;
-}
-
+// ── NAVEGACIÓN ENTRE SEMESTRES Y GALERÍA DE FOTOS ──
 window.abrirGaleria = function (galeriaId) {
   galeriaActual = galerias.find(g => g.id === galeriaId);
   if (!galeriaActual) return;
+
+  // Guardamos scroll antes de ocultar
+  scrollPosicionApuntes = window.scrollY || document.documentElement.scrollTop;
+
   $('galeriaTitle').textContent = `${galeriaActual.icon || '📚'} ${galeriaActual.name}`;
   $('apuntesGroupsContainer').style.display = 'none';
   $('apuntesGaleriaView').style.display = 'block';
   $('apuntesUploadZone').style.display = 'none';
+
+  $('btnUploadApunte').style.display = 'inline-flex';
+
   cargarFotosGaleria();
+  window.scrollTo(0, 0); // Te manda arriba DENTRO de la galería
 };
+
+$('btnApuntesBack')?.addEventListener('click', () => {
+  galeriaActual = null;
+  $('apuntesGroupsContainer').style.display = 'grid';
+  $('apuntesGaleriaView').style.display = 'none';
+
+  renderSemestres(); // Redibujamos las tarjetas
+
+  // Damos 50ms para que el navegador acomode las cajas antes de hacer scroll
+  setTimeout(() => {
+    window.scrollTo({
+      top: scrollPosicionApuntes,
+      left: 0,
+      behavior: 'instant'
+    });
+  }, 50);
+});
 
 function cargarFotosGaleria() {
   const { collection, query, where, onSnapshot } = lib();
-  // ✅ Solo where sin orderBy → no requiere índice compuesto en Firestore
-  // El orden se hace en cliente para que todos los miembros puedan verlas
   const q = query(
     collection(db(), 'ec_fotos'),
     where('galeriaId', '==', galeriaActual.id)
@@ -2636,7 +2873,7 @@ function cargarFotosGaleria() {
   onSnapshot(q, snap => {
     const fotos = [];
     snap.forEach(d => fotos.push({ id: d.id, ...d.data() }));
-    // Ordenar por fecha descendente en el cliente
+    // Ordenar descendente
     fotos.sort((a, b) => {
       const ta = a.createdAt?.seconds ?? 0;
       const tb = b.createdAt?.seconds ?? 0;
@@ -2644,8 +2881,7 @@ function cargarFotosGaleria() {
     });
     renderFotosGaleria(fotos);
   }, err => {
-    console.error('Error cargando fotos galería:', err);
-    grid.innerHTML = '<div class="feed-loading">Error al cargar fotos. Revisa tu conexión.</div>';
+    grid.innerHTML = '<div class="feed-loading">Error al cargar fotos.</div>';
   });
 }
 
@@ -2656,6 +2892,7 @@ function renderFotosGaleria(fotos) {
     grid.innerHTML = '<div class="feed-loading">Sin fotos aún. ¡Sube tus apuntes!</div>';
     return;
   }
+
   grid.innerHTML = fotos.map((f, i) => {
     const esAutor = currentUser && f.authorUid === currentUser.uid;
     const puedeActuar = esAutor || isAdmin;
@@ -2666,52 +2903,133 @@ function renderFotosGaleria(fotos) {
            onclick="event.stopPropagation(); publicarFotoEnFeed('${escHtml(f.id)}')">
            ${f.publishedToFeed ? '✅' : '📢'}
          </button>`
-      : (f.publishedToFeed
-        ? `<span class="foto-published-badge" title="Publicada en Novedades">✅</span>`
-        : '');
+      : (f.publishedToFeed ? `<span class="foto-published-badge" title="Publicada en Novedades">✅</span>` : '');
 
     const btnEliminar = puedeActuar
-      ? `<button class="foto-del-btn"
-           title="Eliminar foto"
-           onclick="event.stopPropagation(); eliminarFotoApunte('${escHtml(f.id)}')">🗑️</button>`
+      ? `<button class="foto-del-btn" title="Eliminar foto" onclick="event.stopPropagation(); eliminarFotoApunte('${escHtml(f.id)}')">🗑️</button>`
       : '';
 
-    const autorLabel = f.authorName
-      ? `<span class="foto-autor-label">📷 ${escHtml(f.authorName)}</span>`
+    const btnPortada = puedeActuar
+      ? `<button class="foto-del-btn" style="left: 40px; background: rgba(0,0,0,0.55);" title="Usar como portada de materia" onclick="event.stopPropagation(); establecerPortadaMateria('${escHtml(f.url)}')">⭐</button>`
       : '';
+
+    const autorLabel = f.authorName ? `<span class="foto-autor-label">📷 ${escHtml(f.authorName)}</span>` : '';
+    const likeCount = f.likes || 0;
+    const isLiked = f.likedBy?.includes(currentUser.uid);
 
     return `<div class="photo-thumb" data-foto-id="${escHtml(f.id)}">
       <img src="${escHtml(f.url)}" loading="lazy" alt="" onclick="openLightbox(${i})">
-      <div class="photo-thumb-overlay" onclick="openLightbox(${i})">
-        ${autorLabel}
-        <span class="photo-thumb-caption">${escHtml(f.caption || '')}</span>
+      <div class="photo-thumb-overlay" onclick="openLightbox(${i})">${autorLabel}</div>
+      <div class="photo-actions-bar">
+        <button class="photo-action-btn ${isLiked ? 'liked' : ''}" onclick="event.stopPropagation(); toggleFotoLike('${f.id}', this)">
+          ${isLiked ? '❤️' : '🤍'} <span>${likeCount}</span>
+        </button>
+        <button class="photo-action-btn" onclick="event.stopPropagation(); abrirNotasDeFoto('${f.url}', '${escHtml(f.caption || '')}')">
+          💬 Notas
+        </button>
       </div>
-      ${btnPublicar}
-      ${btnEliminar}
+      ${btnPublicar} ${btnEliminar} ${btnPortada} 
     </div>`;
   }).join('');
 }
 
-$('btnApuntesBack').addEventListener('click', () => {
-  galeriaActual = null;
-  $('apuntesGroupsContainer').style.display = 'block';
-  $('apuntesGaleriaView').style.display = 'none';
-});
+// Guardar portada sin salirte de la materia
+// Guardar portada sin salirte de la materia
+window.establecerPortadaMateria = async function (url) {
+  if (!galeriaActual) return;
+  const { doc, updateDoc } = lib();
+  try {
+    await updateDoc(doc(db(), 'ec_galerias', galeriaActual.id), { coverImage: url });
+    galeriaActual.coverImage = url;
+    const index = galerias.findIndex(g => g.id === galeriaActual.id);
+    if (index !== -1) galerias[index].coverImage = url;
+
+    // Solo un pequeño aviso visual sutil
+    const toast = document.createElement('div');
+    toast.textContent = '✅ Portada de la materia actualizada';
+    toast.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--accent); color:white; padding:10px 20px; border-radius:20px; font-size:13px; z-index:9999; box-shadow:0 4px 12px rgba(0,0,0,0.2); animation: fadeInOut 3s forwards; pointer-events:none;';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+
+  } catch (e) {
+    alert('Error al actualizar portada: ' + e.message);
+  }
+};
+
 $('btnUploadApunte').addEventListener('click', () => {
   const zone = $('apuntesUploadZone');
   zone.style.display = zone.style.display === 'none' ? 'block' : 'none';
 });
 
+window.toggleFotoLike = async function (fotoId, btnEl) {
+  if (!currentUser) return;
+  const isLiked = btnEl.classList.contains('liked');
+  btnEl.classList.toggle('liked');
+  const span = btnEl.querySelector('span');
+  let currentLikes = parseInt(span.textContent) || 0;
+  if (isLiked) {
+    btnEl.innerHTML = `🤍 <span>${currentLikes - 1}</span>`;
+  } else {
+    btnEl.innerHTML = `❤️ <span>${currentLikes + 1}</span>`;
+  }
+  const { doc, updateDoc, arrayUnion, arrayRemove, increment } = lib();
+  try {
+    await updateDoc(doc(db(), 'ec_fotos', fotoId), {
+      likedBy: isLiked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid),
+      likes: increment(isLiked ? -1 : 1)
+    });
+  } catch (e) { console.error('Error al dar like:', e); }
+};
+
+window.abrirNotasDeFoto = function (fotoUrl, caption) {
+  const fotoUnicaId = btoa(fotoUrl).replace(/\//g, '_');
+  $('notasGaleriaTitulo').textContent = caption ? `Notas: ${caption}` : 'Notas de esta foto';
+  $('notasGaleriaTexto').value = '';
+  $('modalNotasGaleria').dataset.galeriaId = `foto_${fotoUnicaId}`;
+  openModal('modalNotasGaleria');
+  cargarNotas(`foto_${fotoUnicaId}`);
+};
+
 function setupApunteUpload() {
   const onChange = e => {
-    apunteFiles = [...e.target.files];
+    const nuevos = [...e.target.files].filter(f => f.type.startsWith('image/'));
+    apunteFiles = [...apunteFiles, ...nuevos];
     renderApuntePreview();
     $('btnApunteSend').disabled = !apunteFiles.length;
   };
   $('apunteFileInput').addEventListener('change', onChange);
   $('apunteCameraInput').addEventListener('change', onChange);
 
-  $('btnApunteSend').addEventListener('click', async () => {
+  const dropArea = $('apuntesDropArea');
+  if (dropArea) {
+    dropArea.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropArea.style.borderColor = 'var(--accent)';
+      dropArea.style.background = 'rgba(124, 106, 247, 0.05)';
+    });
+    dropArea.addEventListener('dragleave', e => {
+      e.preventDefault();
+      dropArea.style.borderColor = '';
+      dropArea.style.background = '';
+    });
+    dropArea.addEventListener('drop', e => {
+      e.preventDefault();
+      dropArea.style.borderColor = '';
+      dropArea.style.background = '';
+      if (e.dataTransfer.files.length) {
+        const nuevos = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+        apunteFiles = [...apunteFiles, ...nuevos];
+        renderApuntePreview();
+        $('btnApunteSend').disabled = !apunteFiles.length;
+      }
+    });
+  }
+
+  const btnSend = $('btnApunteSend');
+  const newBtnSend = btnSend.cloneNode(true);
+  btnSend.parentNode.replaceChild(newBtnSend, btnSend);
+
+  newBtnSend.addEventListener('click', async () => {
     if (!apunteFiles.length || !galeriaActual) return;
     const caption = $('apunteCaption').value.trim();
     $('apunteProgress').style.display = 'block';
@@ -2726,10 +3044,9 @@ function setupApunteUpload() {
           url, caption,
           authorUid: currentUser.uid,
           authorName: currentUser.name,
-          publishedToFeed: false,   // ← NO se publica automáticamente
+          publishedToFeed: false,
           createdAt: serverTimestamp()
         });
-        // ✋ Ya NO se crea publicación en ec_feed aquí
       }
       done++;
       $('apunteProgressBar').style.width = `${Math.round(done / apunteFiles.length * 100)}%`;
@@ -2737,7 +3054,7 @@ function setupApunteUpload() {
     apunteFiles = [];
     $('apuntePreviewList').innerHTML = '';
     $('apunteCaption').value = '';
-    $('btnApunteSend').disabled = true;
+    newBtnSend.disabled = true;
     setTimeout(() => {
       $('apunteProgress').style.display = 'none';
       $('apunteProgressBar').style.width = '0%';
@@ -2746,27 +3063,30 @@ function setupApunteUpload() {
 }
 
 function renderApuntePreview() {
-  $('apuntePreviewList').innerHTML = apunteFiles.map((f, i) => {
+  const container = $('apuntePreviewList');
+  container.innerHTML = apunteFiles.map((f, i) => {
     const url = URL.createObjectURL(f);
-    // Le metemos el CSS directo al HTML para que la caché no nos estorbe
-    return `<div class="upload-preview-item" onclick="openLightboxPrevia(${i})" 
-              style="width: 85px; height: 85px; border-radius: 8px; overflow: hidden; border: 2px solid transparent; cursor: zoom-in; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-              <img src="${url}" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block;">
-            </div>`;
+    return `
+      <div class="upload-preview-item" style="position:relative; width:85px; height:85px; border-radius:8px; overflow:hidden; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+        <img src="${url}" alt="" onclick="openLightboxPrevia(${i})" style="width:100%; height:100%; object-fit:cover; display:block; cursor:zoom-in;">
+        <button onclick="removerFotoPrevia(${i})" style="position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,0.6); color:white; border:none; cursor:pointer; font-size:10px; display:flex; align-items:center; justify-content:center;">✕</button>
+      </div>`;
   }).join('');
 }
 
-// Nueva función que conecta las fotos seleccionadas con tu Lightbox
+window.removerFotoPrevia = function (idx) {
+  apunteFiles.splice(idx, 1);
+  renderApuntePreview();
+  $('btnApunteSend').disabled = !apunteFiles.length;
+};
+
 window.openLightboxPrevia = function (idx) {
-  // Convertimos los archivos locales a un formato que el visor entienda
   lightboxPhotos = apunteFiles.map(f => ({
     url: URL.createObjectURL(f),
     caption: f.name
   }));
   lightboxIdx = idx;
   updateLightbox();
-
-  // Mostramos el visor y nos aseguramos de que las flechas de navegación funcionen
   $('lightbox').classList.add('open');
   $('lightboxPrev').style.display = '';
   $('lightboxNext').style.display = '';
@@ -2783,7 +3103,6 @@ $('btnNewSubjectGroup').addEventListener('click', () => {
   selectedSemestreEmoji = '📅';
   selectedSemestreColor = SEM_PASTEL_PALETTE[0].c1;
   renderColorPicker('semestreColorPicker', c => selectedSemestreColor = c);
-  // Inicializar preview con el primer color
   const prev = $('semestreColorPreview');
   if (prev) prev.style.background = `linear-gradient(135deg,${SEM_PASTEL_PALETTE[0].c1},${SEM_PASTEL_PALETTE[0].c2})`;
   openModal('modalNuevoSemestre');
@@ -2819,7 +3138,6 @@ window.openNewMateriaModal = function (semestreId) {
   if (!isAdmin) { alert('Solo el administrador puede crear materias.'); return; }
   renderEmojiPicker('materiaEmojiPicker', EMOJIS_MATERIA, '📚', em => selectedMateriaEmoji = em);
   selectedMateriaEmoji = '📚';
-  // Sin opción "Sin semestre" — siempre debe elegirse uno
   const defaultId = semestreId || (semestres[0]?.id || '');
   $('materiaSemestreSelect').innerHTML =
     semestres.map(s => `<option value="${s.id}" ${s.id === defaultId ? 'selected' : ''}>
@@ -2856,12 +3174,6 @@ $('btnConfirmarMateria').addEventListener('click', async () => {
   _creandoMateria = false;
 });
 
-/* ══════════════════════════════════════════════════════
-   PUBLICAR FOTO DE APUNTES EN EL FEED
-   Agrupa todas las fotos de la misma materia publicadas
-   el mismo día en UNA SOLA publicación del feed.
-══════════════════════════════════════════════════════ */
-
 /* ── Eliminar foto de apuntes (solo autor o admin) ── */
 window.eliminarFotoApunte = async function (fotoId) {
   if (!confirm('¿Eliminar esta foto?')) return;
@@ -2870,9 +3182,7 @@ window.eliminarFotoApunte = async function (fotoId) {
   if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
   try {
     await deleteDoc(doc(db(), 'ec_fotos', fotoId));
-    // El onSnapshot actualiza la galería automáticamente
   } catch (e) {
-    console.error('eliminarFotoApunte:', e);
     alert('Error al eliminar: ' + e.message);
     if (btn) { btn.textContent = '🗑️'; btn.disabled = false; }
   }
@@ -2882,7 +3192,6 @@ window.publicarFotoEnFeed = async function (fotoId) {
   const foto = (lightboxPhotos || []).find(f => f.id === fotoId);
   if (!foto || !galeriaActual) return;
 
-  // Botón feedback
   const btn = document.querySelector(`[data-foto-id="${fotoId}"] .foto-publish-btn`);
   if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
 
@@ -2892,12 +3201,10 @@ window.publicarFotoEnFeed = async function (fotoId) {
   } = lib();
 
   try {
-    // Rango del día de hoy (medianoche → medianoche)
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     const manana = new Date(hoy); manana.setDate(manana.getDate() + 1);
 
-    // Buscar si ya existe una publicación de feed de ESTA materia HOY
     const feedQ = query(
       collection(db(), 'ec_feed'),
       where('groupId', '==', currentGroupId),
@@ -2909,19 +3216,17 @@ window.publicarFotoEnFeed = async function (fotoId) {
     const feedSnap = await getDocs(feedQ);
 
     if (!feedSnap.empty) {
-      // ✅ Ya hay una publicación de hoy para esta materia → agregar la foto
       const feedDoc = feedSnap.docs[0];
       await updateDoc(doc(db(), 'ec_feed', feedDoc.id), {
         images: arrayUnion(foto.url)
       });
     } else {
-      // 🆕 No existe → crear nueva publicación agrupadora
       const gal = galeriaActual;
       const sem = semestres.find(s => s.id === gal.semestreId);
       const semNombre = sem ? sem.name : '';
       await addDoc(collection(db(), 'ec_feed'), {
         groupId: currentGroupId,
-        galeriaId: gal.id,                           // clave para agrupar
+        galeriaId: gal.id,
         type: 'apunte',
         text: `📸 Apuntes de ${gal.icon || '📚'} ${gal.name}${semNombre ? ` · ${semNombre}` : ''}`,
         images: [foto.url],
@@ -2933,14 +3238,10 @@ window.publicarFotoEnFeed = async function (fotoId) {
       });
     }
 
-    // Marcar la foto como publicada en Firestore
     await updateDoc(doc(db(), 'ec_fotos', fotoId), { publishedToFeed: true });
-
-    // Actualizar UI del botón
     if (btn) { btn.textContent = '✅'; btn.classList.add('published'); btn.disabled = false; btn.title = 'Ya publicada en Novedades'; }
 
   } catch (e) {
-    console.error('publicarFotoEnFeed:', e);
     if (btn) { btn.textContent = '📢'; btn.disabled = false; }
     alert('Error al publicar: ' + e.message);
   }
@@ -2972,11 +3273,19 @@ document.addEventListener('click', async e => {
 /* ═══════════════════════════════════════════════════
    CLOUDINARY UPLOAD
 ═══════════════════════════════════════════════════ */
+// REEMPLAZAR: uploadToCloudinary
 async function uploadToCloudinary(file, tag = '') {
   const fd = new FormData();
   fd.append('file', file);
   fd.append('upload_preset', CLOUDINARY_PRESET);
-  if (tag) fd.append('tags', tag);
+
+  if (tag) {
+    fd.append('tags', tag);
+    // NUEVO: Organizar en carpetas dentro de Cloudinary
+    fd.append('folder', `ZonaEscolar/${tag}`);
+    fd.append('asset_folder', `ZonaEscolar/${tag}`);
+  }
+
   try {
     const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
       method: 'POST', body: fd
@@ -3293,7 +3602,7 @@ $('btnCerrarVotacion').addEventListener('click', async () => {
     collection(db(), 'ec_votaciones'),
     where('groupId', '==', currentGroupId),
     where('activa', '==', true),
-    orderBy('createdAt', 'desc'), 
+    orderBy('createdAt', 'desc'),
     limit(1)
   );
   const snap = await getDocs(q);
