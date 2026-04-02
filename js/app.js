@@ -52,8 +52,8 @@ let sidebarOnlineUnsub = null;
 
 let semestresAbiertos = new Set(); // Recuerda qué semestres están abiertos
 let scrollPosicionApuntes = 0;
-let ordenSemestres = 'creacion'; // 'creacion' o 'alfabetico'
-let ordenMaterias = 'creacion';  // 'creacion' o 'alfabetico'
+let ordenSemestres = localStorage.getItem('ze_orden_semestres') || 'creacion'; 
+let ordenMaterias = localStorage.getItem('ze_orden_materias') || 'creacion';
 let semestresUnsub = null;
 let galeriasUnsub = null;
 let apuntesSearchTerm = '';
@@ -459,8 +459,10 @@ async function activarGrupo(groupId) {
   if (chatTypingUnsub) { chatTypingUnsub(); chatTypingUnsub = null; }
   if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
   if (sidebarOnlineUnsub) { sidebarOnlineUnsub(); sidebarOnlineUnsub = null; }
+  if (dvdUnsub) { dvdUnsub(); dvdUnsub = null; }
   if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
   if (_typingTimeout) { clearTimeout(_typingTimeout); _typingTimeout = null; }
+  bibliotecaUiBound = false;
 
   renderGroupSelector();
   renderSidebarMiembros();
@@ -541,46 +543,7 @@ let muroViendoUid = null;
 let muroViendoEmail = null;
 let muroViendoNombre = null;
 
-window.verMuroDeUsuario = function (email, nombre) {
-  // Si es el propio usuario, ir a Mi Muro normal
-  if (email === currentUser.email) {
-    muroViendoUid = null;
-    muroViendoEmail = null;
-    muroViendoNombre = null;
-    currentSection = 'muro';
-    setActiveNav('muro');
-    activarSeccion('muro');
-    closeSidebar();
-    return;
-  }
-  // Buscar UID en ec_users por email
-  const { collection, query, where, getDocs } = lib();
-  getDocs(query(collection(db(), 'ec_users'), where('email', '==', email))).then(snap => {
-    if (snap.empty) {
-      // Usuario aún no se ha logueado, mostrar muro vacío con nombre
-      muroViendoUid = '__pending__';
-      muroViendoEmail = email;
-      muroViendoNombre = nombre;
-    } else {
-      const d = snap.docs[0];
-      muroViendoUid = d.id;
-      muroViendoEmail = email;
-      muroViendoNombre = d.data().name || nombre;
-    }
-    currentSection = 'muro';
-    setActiveNav('muro');
-    activarSeccion('muro');
-    closeSidebar();
-  }).catch(() => {
-    muroViendoUid = '__pending__';
-    muroViendoEmail = email;
-    muroViendoNombre = nombre;
-    currentSection = 'muro';
-    setActiveNav('muro');
-    activarSeccion('muro');
-    closeSidebar();
-  });
-};
+// verMuroDeUsuario se declara más abajo (línea ~1465) con la versión completa y async
 
 /* ── CREAR GRUPO ── */
 let selectedGrupoEmoji = '👥';
@@ -700,8 +663,8 @@ $('btnConfirmarMiembro').addEventListener('click', async () => {
    NAVEGACIÓN
 ═══════════════════════════════════════════════════ */
 const sectionTitles = {
-  feed: 'Novedades', muro: 'Mi Muro', apuntes: 'Apuntes',
-  chat: 'Chat', tareas: 'Tareas', biblioteca: 'Biblioteca', dinamicas: 'Dinámicas'
+  feed: 'Tablero', muro: 'Mis Aportes', apuntes: 'Apuntes',
+  chat: 'Chat', tareas: 'Tareas', biblioteca: 'Biblioteca', videotutoriales: 'VideoTutoriales', dinamicas: 'Dinámicas'
 };
 
 function setActiveNav(section) {
@@ -806,6 +769,7 @@ function activarSeccion(section) {
   }
   if (section === 'tareas') initTareas();
   if (section === 'biblioteca') initBiblioteca();
+  if (section === 'videotutoriales') initVideotutoriales();
   if (section === 'apuntes') initApuntes();
   if (section === 'dinamicas') initDinamicas();
   if (section === 'muro') initMuro();
@@ -817,7 +781,8 @@ function showSection(name) {
     loading: 'sectionLoading', noGroup: 'sectionNoGroup',
     feed: 'sectionFeed', muro: 'sectionMuro',
     apuntes: 'sectionApuntes', chat: 'sectionChat',
-    tareas: 'sectionTareas', biblioteca: 'sectionBiblioteca', dinamicas: 'sectionDinamicas'
+    tareas: 'sectionTareas', biblioteca: 'sectionBiblioteca', 
+    videotutoriales: 'sectionVideotutoriales', dinamicas: 'sectionDinamicas'
   };
   const el = $(map[name]);
   if (el) el.classList.add('active');
@@ -926,16 +891,29 @@ function bindFeedCard(cardEl, postId) {
   }
 }
 
+function getFeedCols(list) {
+  let cols = list.querySelectorAll('.feed-col');
+  if (cols.length !== 3) {
+    list.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      const col = document.createElement('div');
+      col.className = 'feed-col';
+      col.dataset.col = i;
+      list.appendChild(col);
+    }
+    cols = list.querySelectorAll('.feed-col');
+  }
+  return cols;
+}
+
 function renderFeed(posts) {
   const list = $('feedList');
   if (!posts.length) {
-    list.innerHTML = '<div class="feed-loading">El feed está vacío. ¡Sé el primero en publicar!</div>';
+    list.innerHTML = '<div class=\"feed-loading\">El feed está vacío. ¡Sé el primero en publicar!</div>';
     return;
   }
 
-  const existingIds = new Set(
-    [...list.querySelectorAll('.feed-card[data-id]')].map(el => el.dataset.id)
-  );
+  const cols = getFeedCols(list);
   const newIds = new Set(posts.map(p => p.id));
 
   // Eliminar cards que ya no existen
@@ -943,48 +921,306 @@ function renderFeed(posts) {
     if (!newIds.has(el.dataset.id)) el.remove();
   });
 
-  // Agregar o actualizar cards
+  // Distribuir: post 0→col0, 1→col1, 2→col2, 3→col0, ...
+  // Orden izquierda→derecha al leer fila a fila
   posts.forEach((p, idx) => {
+    const colIdx = idx % 3;
+    const col = cols[colIdx];
+    const posInCol = Math.floor(idx / 3);
+
     let card = list.querySelector(`.feed-card[data-id="${p.id}"]`);
     if (!card) {
-      // Card nueva: insertar en posición correcta
-      const html = buildFeedCard(p);
       const tmp = document.createElement('div');
-      tmp.innerHTML = html;
+      tmp.innerHTML = buildFeedCard(p);
       card = tmp.firstElementChild;
       card.dataset.id = p.id;
-
-      // Insertar en posición correcta (posts ya vienen ordenados desc)
-      const allCards = [...list.querySelectorAll('.feed-card[data-id]')];
-      if (idx === 0 || allCards.length === 0) {
-        list.insertAdjacentElement('afterbegin', card);
-      } else {
-        const before = list.querySelector(`.feed-card[data-id="${posts[idx - 1]?.id}"]`);
-        if (before) before.insertAdjacentElement('afterend', card);
-        else list.appendChild(card);
-      }
-
       bindFeedCard(card, p.id);
-    } else {
-      // Card existente: solo actualizar contadores (like y comentarios)
-      // sin tocar la sección de comentarios si está abierta
-      const likeBtn = card.querySelector('.feed-action-btn[data-like]');
-      if (likeBtn) {
-        const isLiked = p.likedBy?.includes(currentUser.uid);
-        likeBtn.className = `feed-action-btn ${isLiked ? 'liked' : ''}`;
-        likeBtn.innerHTML = `<span>${isLiked ? '❤️' : '🤍'}</span> ${p.likes || 0}`;
-      }
-      const commentToggle = card.querySelector('.feed-comments-toggle');
-      if (commentToggle && card.querySelector('.feed-comments-section')?.dataset.open !== '1') {
-        const cnt = p.commentCount || 0;
-        commentToggle.textContent = `💬 ${cnt > 0 ? cnt + ' comentario' + (cnt > 1 ? 's' : '') : 'Comentar'}`;
-      }
+      injectPin(card, getCardColor(p.id, p.pinColor), p.pinShape || 'flat');
+    }
+
+    // Insertar/mover a la posición correcta dentro de su columna
+    const cardsInCol = [...col.querySelectorAll('.feed-card[data-id]')];
+    const currentPosInCol = cardsInCol.indexOf(card);
+    if (card.parentElement !== col || currentPosInCol !== posInCol) {
+      const refCard = col.querySelectorAll('.feed-card[data-id]')[posInCol];
+      if (refCard && refCard !== card) col.insertBefore(card, refCard);
+      else if (!refCard) col.appendChild(card);
+    }
+
+    // Actualizar contadores
+    const likeBtn = card.querySelector('.feed-action-btn[data-like]');
+    if (likeBtn) {
+      const isLiked = p.likedBy?.includes(currentUser.uid);
+      likeBtn.className = `feed-action-btn ${isLiked ? 'liked' : ''}`;
+      likeBtn.innerHTML = `<span class=\"foco-icon\">💡</span> Útil (<span class=\"like-count\">${p.likes || 0}</span>)`;
+    }
+    const commentToggle = card.querySelector('.feed-comments-toggle');
+    if (commentToggle && card.querySelector('.feed-comments-section')?.dataset.open !== '1') {
+      const cnt = p.commentCount || 0;
+      commentToggle.textContent = `📝 ${cnt > 0 ? cnt + ' notas' : 'Añadir nota'}`;
     }
   });
+}
 
-  // Si el feed estaba vacío (solo tenía el loading div), limpiarlo
-  const loadingEl = list.querySelector('.feed-loading');
-  if (loadingEl && list.querySelectorAll('.feed-card[data-id]').length > 0) loadingEl.remove();
+
+/* ── CHINCHETA SVG ── */
+const PIN_COLORS = ['red','yellow','green','blue','purple','pink','orange','cyan'];
+const PIN_HEX = { red:'#ef4444', yellow:'#f59e0b', green:'#10b981', blue:'#3b82f6', purple:'#8b5cf6', pink:'#ec4899', orange:'#f97316', cyan:'#06b6d4' };
+const PIN_DARK = { red:'#b91c1c', yellow:'#d97706', green:'#047857', blue:'#1d4ed8', purple:'#6d28d9', pink:'#be185d', orange:'#c2410c', cyan:'#0e7490' };
+
+function makePinSvg(color, shape) {
+  if (shape === 'tilted') return makePinSvgTilted(color);
+  const c = PIN_HEX[color] || PIN_HEX.red;
+  const d = PIN_DARK[color] || PIN_DARK.red;
+  return '<svg class="feed-pin" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg">'
+    + '<ellipse cx="14" cy="41" rx="3" ry="1" fill="rgba(0,0,0,0.2)"/>'
+    + '<polygon points="12,22 16,22 14,40" fill="#c0c0c0"/>'
+    + '<polygon points="13,22 15,22 14,38" fill="#e8e8e8"/>'
+    + '<rect x="11" y="15" width="6" height="9" rx="2" fill="#9ca3af"/>'
+    + '<rect x="12" y="15" width="2" height="9" rx="1" fill="#d1d5db"/>'
+    + '<ellipse cx="14" cy="10" rx="12" ry="7" fill="' + d + '"/>'
+    + '<ellipse cx="14" cy="8.5" rx="11" ry="6" fill="' + c + '"/>'
+    + '<ellipse cx="10" cy="6" rx="4" ry="2.5" fill="rgba(255,255,255,0.35)" transform="rotate(-15 10 6)"/>'
+    + '<ellipse cx="14" cy="15" rx="6" ry="2" fill="' + d + '" opacity="0.5"/>'
+    + '</svg>';
+}
+
+function makePinSvgTilted(color) {
+  const c = PIN_HEX[color] || PIN_HEX.red;
+  const d = PIN_DARK[color] || PIN_DARK.red;
+  // Pin inclinado ~40°: cabeza redonda arriba-izquierda, aguja larga hacia abajo-derecha
+  return '<svg class="feed-pin feed-pin-tilted" viewBox="0 0 36 48" xmlns="http://www.w3.org/2000/svg">'
+    // sombra alargada debajo
+    + '<ellipse cx="28" cy="45" rx="5" ry="2" fill="rgba(0,0,0,0.18)" transform="rotate(-10 28 45)"/>'
+    // aguja larga diagonal
+    + '<line x1="14" y1="16" x2="30" y2="44" stroke="#b0b0b0" stroke-width="2.2" stroke-linecap="round"/>'
+    + '<line x1="13" y1="16" x2="29" y2="43" stroke="#e0e0e0" stroke-width="1" stroke-linecap="round"/>'
+    // cuello corto
+    + '<rect x="10" y="12" width="7" height="7" rx="2" fill="#9ca3af" transform="rotate(-40 13.5 15.5)"/>'
+    + '<rect x="11.5" y="12" width="2.5" height="7" rx="1" fill="#d1d5db" transform="rotate(-40 12.75 15.5)"/>'
+    // cabeza esférica
+    + '<circle cx="9" cy="9" r="8" fill="' + d + '"/>'
+    + '<circle cx="9" cy="8" r="7" fill="' + c + '"/>'
+    // brillo
+    + '<ellipse cx="6" cy="5.5" rx="3.5" ry="2.2" fill="rgba(255,255,255,0.4)" transform="rotate(-20 6 5.5)"/>'
+    + '<circle cx="9" cy="9" r="8" fill="none" stroke="' + d + '" stroke-width="1" opacity="0.4"/>'
+    + '</svg>';
+}
+
+
+function injectPin(card, colorClass, shape) {
+  shape = shape || card.dataset.pinShape || 'flat';
+  card.dataset.pinShape = shape;
+  PIN_COLORS.forEach(c => card.classList.remove('pin-' + c));
+  card.classList.add('pin-' + colorClass);
+  const existing = card.querySelector('.feed-pin');
+  if (existing) existing.remove();
+  const svg = document.createElement('span');
+  svg.innerHTML = makePinSvg(colorClass, shape);
+  const pinEl = svg.firstElementChild;
+  pinEl.addEventListener('click', e => {
+    e.stopPropagation();
+    openPinColorPopup(card, colorClass, shape);
+  });
+  card.insertAdjacentElement('afterbegin', pinEl);
+}
+
+function openPinColorPopup(card, currentColor, currentShape) {
+  document.querySelectorAll('.pin-color-popup').forEach(p => p.remove());
+  currentShape = currentShape || card.dataset.pinShape || 'flat';
+
+  const popup = document.createElement('div');
+  popup.className = 'pin-color-popup';
+
+  // Shape toggle row
+  const shapeRow = document.createElement('div');
+  shapeRow.className = 'pin-shape-row';
+
+  ['flat','tilted'].forEach(sh => {
+    const btn = document.createElement('div');
+    btn.className = 'pin-shape-btn' + (sh === currentShape ? ' active' : '');
+    btn.title = sh === 'flat' ? 'Clásico' : 'Inclinado';
+    btn.innerHTML = sh === 'flat'
+      ? makePinSvg(currentColor, 'flat')
+      : makePinSvg(currentColor, 'tilted');
+    btn.querySelector('svg').style.cssText = 'width:18px;height:26px;pointer-events:none';
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      currentShape = sh;
+      card.dataset.pinShape = sh;
+      popup.querySelectorAll('.pin-shape-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      injectPin(card, currentColor, sh);
+      const postId = card.dataset.id;
+      if (!postId) return;
+      try {
+        const { doc, updateDoc } = lib();
+        await updateDoc(doc(db(), 'ec_feed', postId), { pinShape: sh });
+      } catch(err) { console.warn(err); }
+    });
+    shapeRow.appendChild(btn);
+  });
+  popup.appendChild(shapeRow);
+
+  // Divider
+  const div = document.createElement('div');
+  div.className = 'pin-popup-divider';
+  popup.appendChild(div);
+
+  // Color dots
+  const dotsRow = document.createElement('div');
+  dotsRow.className = 'pin-dots-row';
+  PIN_COLORS.forEach(c => {
+    const dot = document.createElement('div');
+    dot.className = 'pin-color-dot' + (c === currentColor ? ' active' : '');
+    dot.style.background = PIN_HEX[c];
+    dot.title = c;
+    dot.addEventListener('click', async e => {
+      e.stopPropagation();
+      currentColor = c;
+      dotsRow.querySelectorAll('.pin-color-dot').forEach(d => d.classList.remove('active'));
+      dot.classList.add('active');
+      injectPin(card, c, currentShape);
+      // update shape buttons preview color
+      popup.querySelectorAll('.pin-shape-btn svg').forEach((svg, i) => {
+        const sh = i === 0 ? 'flat' : 'tilted';
+        svg.outerHTML; // can't easily update, just re-render buttons
+      });
+      const postId = card.dataset.id;
+      if (!postId) return;
+      try {
+        const { doc, updateDoc } = lib();
+        await updateDoc(doc(db(), 'ec_feed', postId), { pinColor: c });
+      } catch(err) { console.warn(err); }
+    });
+    dotsRow.appendChild(dot);
+  });
+  popup.appendChild(dotsRow);
+
+  card.appendChild(popup);
+
+  setTimeout(() => {
+    document.addEventListener('click', function handler() {
+      popup.remove();
+      document.removeEventListener('click', handler);
+    });
+  }, 0);
+}
+
+function getCardColor(postId, savedColor) {
+  if (savedColor && PIN_COLORS.includes(savedColor)) return savedColor;
+  let hash = 0;
+  for (let i = 0; i < postId.length; i++) hash = postId.charCodeAt(i) + ((hash << 5) - hash);
+  return PIN_COLORS[Math.abs(hash) % PIN_COLORS.length];
+}
+
+
+/* ── DETECCIÓN DE ENLACES EN TEXTO LIBRE ── */
+function detectLinkPreview(text) {
+  if (!text) return null;
+  // Buscar URL en el texto
+  const urlMatch = text.match(/https?:\/\/[^\s]+/);
+  if (!urlMatch) return null;
+  const raw = urlMatch[0];
+  let url;
+  try { url = new URL(raw); } catch { return null; }
+  const host = url.hostname.replace('www.', '');
+
+  // ── Google Drive (archivos genéricos) ──
+  if (host === 'drive.google.com') {
+    const idMatch = raw.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    const fileId = idMatch ? idMatch[1] : null;
+    return {
+      type: 'gdrive', url: raw, fileId,
+      icon: '📁', label: 'Google Drive',
+      color: '#4285F4',
+      preview: fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w320` : null,
+      action: 'Abrir archivo'
+    };
+  }
+  // ── Google Docs ──
+  if (host === 'docs.google.com') {
+    const path = url.pathname;
+    if (path.includes('/document/')) return { type: 'gdocs', url: raw, icon: '📄', label: 'Google Docs', color: '#4285F4', action: 'Abrir documento' };
+    if (path.includes('/spreadsheets/')) return { type: 'gsheets', url: raw, icon: '📊', label: 'Google Sheets', color: '#0F9D58', action: 'Abrir hoja de cálculo' };
+    if (path.includes('/presentation/')) return { type: 'gslides', url: raw, icon: '📑', label: 'Google Slides', color: '#F4B400', action: 'Abrir presentación' };
+    if (path.includes('/forms/')) return { type: 'gforms', url: raw, icon: '📋', label: 'Google Forms', color: '#7B1FA2', action: 'Abrir formulario' };
+    return { type: 'gdocs', url: raw, icon: '📄', label: 'Google Docs', color: '#4285F4', action: 'Abrir documento' };
+  }
+  // ── YouTube (en texto libre) ──
+  if (host.includes('youtube.com') || host === 'youtu.be') {
+    let videoId = null;
+    if (host.includes('youtube.com')) videoId = url.searchParams.get('v');
+    if (host === 'youtu.be') videoId = url.pathname.slice(1).split('?')[0];
+    if (!videoId) { const m = url.pathname.match(/(?:shorts|embed|v)\/([^/?&]+)/); if (m) videoId = m[1]; }
+    if (videoId) return {
+      type: 'youtube', url: raw, videoId,
+      icon: '▶', label: 'YouTube',
+      color: '#FF0000',
+      preview: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+      action: 'Ver video'
+    };
+  }
+  // ── Canva ──
+  if (host === 'canva.com' || host.includes('canva.com')) {
+    return { type: 'canva', url: raw, icon: '🎨', label: 'Canva', color: '#7D2AE8', action: 'Abrir diseño' };
+  }
+  // ── Figma ──
+  if (host === 'figma.com' || host.includes('figma.com')) {
+    return { type: 'figma', url: raw, icon: '🖌️', label: 'Figma', color: '#F24E1E', action: 'Abrir en Figma' };
+  }
+  // ── GitHub ──
+  if (host === 'github.com') {
+    return { type: 'github', url: raw, icon: '🐙', label: 'GitHub', color: '#24292E', action: 'Ver repositorio' };
+  }
+  return null;
+}
+
+function buildLinkPreviewHtml(d) {
+  if (d.type === 'youtube' && d.preview) {
+    return `
+      <div class="feed-link-preview feed-link-youtube" onclick="window.open('${d.url}','_blank')" style="cursor:pointer">
+        <div class="feed-link-thumb">
+          <img src="${d.preview}" alt="" class="feed-link-thumb-img">
+          <div class="feed-link-play">▶</div>
+        </div>
+        <div class="feed-link-info">
+          <div class="feed-link-badge" style="background:${d.color}">
+            <span>${d.icon}</span> ${d.label}
+          </div>
+          <div class="feed-link-action">${d.action} →</div>
+        </div>
+      </div>`;
+  }
+  if (d.type === 'gdrive' && d.preview) {
+    return `
+      <div class="feed-link-preview" onclick="window.open('${d.url}','_blank')" style="cursor:pointer">
+        <div class="feed-link-thumb feed-link-thumb-doc">
+          <img src="${d.preview}" alt="" class="feed-link-thumb-img" onerror="this.parentElement.innerHTML='<div class=feed-link-thumb-icon>${d.icon}</div>'">
+        </div>
+        <div class="feed-link-info">
+          <div class="feed-link-badge" style="background:${d.color}">
+            <span>${d.icon}</span> ${d.label}
+          </div>
+          <div class="feed-link-action">${d.action} →</div>
+        </div>
+      </div>`;
+  }
+  // Genérico (Docs, Sheets, Slides, Canva, GitHub, etc.)
+  const bgMap = { gdocs:'#E8F0FE', gsheets:'#E6F4EA', gslides:'#FEF7E0', gforms:'#F3E8FD', canva:'#F0EAF9', figma:'#FEE9E4', github:'#F0F0F0', gdrive:'#E8F0FE' };
+  const bg = bgMap[d.type] || '#1e1e2e';
+  return `
+    <div class="feed-link-preview feed-link-generic" onclick="window.open('${d.url}','_blank')" style="cursor:pointer">
+      <div class="feed-link-icon-block" style="background:${bg}">
+        <span class="feed-link-big-icon">${d.icon}</span>
+      </div>
+      <div class="feed-link-info">
+        <div class="feed-link-badge" style="background:${d.color}">
+          <span>${d.icon}</span> ${d.label}
+        </div>
+        <div class="feed-link-action">${d.action} →</div>
+      </div>
+    </div>`;
 }
 
 function buildFeedCard(p) {
@@ -1102,17 +1338,46 @@ function buildFeedCard(p) {
     </div>`;
   }
 
-  let imgHtml = '';
+  let extraContentHtml = '';
+
   if (p.images && p.images.length) {
     if (p.images.length === 1) {
-      // Agregamos onclick para el zoom
-      imgHtml = `<img src="${escHtml(p.images[0])}" class="feed-card-img" alt="" onclick="openLightboxFeed(this)" style="cursor:pointer;">`;
+      extraContentHtml = `<img src="${escHtml(p.images[0])}" class="feed-card-img" alt="" onclick="openLightboxFeed(this)" style="cursor:pointer;">`;
     } else {
-      // Agregamos onclick a cada imagen de la cuadrícula
-      imgHtml = `<div class="feed-card-images-grid count-${p.images.length}">` + p.images.map(img =>
+      // Si hay más de 4, aplicamos la clase count-more
+      const countClass = p.images.length >= 4 ? 'count-more' : `count-${p.images.length}`;
+      
+      extraContentHtml = `<div class="feed-card-images-grid ${countClass}">` + p.images.map(img =>
         `<img src="${escHtml(img)}" alt="" onclick="openLightboxFeed(this)" style="cursor:pointer;">`
       ).join('') + `</div>`;
     }
+  } else if (p.type === 'libro' && p.libroData) {
+    extraContentHtml = `
+      <div class="feed-libro-shared" onclick="window.open('${p.libroData.url}', '_blank')">
+        <div class="book-item ${p.libroData.colorClass}" style="transform: scale(0.65); transform-origin: left center; margin: -20px 0 -30px 0; pointer-events:none;">
+          <div class="book-ext-badge">${p.libroData.ext.substring(0, 4)}</div>
+          <div class="book-spine-title">${p.libroData.name}</div>
+        </div>
+        <div class="feed-libro-info">
+          <h4>${escHtml(p.libroData.name)}</h4>
+          <span>📖 Abrir archivo</span>
+        </div>
+      </div>`;
+  } else if (p.type === 'videotutorial' && p.dvdData) {
+    extraContentHtml = `
+      <div class="feed-dvd-shared" onclick="window.open('${p.dvdData.url}', '_blank')">
+        <div class="dvd-rect-thumb">
+          <img src="${p.dvdData.thumbnail}" alt="" class="dvd-rect-img">
+          <div class="dvd-rect-play-overlay" style="opacity: 1; background: rgba(0,0,0,0.45);">▶</div>
+        </div>
+        <div class="feed-dvd-info">
+          <h4>${escHtml(p.dvdData.titulo)}</h4>
+        </div>
+      </div>`;
+  } else if (!extraContentHtml && p.text) {
+    // Auto-detectar enlaces en el texto
+    const linkData = detectLinkPreview(p.text);
+    if (linkData) extraContentHtml = buildLinkPreviewHtml(linkData);
   }
 
   const likeCount = p.likes || 0;
@@ -1120,36 +1385,45 @@ function buildFeedCard(p) {
   const isLiked = p.likedBy?.includes(currentUser.uid);
 
   return `<div class="feed-card" data-id="${p.id}">
-    <div class="feed-card-header">
-      <img class="feed-card-avatar" src="${escHtml(p.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
-      <div class="feed-card-meta">
-        <div class="feed-card-author">${escHtml(p.authorName || 'Anónimo')}</div>
-        <div class="feed-card-time">${fmtTime(p.createdAt)}</div>
-      </div>
+    
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px;">
       <span class="feed-card-type-badge ${badgeTipo}">${badgeLabel}</span>
+      ${canDelete ? `<button class="feed-action-btn" style="padding: 4px 8px; color: var(--red);" onclick="eliminarPost('${p.id}')" title="Eliminar aporte">🗑️</button>` : ''}
     </div>
+
     ${p.text ? `<div class="feed-card-body"><p class="feed-card-text">${escHtml(p.text)}</p></div>` : ''}
-    ${imgHtml}
+    ${extraContentHtml}
+
+    <div style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(0,0,0,0.05); border-top: 1px solid var(--border);">
+      <img class="feed-card-avatar" src="${escHtml(p.authorAvatar || '')}" alt="" onerror="this.style.display='none'" style="width: 24px; height: 24px;">
+      <div class="feed-card-meta">
+        <div style="font-size: 11px; color: var(--text2);">Aportado por <strong style="color: var(--text0);">${escHtml(p.authorName || 'Anónimo')}</strong></div>
+        <div style="font-size: 9px; color: var(--text3); margin-top: 2px;">${fmtTime(p.createdAt)}</div>
+      </div>
+    </div>
+
     <div class="feed-card-actions">
       <button class="feed-action-btn ${isLiked ? 'liked' : ''}" data-like="${p.id}">
-        <span>${isLiked ? '❤️' : '🤍'}</span> ${likeCount}
+        <span class="foco-icon" style="font-size: 16px;">💡</span> Útil (<span class="like-count">${likeCount}</span>)
       </button>
       <button class="feed-comments-toggle" data-post="${p.id}">
-        💬 ${commentCount > 0 ? commentCount + ' comentario' + (commentCount > 1 ? 's' : '') : 'Comentar'}
+        📝 ${commentCount > 0 ? commentCount + ' notas' : 'Añadir nota'}
       </button>
-      
-      ${canDelete ? `<button class="feed-action-btn" style="margin-left:auto" onclick="eliminarPost('${p.id}')"><span>🗑️</span></button>` : ''}
     </div>
+    
+    ${likeCount > 0 ? `<div style="font-size: 11px; color: var(--text2); padding: 0 16px 12px; font-style: italic;">Le sirvió a ${likeCount} compañero${likeCount !== 1 ? 's' : ''}</div>` : ''}
+
     <div class="feed-comments-section" data-open="0" style="display:none">
       <div class="feed-comments-list"></div>
       <div class="feed-comment-compose">
         <img class="feed-comment-avatar" src="${escHtml(currentUser.avatar || '')}" alt="" onerror="this.style.display='none'">
-        <input type="text" class="feed-comment-input" placeholder="Escribe un comentario…" maxlength="300">
+        <input type="text" class="feed-comment-input" placeholder="Añade una nota, corrección o duda…" maxlength="300">
         <button class="feed-comment-send" data-post="${p.id}">➤</button>
       </div>
     </div>
   </div>`;
 }
+
 
 function loadComments(postId, sectionEl) {
   const { collection, query, where, orderBy, onSnapshot } = lib();
@@ -1252,6 +1526,19 @@ async function toggleFeedLike(postId, btn) {
   const { doc, updateDoc, arrayUnion, arrayRemove, increment } = lib();
   const uid = currentUser.uid;
   const isLiked = btn.classList.contains('liked');
+  
+  // Actualización visual inmediata (Optimista)
+  btn.classList.toggle('liked');
+  const spanFoco = btn.querySelector('.foco-icon');
+  const spanCount = btn.querySelector('.like-count');
+  let currentLikes = parseInt(spanCount.textContent) || 0;
+  
+  if (isLiked) {
+    spanCount.textContent = currentLikes - 1;
+  } else {
+    spanCount.textContent = currentLikes + 1;
+  }
+
   try {
     await updateDoc(doc(db(), 'ec_feed', postId), {
       likedBy: isLiked ? arrayRemove(uid) : arrayUnion(uid),
@@ -1289,8 +1576,14 @@ window.eliminarPost = async function (postId) {
 let composeFiles = [];
 
 $('composePhoto').addEventListener('change', e => {
-  composeFiles = [...e.target.files];
+  // En lugar de reemplazar, SUMAMOS los archivos nuevos a los que ya estaban
+  const nuevos = [...e.target.files];
+  composeFiles = [...composeFiles, ...nuevos];
+  
   renderComposePreview();
+  
+  // Limpiamos el input para que te deje volver a seleccionar la misma foto si la borraste por error
+  e.target.value = '';
 });
 
 function renderComposePreview() {
@@ -1356,6 +1649,8 @@ $('composeSend').addEventListener('click', async () => {
       likes: 0,
       likedBy: [],
       commentCount: 0,
+      pinColor: window._composePinColor || 'purple',
+      pinShape: window._composePinShape || 'flat',
       createdAt: serverTimestamp()
     });
     $('composeInput').value = '';
@@ -1372,50 +1667,93 @@ $('composeInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composeSend').click(); }
 });
 
+/* ── Selector de color del pin en el compose ── */
+window._composePinColor = 'purple';
+window._composePinShape = 'flat';
+
+function updateComposePinPreview(color, shape) {
+  if (color) window._composePinColor = color;
+  if (shape) window._composePinShape = shape;
+  color = window._composePinColor;
+  shape = window._composePinShape;
+
+  // Re-render the entire pin SVG in the picker
+  const picker = $('composePinPicker');
+  const oldSvg = picker.querySelector('.compose-pin-svg');
+  const svgStr = makePinSvg(color, shape);
+  const tmp = document.createElement('span');
+  tmp.innerHTML = svgStr;
+  const newSvg = tmp.firstElementChild;
+  newSvg.classList.add('compose-pin-svg');
+  newSvg.id = 'composePinPreview';
+  newSvg.style.cssText = 'width:22px;height:32px;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));transition:transform 0.15s';
+  if (oldSvg) oldSvg.replaceWith(newSvg); else picker.prepend(newSvg);
+
+  // Mark active color dot
+  $('composePinDropdown').querySelectorAll('.compose-pin-option').forEach(dot => {
+    dot.classList.toggle('active', dot.dataset.color === color);
+  });
+  // Mark active shape btn
+  $('composePinDropdown').querySelectorAll('.compose-shape-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.shape === shape);
+  });
+}
+
+// Build shape toggle buttons inside dropdown
+function buildComposePinDropdown() {
+  const dd = $('composePinDropdown');
+  // Add shape row at top
+  const shapeRow = document.createElement('div');
+  shapeRow.className = 'pin-shape-row';
+  shapeRow.style.cssText = 'width:100%;margin-bottom:6px;display:flex;gap:6px;justify-content:center';
+  ['flat','tilted'].forEach(sh => {
+    const btn = document.createElement('div');
+    btn.className = 'compose-shape-btn pin-shape-btn' + (sh === 'flat' ? ' active' : '');
+    btn.dataset.shape = sh;
+    btn.title = sh === 'flat' ? 'Clásico' : 'Inclinado';
+    const svgStr = makePinSvg(window._composePinColor, sh);
+    const tmp = document.createElement('span');
+    tmp.innerHTML = svgStr;
+    const svg = tmp.firstElementChild;
+    svg.style.cssText = 'width:18px;height:26px;pointer-events:none';
+    btn.appendChild(svg);
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      updateComposePinPreview(null, sh);
+    });
+    shapeRow.appendChild(btn);
+  });
+  dd.prepend(shapeRow);
+}
+
+buildComposePinDropdown();
+
+$('composePinPicker').addEventListener('click', e => {
+  e.stopPropagation();
+  $('composePinDropdown').classList.toggle('open');
+});
+
+$('composePinDropdown').querySelectorAll('.compose-pin-option').forEach(dot => {
+  dot.addEventListener('click', e => {
+    e.stopPropagation();
+    updateComposePinPreview(dot.dataset.color, null);
+    $('composePinDropdown').classList.remove('open');
+  });
+});
+
+document.addEventListener('click', () => {
+  $('composePinDropdown')?.classList.remove('open');
+});
+
+updateComposePinPreview('purple', 'flat');
+
 /* ═══════════════════════════════════════════════════
    LÓGICA DEL MURO (PERFIL PROPIO Y DE TERCEROS)
 ═══════════════════════════════════════════════════ */
-let muroActualUid = null;
-let muroActualNombre = '';
 let muroFotosUnsub = null;
 let muroFeedUnsub = null;
 
-// Esta función se activa cuando haces clic en un miembro en la barra lateral
-window.verMuroDeUsuario = async function (email, nombre) {
-  // Si das clic en tu propio nombre
-  if (email === currentUser.email) {
-    muroActualUid = currentUser.uid;
-    muroActualNombre = currentUser.name || nombre;
-    activarSeccion('muro');
-    return;
-  }
-
-  // Si das clic en el nombre de un compañero, buscamos su ID en la base de datos
-  const { collection, query, where, getDocs } = lib();
-  try {
-    const q = query(collection(db(), 'ec_users'), where('email', '==', email));
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      alert('Este compañero fue invitado, pero aún no ha iniciado sesión en la app.');
-      return;
-    }
-
-    // Guardamos los datos del compañero y abrimos la sección del muro
-    muroActualUid = snap.docs[0].id;
-    muroActualNombre = nombre;
-    activarSeccion('muro');
-  } catch (e) {
-    console.error(e);
-    alert('Error al buscar el perfil del usuario.');
-  }
-};
-
 /* ── ABRIR EL MURO DE UN COMPAÑERO DESDE LA BARRA LATERAL ── */
-// Declaramos las variables globales que usa tu initMuro (por si no estaban declaradas arriba)
-window.muroViendoUid = null;
-window.muroViendoEmail = null;
-window.muroViendoNombre = null;
 
 window.verMuroDeUsuario = async function (email, nombre) {
   // 1. Si das clic en tu propio nombre, limpiamos las variables para ver tu muro
@@ -1423,7 +1761,9 @@ window.verMuroDeUsuario = async function (email, nombre) {
     muroViendoUid = null;
     muroViendoEmail = null;
     muroViendoNombre = null;
+    setActiveNav('muro');
     activarSeccion('muro');
+    closeSidebar();
     return;
   }
 
@@ -1433,20 +1773,24 @@ window.verMuroDeUsuario = async function (email, nombre) {
     const q = query(collection(db(), 'ec_users'), where('email', '==', email));
     const snap = await getDocs(q);
 
-    // 3. Si el usuario fue invitado pero no ha iniciado sesión, usamos tu lógica de '__pending__'
+    // 3. Si el usuario fue invitado pero no ha iniciado sesión, usamos '__pending__'
     if (snap.empty) {
       muroViendoUid = '__pending__';
       muroViendoEmail = email;
       muroViendoNombre = nombre;
+      setActiveNav('muro');
       activarSeccion('muro');
+      closeSidebar();
       return;
     }
 
-    // 4. Si el compañero sí existe, llenamos tus variables y abrimos la sección
+    // 4. Si el compañero sí existe, llenamos las variables y abrimos la sección
     muroViendoUid = snap.docs[0].id;
     muroViendoEmail = email;
-    muroViendoNombre = nombre;
+    muroViendoNombre = snap.docs[0].data().name || nombre;
+    setActiveNav('muro');
     activarSeccion('muro');
+    closeSidebar();
 
   } catch (e) {
     console.error(e);
@@ -1520,15 +1864,15 @@ function initMuro() {
     return;
   }
 
-  // --- SOLUCIÓN: Forzar que siempre se abra en la pestaña de "Fotos" ---
+  // Abrir en publicaciones por defecto
   qsa('.muro-tab').forEach(t => t.classList.remove('active'));
-  const tabFotos = document.querySelector('.muro-tab[data-tab="fotos"]');
-  if (tabFotos) tabFotos.classList.add('active');
+  const tabPubs = document.querySelector('.muro-tab[data-tab="publicaciones"]');
+  if (tabPubs) tabPubs.classList.add('active');
   const content = $('muroContent');
-  if (content) content.innerHTML = `<div class="muro-photos-grid" id="muroFotosGrid"></div>`;
+  if (content) content.innerHTML = `<div class="feed-list" id="muroPostsList"><div class="feed-loading">Cargando…</div></div>`;
   // ---------------------------------------------------------------------
 
-  cargarMuroFotos(uid, esPropio);
+  cargarMuroPublicaciones();
   cargarMuroStats(uid);
 }
 
@@ -1686,6 +2030,7 @@ function cargarMuroPublicaciones() {
       return;
     }
 
+    const cols = getFeedCols(list);
     const newIds = new Set(posts.map(p => p.id));
 
     // Eliminar cards que ya no existen
@@ -1693,44 +2038,42 @@ function cargarMuroPublicaciones() {
       if (!newIds.has(el.dataset.id)) el.remove();
     });
 
-    // Limpiar loading si existe
-    const loadingEl = list.querySelector('.feed-loading');
-
+    // Distribuir en columnas masonry (mismo orden que el feed principal)
     posts.forEach((p, idx) => {
+      const col = cols[idx % 3];
+      const posInCol = Math.floor(idx / 3);
+
       let card = list.querySelector(`.feed-card[data-id="${p.id}"]`);
       if (!card) {
-        // Card nueva: crear e insertar en posición correcta
         const tmp = document.createElement('div');
         tmp.innerHTML = buildFeedCard(p);
         card = tmp.firstElementChild;
-
-        const allCards = [...list.querySelectorAll('.feed-card[data-id]')];
-        if (idx === 0 || allCards.length === 0) {
-          list.insertAdjacentElement('afterbegin', card);
-        } else {
-          const before = list.querySelector(`.feed-card[data-id="${posts[idx - 1]?.id}"]`);
-          if (before) before.insertAdjacentElement('afterend', card);
-          else list.appendChild(card);
-        }
-
+        card.dataset.id = p.id;
         bindFeedCard(card, p.id);
-      } else {
-        // Card existente: solo actualizar contadores sin tocar la sección de comentarios
-        const likeBtn = card.querySelector('.feed-action-btn[data-like]');
-        if (likeBtn) {
-          const isLiked = p.likedBy?.includes(currentUser.uid);
-          likeBtn.className = `feed-action-btn ${isLiked ? 'liked' : ''}`;
-          likeBtn.innerHTML = `<span>${isLiked ? '❤️' : '🤍'}</span> ${p.likes || 0}`;
-        }
-        const commentToggle = card.querySelector('.feed-comments-toggle');
-        if (commentToggle && card.querySelector('.feed-comments-section')?.dataset.open !== '1') {
-          const cnt = p.commentCount || 0;
-          commentToggle.textContent = `💬 ${cnt > 0 ? cnt + ' comentario' + (cnt > 1 ? 's' : '') : 'Comentar'}`;
-        }
+        injectPin(card, getCardColor(p.id, p.pinColor), p.pinShape || 'flat');
+      }
+
+      const cardsInCol = [...col.querySelectorAll('.feed-card[data-id]')];
+      const currentPosInCol = cardsInCol.indexOf(card);
+      if (card.parentElement !== col || currentPosInCol !== posInCol) {
+        const refCard = col.querySelectorAll('.feed-card[data-id]')[posInCol];
+        if (refCard && refCard !== card) col.insertBefore(card, refCard);
+        else if (!refCard) col.appendChild(card);
+      }
+
+      // Actualizar contadores
+      const likeBtn = card.querySelector('.feed-action-btn[data-like]');
+      if (likeBtn) {
+        const isLiked = p.likedBy?.includes(currentUser.uid);
+        likeBtn.className = `feed-action-btn ${isLiked ? 'liked' : ''}`;
+        likeBtn.innerHTML = `<span class="foco-icon">💡</span> Útil (<span class="like-count">${p.likes || 0}</span>)`;
+      }
+      const commentToggle = card.querySelector('.feed-comments-toggle');
+      if (commentToggle && card.querySelector('.feed-comments-section')?.dataset.open !== '1') {
+        const cnt = p.commentCount || 0;
+        commentToggle.textContent = `📝 ${cnt > 0 ? cnt + ' notas' : 'Añadir nota'}`;
       }
     });
-
-    if (loadingEl) loadingEl.remove();
   });
 }
 
@@ -2277,16 +2620,7 @@ window.toggleSubtarea = async function(tareaId, subIdx, isDone) {
    BIBLIOTECA - SISTEMA DE REPISAS Y DRIVE (FINAL)
 ═══════════════════════════════════════════════════ */
 
-// Esta función ayuda a que los links de Drive funcionen directo
-function limpiarLinkDrive(url) {
-  if (url.includes('drive.google.com')) {
-    const match = url.match(/\/d\/(.+?)\/(view|edit|usp|preview)/);
-    if (match && match[1]) {
-      return `https://drive.google.com/file/d/${match[1]}/preview`;
-    }
-  }
-  return url;
-}
+// limpiarLinkDrive está declarada en la sección de utilidades (línea ~157)
 
 function initBiblioteca() {
   if (!currentGroupId) return;
@@ -2377,6 +2711,8 @@ $('btnAgregarArchivoBiblioMain')?.addEventListener('click', () => {
         if (!nombre || !urlOriginal || !catId) { alert('Faltan datos.'); return; }
 
         const urlLimpia = limpiarLinkDrive(urlOriginal);
+        const descripcion = $('biblioDesc') ? $('biblioDesc').value.trim() : ''; // <-- NUEVA LÍNEA: Guarda la descripción
+
         btnConfLibro.disabled = true;
         btnConfLibro.textContent = '⏳...';
 
@@ -2386,6 +2722,7 @@ $('btnAgregarArchivoBiblioMain')?.addEventListener('click', () => {
             groupId: currentGroupId,
             categoriaId: catId,
             name: nombre,
+            descripcion: descripcion, // <-- NUEVA LÍNEA: Se manda a Firebase
             url: urlLimpia,
             ext: (nombre.split('.').pop() || 'LINK').toUpperCase(),
             colorClass: selectedBiblioColor,
@@ -2453,7 +2790,7 @@ function renderBiblioteca() {
         const puedeBorrar = isAdmin || it.authorUid === currentUser.uid;
         return `
                 <div class="book-wrapper" title="${escHtml(it.name)}">
-                  <div class="book-item ${it.colorClass || 'book-default'}" onclick="window.open('${escHtml(it.url)}', '_blank')">
+                  <div class="book-item ${it.colorClass || 'book-default'}" onclick="event.stopPropagation(); window.abrirModalLibro('${it.id}')">
                     <div class="book-ext-badge">${escHtml(it.ext.substring(0, 4))}</div>
                     <div class="book-spine-title">${escHtml(it.name)}</div>
                   </div>
@@ -2917,6 +3254,7 @@ function initApuntes() {
     btnSortSem.innerHTML = `↕️ Sem: ${ordenSemestres === 'alfabetico' ? 'A-Z' : 'Fecha'}`;
     btnSortSem.onclick = () => {
       ordenSemestres = (ordenSemestres === 'creacion') ? 'alfabetico' : 'creacion';
+      localStorage.setItem('ze_orden_semestres', ordenSemestres);
       btnSortSem.innerHTML = `↕️ Sem: ${ordenSemestres === 'alfabetico' ? 'A-Z' : 'Fecha'}`;
       renderSemestres();
     };
@@ -2928,8 +3266,9 @@ function initApuntes() {
 }
 
 window.toggleOrdenMaterias = function (e) {
-  e.stopPropagation(); // Evita que se abra/cierre el semestre al dar clic
+  e.stopPropagation();
   ordenMaterias = (ordenMaterias === 'creacion') ? 'alfabetico' : 'creacion';
+  localStorage.setItem('ze_orden_materias', ordenMaterias);
   renderSemestres();
 };
 
@@ -4687,3 +5026,383 @@ document.addEventListener('click', e => {
     }
   }
 });
+
+/* ═══════════════════════════════════════════════════════
+   VIDEOTUTORIALES — Cajas de DVD con thumbnails de YouTube
+═══════════════════════════════════════════════════════ */
+
+let dvdUnsub = null;
+let dvdColorSeleccionado = '#1a237e';
+let dvdFiltroCategoria = 'all';
+let dvdBusqueda = '';
+
+/* ── Utilidad: extraer Video ID de una URL de YouTube ── */
+function extraerYoutubeId(url) {
+  try {
+    const u = new URL(url);
+    // youtube.com/watch?v=ID
+    if (u.hostname.includes('youtube.com') && u.searchParams.get('v')) {
+      return u.searchParams.get('v');
+    }
+    // youtu.be/ID
+    if (u.hostname === 'youtu.be') {
+      return u.pathname.slice(1).split('?')[0];
+    }
+    // youtube.com/shorts/ID o /embed/ID
+    const match = u.pathname.match(/(?:shorts|embed|v)\/([^/?&]+)/);
+    if (match) return match[1];
+  } catch (_) {}
+  return null;
+}
+
+/* ── Thumbnail de YouTube por ID ── */
+function ytThumb(videoId) {
+  return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+}
+
+/* ── Construir HTML de tarjeta de video tutorial (rectangular) ── */
+/* ── Construir HTML de tarjeta de video tutorial (rectangular) ── */
+function buildDvdCard(dvd, puedeBorrar) {
+  const thumb = dvd.thumbnail || (dvd.videoId ? ytThumb(dvd.videoId) : '');
+  const titulo = escHtml(dvd.titulo || 'Sin título');
+  const cat = escHtml(dvd.categoria || '');
+  const color = dvd.color || '#1a237e';
+  const desc = escHtml(dvd.descripcion || '');
+  const addedBy = escHtml(dvd.addedBy || '');
+  
+  const delBtn = puedeBorrar
+    ? `<button class="dvd-del-btn" data-id="${dvd.id}" title="Eliminar">✕</button>`
+    : '';
+
+  // Lógica para mostrar u ocultar el botón de compartir
+  const btnCompartirHtml = dvd.compartidoEnTablero
+    ? `<div style="margin-top: 8px; padding: 6px 0; font-size:11px; color:var(--text3); border-top: 1px solid var(--border); text-align:center;">✅ Ya en el Tablero</div>`
+    : `<button onclick="event.stopPropagation(); compartirDvd('${dvd.id}')" style="margin-top: 8px; padding: 6px 0; font-size:12px; color:var(--accent); background:none; text-align: center; font-weight: 600; cursor:pointer; border:none; border-top: 1px solid var(--border); width: 100%;">📢 Compartir al Tablero</button>`;
+
+  return `
+    <div class="dvd-item dvd-item-rect" data-id="${dvd.id}" data-cat="${escHtml(dvd.categoria || '')}" data-titulo="${titulo.toLowerCase()}">
+      ${delBtn}
+      <div class="dvd-rect-thumb" style="background:${color}">
+        ${thumb ? `<img src="${thumb}" alt="${titulo}" loading="lazy" class="dvd-rect-img">` : '<div class="dvd-rect-noimg">▶</div>'}
+        <div class="dvd-rect-play-overlay">▶</div>
+        ${cat ? `<div class="dvd-cat-badge">${cat}</div>` : ''}
+      </div>
+      <div class="dvd-rect-info">
+        <div class="dvd-rect-title">${titulo}</div>
+        ${desc ? `<div class="dvd-rect-desc">${desc}</div>` : ''}
+        <div class="dvd-rect-meta">
+          ${addedBy ? `<span>👤 ${addedBy}</span>` : ''}
+        </div>
+        ${btnCompartirHtml}
+      </div>
+    </div>`;
+}
+
+/* ── Inicializar sección ── */
+function initVideotutoriales() {
+  if (!currentGroupId) return;
+
+  // Configurar buscador
+  const searchEl = $('dvdSearch');
+  if (searchEl && !searchEl._dvdListener) {
+    searchEl._dvdListener = true;
+    searchEl.addEventListener('input', () => {
+      dvdBusqueda = searchEl.value.toLowerCase();
+      filtrarDvds();
+    });
+  }
+
+  // Botón agregar
+  const btnAgregar = $('btnAgregarDvd');
+  if (btnAgregar && !btnAgregar._dvdListener) {
+    btnAgregar._dvdListener = true;
+    btnAgregar.addEventListener('click', () => abrirModalDvd());
+  }
+
+  // Cargar DVDs desde Firestore con listener en tiempo real
+  // Nota: ordenamos en el cliente para evitar requerir índice compuesto en Firestore
+  if (dvdUnsub) { dvdUnsub(); dvdUnsub = null; }
+  const { collection, query, where, onSnapshot } = lib();
+
+  const q = query(
+    collection(db(), 'ec_videotutoriales'),
+    where('groupId', '==', currentGroupId)
+  );
+
+  dvdUnsub = onSnapshot(q, snap => {
+    const dvds = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ta = a.createdAt?.toMillis?.() ?? 0;
+        const tb = b.createdAt?.toMillis?.() ?? 0;
+        return tb - ta;
+      });
+    renderDvdGrid(dvds);
+    renderDvdCats(dvds);
+  }, err => {
+    console.error('DVD listener error:', err);
+    const grid = $('dvdGrid');
+    if (grid) grid.innerHTML = `<div class="dvd-empty"><div class="dvd-empty-icon">⚠️</div><div class="dvd-empty-text">Error al cargar tutoriales.<br>Revisa la consola.</div></div>`;
+  });
+}
+
+/* ── Renderizar categorías ── */
+function renderDvdCats(dvds) {
+  const bar = $('dvdCatsBar');
+  if (!bar) return;
+  const cats = [...new Set(dvds.map(d => d.categoria).filter(Boolean))];
+  bar.innerHTML = `<button class="dvd-cat-btn ${dvdFiltroCategoria === 'all' ? 'active' : ''}" data-cat="all">Todos</button>` +
+    cats.map(c => `<button class="dvd-cat-btn ${dvdFiltroCategoria === c ? 'active' : ''}" data-cat="${escHtml(c)}">${escHtml(c)}</button>`).join('');
+
+  bar.querySelectorAll('.dvd-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      dvdFiltroCategoria = btn.dataset.cat;
+      bar.querySelectorAll('.dvd-cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filtrarDvds();
+    });
+  });
+}
+
+/* ── Renderizar grid ── */
+function renderDvdGrid(dvds) {
+  const grid = $('dvdGrid');
+  if (!grid) return;
+
+  // Guardar dvds en memoria para filtrar
+  grid._dvds = dvds;
+
+  if (!dvds.length) {
+    grid.innerHTML = `<div class="dvd-empty">
+      <div class="dvd-empty-icon">📀</div>
+      <div class="dvd-empty-text">Aún no hay tutoriales.<br>¡Agrega el primero!</div>
+    </div>`;
+    return;
+  }
+
+  filtrarDvds();
+}
+
+/* ── Filtrar DVDs visibles ── */
+function filtrarDvds() {
+  const grid = $('dvdGrid');
+  if (!grid || !grid._dvds) return;
+  const dvds = grid._dvds;
+
+  const filtrados = dvds.filter(d => {
+    const matchCat = dvdFiltroCategoria === 'all' || d.categoria === dvdFiltroCategoria;
+    const matchSearch = !dvdBusqueda || (d.titulo || '').toLowerCase().includes(dvdBusqueda) ||
+      (d.categoria || '').toLowerCase().includes(dvdBusqueda);
+    return matchCat && matchSearch;
+  });
+
+  if (!filtrados.length) {
+    grid.innerHTML = `<div class="dvd-empty">
+      <div class="dvd-empty-icon">🔍</div>
+      <div class="dvd-empty-text">No se encontraron tutoriales.</div>
+    </div>`;
+    return;
+  }
+
+  const puedeBorrar = isAdmin;
+  grid.innerHTML = filtrados.map(d => buildDvdCard(d, puedeBorrar)).join('');
+
+  // Click en DVD → abrir YouTube
+  grid.querySelectorAll('.dvd-item').forEach(item => {
+    item.addEventListener('click', e => {
+      if (e.target.classList.contains('dvd-del-btn')) return;
+      const dvd = dvds.find(d => d.id === item.dataset.id);
+      if (dvd && dvd.url) window.open(dvd.url, '_blank', 'noopener');
+    });
+  });
+
+  // Botones eliminar
+  grid.querySelectorAll('.dvd-del-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm('¿Eliminar este tutorial?')) return;
+      const { doc, deleteDoc } = lib();
+      await deleteDoc(doc(db(), 'ec_videotutoriales', btn.dataset.id));
+    });
+  });
+}
+
+/* ── Modal: abrir ── */
+function abrirModalDvd() {
+  $('dvdYoutubeUrl').value = '';
+  $('dvdTitulo').value = '';
+  $('dvdCategoria').value = '';
+  if ($('dvdDesc')) $('dvdDesc').value = '';
+  $('dvdPreviewWrap').style.display = 'none';
+  dvdColorSeleccionado = '#1a237e';
+  // Reset color picker
+  $('dvdColorPicker').querySelectorAll('.dvd-color-opt').forEach(b => {
+    b.classList.toggle('selected', b.dataset.color === dvdColorSeleccionado);
+  });
+  openModal('modalAgregarDvd');
+}
+
+/* ── Vista previa al pegar URL ── */
+const btnDvdPreview = $('btnDvdPreview');
+if (btnDvdPreview) {
+  btnDvdPreview.addEventListener('click', () => {
+    const url = ($('dvdYoutubeUrl')?.value || '').trim();
+    const videoId = extraerYoutubeId(url);
+    if (!videoId) { alert('No se reconoce como un link de YouTube válido.'); return; }
+    const thumb = ytThumb(videoId);
+    $('dvdPreviewThumb').src = thumb;
+    $('dvdPreviewWrap').style.display = 'block';
+    // Poner el videoId en título de preview
+    $('dvdPreviewTitle').textContent = 'Vista previa cargada ✓';
+  });
+}
+
+/* ── Color picker del modal ── */
+const dvdColorPickerEl = $('dvdColorPicker');
+if (dvdColorPickerEl) {
+  dvdColorPickerEl.addEventListener('click', e => {
+    const btn = e.target.closest('.dvd-color-opt');
+    if (!btn) return;
+    dvdColorSeleccionado = btn.dataset.color;
+    dvdColorPickerEl.querySelectorAll('.dvd-color-opt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
+}
+
+/* ── Guardar DVD ── */
+const btnConfirmarDvd = $('btnConfirmarDvd');
+if (btnConfirmarDvd) {
+  btnConfirmarDvd.addEventListener('click', async () => {
+    const url = ($('dvdYoutubeUrl')?.value || '').trim();
+    const titulo = ($('dvdTitulo')?.value || '').trim();
+    const categoria = ($('dvdCategoria')?.value || '').trim();
+
+    if (!url) { alert('Pega un link de YouTube.'); return; }
+    const videoId = extraerYoutubeId(url);
+    if (!videoId) { alert('No se reconoce como un link de YouTube válido.'); return; }
+    if (!titulo) { alert('Escribe un título para el tutorial.'); return; }
+
+    btnConfirmarDvd.disabled = true;
+    btnConfirmarDvd.textContent = '⏳ Guardando…';
+
+    const { collection, addDoc, serverTimestamp } = lib();
+    try {
+      const descripcion = ($('dvdDesc')?.value || '').trim();
+      await addDoc(collection(db(), 'ec_videotutoriales'), {
+        groupId: currentGroupId,
+        url,
+        videoId,
+        thumbnail: ytThumb(videoId),
+        titulo,
+        categoria,
+        descripcion,
+        color: dvdColorSeleccionado,
+        addedBy: getUserAlias(),
+        addedByUid: currentUser.uid,
+        createdAt: serverTimestamp()
+      });
+      closeModal('modalAgregarDvd');
+    } catch (e) {
+      alert('Error al guardar: ' + e.message);
+    }
+
+    btnConfirmarDvd.disabled = false;
+    btnConfirmarDvd.textContent = '💾 Guardar DVD';
+  });
+}
+
+/* ── LÓGICA DE LIBRO ABIERTO Y COMPARTIR ── */
+/* ── LÓGICA DE LIBRO ABIERTO Y COMPARTIR ── */
+let libroSeleccionado = null;
+
+window.abrirModalLibro = function(libroId) {
+  const { doc, getDoc } = lib();
+  getDoc(doc(db(), 'ec_biblioteca', libroId)).then(snap => {
+    if(!snap.exists()) return;
+    libroSeleccionado = { id: snap.id, ...snap.data() };
+    
+    $('libroModalTitulo').textContent = libroSeleccionado.name;
+    $('libroModalBadge').textContent = libroSeleccionado.ext;
+    $('libroModalAutor').textContent = libroSeleccionado.authorName || 'Anónimo';
+    $('libroModalDesc').textContent = libroSeleccionado.descripcion || 'Sin descripción disponible para este archivo.';
+    
+    const colorClasses = {
+      'book-pdf': '#dc2626', 'book-doc': '#2563eb', 'book-xls': '#16a34a', 
+      'book-default': '#7c6af7', 'book-cyan': '#06b6d4', 'book-ppt': '#ea580c'
+    };
+    $('libroModalLomo').style.background = colorClasses[libroSeleccionado.colorClass] || '#7c6af7';
+    
+    // OCULTAR BOTÓN SI YA SE COMPARTIÓ
+    const btnCompartir = $('btnCompartirLibro');
+    if(libroSeleccionado.compartidoEnTablero) {
+        btnCompartir.style.display = 'none';
+    } else {
+        btnCompartir.style.display = 'block';
+    }
+
+    openModal('modalLibroAbierto');
+  });
+};
+
+$('btnLeerLibro')?.addEventListener('click', () => {
+  if(libroSeleccionado && libroSeleccionado.url) window.open(libroSeleccionado.url, '_blank');
+});
+
+$('btnCompartirLibro')?.addEventListener('click', async () => {
+  if(!libroSeleccionado || !currentGroupId) return;
+  const { collection, addDoc, doc, updateDoc, serverTimestamp } = lib();
+  try {
+    // 1. Crear el post en el Tablero con TIPO 'libro'
+    await addDoc(collection(db(), 'ec_feed'), {
+      groupId: currentGroupId,
+      type: 'libro', // TIPO ESPECIAL
+      libroData: {
+          name: libroSeleccionado.name,
+          ext: libroSeleccionado.ext,
+          colorClass: libroSeleccionado.colorClass,
+          url: libroSeleccionado.url
+      },
+      text: `📚 Te recomiendo este archivo de la biblioteca.`,
+      images: [], authorUid: currentUser.uid, authorName: currentUser.name,
+      authorAvatar: currentUser.avatar, likes: 0, likedBy: [], commentCount: 0,
+      createdAt: serverTimestamp()
+    });
+    
+    // 2. Marcar en la base de datos que ya se compartió para que no salga el botón de nuevo
+    await updateDoc(doc(db(), 'ec_biblioteca', libroSeleccionado.id), { compartidoEnTablero: true });
+    
+    alert("¡Libro compartido en el Tablero exitosamente!");
+    closeModal('modalLibroAbierto');
+  } catch (e) { alert("Error al compartir: " + e.message); }
+});
+
+// Compartir VideoTutorial
+window.compartirDvd = async function(dvdId) {
+  const { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } = lib();
+  try {
+    const snap = await getDoc(doc(db(), 'ec_videotutoriales', dvdId));
+    if(!snap.exists()) return;
+    const dvd = snap.data();
+    
+    // 1. Crear el post con TIPO 'videotutorial'
+    await addDoc(collection(db(), 'ec_feed'), {
+      groupId: currentGroupId,
+      type: 'videotutorial', // TIPO ESPECIAL
+      dvdData: {
+          titulo: dvd.titulo,
+          thumbnail: dvd.thumbnail,
+          url: dvd.url
+      },
+      text: `📀 Chequen este video tutorial que agregué a la colección.`,
+      images: [], authorUid: currentUser.uid, authorName: currentUser.name,
+      authorAvatar: currentUser.avatar, likes: 0, likedBy: [], commentCount: 0,
+      createdAt: serverTimestamp()
+    });
+
+    // 2. Marcar como compartido
+    await updateDoc(doc(db(), 'ec_videotutoriales', dvdId), { compartidoEnTablero: true });
+    alert("¡Video compartido en el Tablero!");
+  } catch (e) { alert("Error: " + e.message); }
+};
+
+

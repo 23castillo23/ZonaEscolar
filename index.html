@@ -71,10 +71,10 @@
 
       <nav class="sidebar-nav">
         <button class="nav-item active" data-section="feed">
-          <span class="nav-icon">⚡</span> Novedades
+          <span class="nav-icon">📍</span> Tablero
         </button>
         <button class="nav-item" data-section="muro">
-          <span class="nav-icon">🙋</span> Mi Muro
+          <span class="nav-icon">📂</span> Mis Aportes
         </button>
         <button class="nav-item" data-section="apuntes">
           <span class="nav-icon">📸</span> Apuntes
@@ -87,6 +87,9 @@
         </button>
         <button class="nav-item" data-section="biblioteca">
           <span class="nav-icon">📚</span> Biblioteca
+        </button>
+        <button class="nav-item" data-section="videotutoriales">
+          <span class="nav-icon">📀</span> VideoTutoriales
         </button>
         <button class="nav-item" data-section="dinamicas">
           <span class="nav-icon">🎮</span> Dinámicas
@@ -153,13 +156,41 @@
       <!-- ── SECCIÓN: FEED ── -->
       <section class="section" id="sectionFeed">
         <div class="feed-compose">
-          <img class="compose-avatar" id="composeAvatar" src="" alt="">
-          <div class="compose-input-wrap">
-            <input type="text" class="compose-input" id="composeInput" placeholder="Comparte algo con el grupo…">
+          <svg class="feed-pin compose-main-pin" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg"><ellipse cx="14" cy="41" rx="3" ry="1" fill="rgba(0,0,0,0.2)"/><polygon points="12,22 16,22 14,40" fill="#c0c0c0"/><polygon points="13,22 15,22 14,38" fill="#e8e8e8"/><rect x="11" y="15" width="6" height="9" rx="2" fill="#9ca3af"/><rect x="12" y="15" width="2" height="9" rx="1" fill="#d1d5db"/><ellipse cx="14" cy="10" rx="12" ry="7" fill="#6d28d9"/><ellipse cx="14" cy="8.5" rx="11" ry="6" fill="#8b5cf6"/><ellipse cx="10" cy="6" rx="4" ry="2.5" fill="rgba(255,255,255,0.35)" transform="rotate(-15 10 6)"/><ellipse cx="14" cy="15" rx="6" ry="2" fill="#6d28d9" opacity="0.5"/></svg>
+          
+          <div class="compose-top-row">
+            <img class="compose-avatar" id="composeAvatar" src="" alt="">
+            <textarea class="compose-input" id="composeInput" placeholder="Comparte un apunte, aviso o material con tu grupo..." rows="2"></textarea>
           </div>
-          <label class="compose-photo-btn" for="composePhoto" title="Subir foto">📷</label>
-          <input type="file" id="composePhoto" accept="image/*" multiple style="display:none">
-          <button class="compose-send" id="composeSend">➤</button>
+
+          <div id="composePreview" class="compose-preview"></div>
+
+          <div class="compose-bottom-row">
+            <div class="compose-tools">
+              <label class="compose-tool-btn" for="composePhoto" title="Subir foto">
+                <span class="tool-icon">📷</span>
+                <span class="tool-text">Foto</span>
+              </label>
+              <input type="file" id="composePhoto" accept="image/*" multiple style="display:none">
+              
+              <div class="compose-pin-picker compose-tool-btn" id="composePinPicker" title="Color del pin">
+                <svg class="compose-pin-svg tool-icon" id="composePinPreview" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg"><ellipse cx="14" cy="41" rx="3" ry="1" fill="rgba(0,0,0,0.2)"/><polygon points="12,22 16,22 14,40" fill="#c0c0c0"/><polygon points="13,22 15,22 14,38" fill="#e8e8e8"/><rect x="11" y="15" width="6" height="9" rx="2" fill="#9ca3af"/><rect x="12" y="15" width="2" height="9" rx="1" fill="#d1d5db"/><ellipse cx="14" cy="10" rx="12" ry="7" fill="#6d28d9"/><ellipse cx="14" cy="8.5" rx="11" ry="6" fill="#8b5cf6"/><ellipse cx="10" cy="6" rx="4" ry="2.5" fill="rgba(255,255,255,0.35)" transform="rotate(-15 10 6)"/><ellipse cx="14" cy="15" rx="6" ry="2" fill="#6d28d9" opacity="0.5"/></svg>
+                <span class="tool-text">Pin</span>
+                <div class="compose-pin-dropdown" id="composePinDropdown">
+                  <div class="compose-pin-option" data-color="red"    style="background:#ef4444"></div>
+                  <div class="compose-pin-option" data-color="yellow" style="background:#f59e0b"></div>
+                  <div class="compose-pin-option" data-color="green"  style="background:#10b981"></div>
+                  <div class="compose-pin-option" data-color="blue"   style="background:#3b82f6"></div>
+                  <div class="compose-pin-option" data-color="purple" style="background:#8b5cf6"></div>
+                  <div class="compose-pin-option" data-color="pink"   style="background:#ec4899"></div>
+                  <div class="compose-pin-option" data-color="orange" style="background:#f97316"></div>
+                  <div class="compose-pin-option" data-color="cyan"   style="background:#06b6d4"></div>
+                </div>
+              </div>
+            </div>
+            
+            <button class="compose-send" id="composeSend">Publicar</button>
+          </div>
         </div>
         <div class="feed-list" id="feedList">
           <div class="feed-loading">Cargando feed…</div>
@@ -184,8 +215,8 @@
           <button class="btn-sm" id="btnMuroSubir">+ Foto</button>
         </div>
         <div class="muro-tabs">
-          <button class="muro-tab active" data-tab="fotos">📷 Fotos</button>
-          <button class="muro-tab" data-tab="publicaciones">⚡ Publicaciones</button>
+          <button class="muro-tab active" data-tab="publicaciones">⚡ Publicaciones</button>
+          <button class="muro-tab" data-tab="fotos">📷 Fotos</button>
         </div>
         <input type="file" id="muroFileInput" accept="image/*" multiple style="display:none">
         <div id="muroContent">
@@ -356,6 +387,31 @@
         </div>
       </div>
 
+      <!-- ── SECCIÓN: VIDEOTUTORIALES ── -->
+      <section class="section" id="sectionVideotutoriales">
+        <div class="dvd-shell">
+          <div class="dvd-header">
+            <div>
+              <div class="dvd-title">📀 VideoTutoriales</div>
+              <div class="dvd-subtitle">Tutoriales y recursos de YouTube del grupo</div>
+            </div>
+            <div class="dvd-header-actions">
+              <input type="search" id="dvdSearch" class="dvd-search" placeholder="🔍 Buscar tutorial…">
+              <button class="btn-primary" id="btnAgregarDvd">+ Agregar</button>
+            </div>
+          </div>
+          <!-- Filtro por categoría -->
+          <div class="dvd-cats-bar" id="dvdCatsBar">
+            <button class="dvd-cat-btn active" data-cat="all">Todos</button>
+          </div>
+          <!-- Grid de DVDs -->
+          <div class="dvd-grid" id="dvdGrid">
+            <div class="feed-loading">Cargando tutoriales…</div>
+          </div>
+        </div>
+      </section>
+
+
       <!-- ── SECCIÓN: DINÁMICAS ── -->
       <section class="section" id="sectionDinamicas">
         <div class="dinamicas-grid">
@@ -391,10 +447,10 @@
     <!-- BOTTOM NAV (solo móvil) -->
     <nav class="bottom-nav" id="bottomNav">
       <button class="bottom-nav-item active" data-section="feed">
-        <span class="bnav-icon">⚡</span>Feed
+        <span class="bnav-icon">📍</span>Feed
       </button>
       <button class="bottom-nav-item" data-section="muro">
-        <span class="bnav-icon">🙋</span>Muro
+        <span class="bnav-icon">📂</span>Muro
       </button>
       <button class="bottom-nav-item" data-section="apuntes">
         <span class="bnav-icon">📸</span>Apuntes
@@ -407,6 +463,9 @@
       </button>
       <button class="bottom-nav-item" data-section="biblioteca">
         <span class="bnav-icon">📚</span>Biblio
+      </button>
+      <button class="bottom-nav-item" data-section="videotutoriales">
+        <span class="bnav-icon">📀</span>Videos
       </button>
       <button class="bottom-nav-item" data-section="dinamicas">
         <span class="bnav-icon">🎮</span>Más
@@ -544,6 +603,9 @@
       <label class="modal-label">Enlace (Drive, etc.)</label>
       <input type="url" id="biblioUrl" class="modal-input" placeholder="https://...">
 
+      <label class="modal-label" style="margin-top: 12px;">Descripción (De qué trata)</label>
+      <textarea id="biblioDesc" class="modal-input modal-textarea" placeholder="Ej: Notas de la unidad 1..." rows="2"></textarea>
+
       <label class="modal-label" style="margin-top: 15px;">Color del libro</label>
       <div class="biblio-color-picker" id="biblioColorPicker">        
         <button class="book-color-opt book-doc" data-color="book-doc" title="Azul"></button>
@@ -568,6 +630,85 @@
       <div class="modal-actions">
         <button class="btn-cancel" data-close="modalAgregarBiblio">Cancelar</button>
         <button class="btn-primary" id="btnConfirmarBiblio">Guardar en repisa</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalLibroAbierto">
+    <div class="modal-box" style="max-width: 580px; background: transparent; border: none; box-shadow: none; padding: 0;">
+      <button class="modal-close" data-close="modalLibroAbierto" style="color: var(--text2); background: var(--bg3); z-index: 10; border-radius: 50%; width: 32px; height: 32px; top: 10px; right: 10px; display: flex; align-items: center; justify-content: center;">✕</button>
+      
+      <div class="libro-abierto-ui">
+        <div class="libro-pagina libro-pagina-izq">
+          <div class="libro-lomo" id="libroModalLomo"></div>
+          <div class="libro-contenido-izq">
+            <div id="libroModalBadge" class="book-ext-badge" style="position:relative; top:0; left:0; display:inline-block; margin-bottom:12px;">PDF</div>
+            <h3 id="libroModalTitulo" style="font-family: var(--font-display); font-size: 18px; color: var(--text0); margin-bottom: 8px; line-height: 1.3;">Título</h3>
+            <p style="font-size: 11px; color: var(--text2);">Agregado por: <br><strong id="libroModalAutor" style="color: var(--text0);"></strong></p>
+          </div>
+        </div>
+        <div class="libro-pagina libro-pagina-der">
+          <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text2); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 12px;">Descripción</h4>
+          <p id="libroModalDesc" style="font-size: 13px; color: var(--text1); line-height: 1.6; flex: 1;"></p>
+          
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+            <button id="btnLeerLibro" class="btn-primary" style="width: 100%; border-radius: 8px; padding: 12px;">📖 Abrir Archivo</button>
+            <button id="btnCompartirLibro" class="btn-sm" style="width: 100%; border-radius: 8px; padding: 10px; font-size: 13px;">📢 Compartir en el Tablero</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalAgregarDvd">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalAgregarDvd">✕</button>
+      <h3 class="modal-title">📀 Agregar VideoTutorial</h3>
+
+      <label class="modal-label">Enlace de YouTube</label>
+      <div style="display:flex;gap:8px">
+        <input type="url" id="dvdYoutubeUrl" class="modal-input" placeholder="https://www.youtube.com/watch?v=..." style="flex:1;margin:0">
+        <button class="btn-sm" id="btnDvdPreview">Previa</button>
+      </div>
+
+      <div id="dvdPreviewWrap" style="display:none;margin-top:14px">
+        <div class="dvd-preview-case">
+          <div class="dvd-preview-spine"></div>
+          <div class="dvd-preview-front">
+            <img id="dvdPreviewThumb" src="" alt="" class="dvd-preview-img">
+            <div class="dvd-preview-shine"></div>
+            <div class="dvd-preview-logo">▶ YouTube</div>
+          </div>
+        </div>
+        <div id="dvdPreviewTitle" style="font-size:12px;color:var(--text2);margin-top:8px;text-align:center"></div>
+      </div>
+
+      <label class="modal-label" style="margin-top:14px">Título del tutorial</label>
+      <input type="text" id="dvdTitulo" class="modal-input" placeholder="Ej: Intro a Python - HolaMundo" maxlength="60">
+
+      <label class="modal-label">Categoría</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="dvdCategoria" class="modal-input" placeholder="Ej: Programación, Matemáticas…" style="flex:1;margin:0" maxlength="30">
+      </div>
+
+      <label class="modal-label" style="margin-top:12px">Descripción (opcional)</label>
+      <textarea id="dvdDesc" class="modal-input modal-textarea" placeholder="¿De qué trata este tutorial? ¿Para qué sirve?" rows="2" style="resize:vertical;margin-top:4px"></textarea>
+
+      <label class="modal-label" style="margin-top:12px">Color de la caja</label>
+      <div class="dvd-color-picker" id="dvdColorPicker">
+        <button class="dvd-color-opt selected" data-color="#1a237e" style="background:#1a237e" title="Azul oscuro"></button>
+        <button class="dvd-color-opt" data-color="#4a148c" style="background:#4a148c" title="Morado"></button>
+        <button class="dvd-color-opt" data-color="#b71c1c" style="background:#b71c1c" title="Rojo"></button>
+        <button class="dvd-color-opt" data-color="#1b5e20" style="background:#1b5e20" title="Verde"></button>
+        <button class="dvd-color-opt" data-color="#e65100" style="background:#e65100" title="Naranja"></button>
+        <button class="dvd-color-opt" data-color="#263238" style="background:#263238" title="Negro azulado"></button>
+        <button class="dvd-color-opt" data-color="#880e4f" style="background:#880e4f" title="Rosa oscuro"></button>
+        <button class="dvd-color-opt" data-color="#004d40" style="background:#004d40" title="Teal"></button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalAgregarDvd">Cancelar</button>
+        <button class="btn-primary" id="btnConfirmarDvd">💾 Guardar DVD</button>
       </div>
     </div>
   </div>

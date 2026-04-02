@@ -76,6 +76,10 @@
   --chat-other-bg: var(--bg2);
 }
 
+[data-theme="light"] body {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.03) 1.5px, transparent 1.5px);
+}
+
 /* Mejora extra: Quitamos bordes duros de las tarjetas en modo claro */
 [data-theme="light"] .feed-card,
 [data-theme="light"] .tarea-card,
@@ -100,12 +104,15 @@ html {
 
 body {
   font-family: var(--font);
-  background: var(--bg0);
+  background-color: var(--bg0);
+  /* Textura de puntos sutil para rellenar espacio vacío */
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
   color: var(--text0);
   min-height: 100dvh;
   overflow-x: hidden;
   line-height: 1.55;
-  transition: background 0.3s, color 0.3s;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 button {
@@ -384,9 +391,13 @@ a {
 .user-avatar {
   width: 36px;
   height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   border-radius: 50%;
   object-fit: cover;
   background: var(--bg4);
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .user-name {
@@ -529,9 +540,13 @@ a {
 .topbar-avatar {
   width: 30px;
   height: 30px;
+  min-width: 30px;
+  min-height: 30px;
   border-radius: 50%;
   object-fit: cover;
   background: var(--bg4);
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 /* Botón modo oscuro/claro */
@@ -571,7 +586,7 @@ a {
   display: none;
   flex: 1;
   padding: 20px;
-  max-width: 720px;
+  max-width: 1200px; /* ¡AQUÍ ESTÁ EL CAMBIO CLAVE! (Antes 720px) */
   width: 100%;
   margin: 0 auto;
 }
@@ -618,39 +633,130 @@ a {
 ═══════════════════════════════════════════════════════ */
 .feed-compose {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column; /* Lo convierte en tarjetas apiladas */
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 12px 14px;
-  margin-bottom: 20px;
+  padding: 16px;
+  padding-top: 24px; /* Espacio para que el pin decorativo no tape nada */
+  margin: 0 0 28px 0;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+  transition: border-color 0.3s ease;
 }
 
+.feed-compose:focus-within {
+  border-color: var(--accent);
+}
+
+.compose-main-pin {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 42px;
+  z-index: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+}
+
+.compose-top-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+/* Chincheta del compose — inyectada como SVG desde JS igual que las tarjetas */
+
 .compose-avatar {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 36px;
   border-radius: 50%;
   object-fit: cover;
   background: var(--bg4);
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .compose-input-wrap {
   flex: 1;
 }
 
+/* Cambiamos el input por un textarea que se ve mucho mejor */
 .compose-input {
-  width: 100%;
-  background: none;
-  border: none;
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
   color: var(--text0);
-  font-size: 14px;
+  font-size: 14.5px;
+  padding: 12px;
   outline: none;
+  resize: vertical; /* Permite estirarlo hacia abajo */
+  min-height: 60px;
+  font-family: inherit;
+  transition: var(--transition);
+  line-height: 1.5;
+}
+
+.compose-input:focus {
+  background: var(--bg1);
+  border-color: var(--accent);
 }
 
 .compose-input::placeholder {
+  color: var(--text3);
+}
+
+.compose-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  margin-top: 14px;
+  padding-top: 12px;
+}
+
+.compose-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compose-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: transparent;
   color: var(--text2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  user-select: none;
+}
+
+.compose-tool-btn:hover {
+  background: var(--bg3);
+  color: var(--text0);
+}
+
+.compose-tool-btn .tool-icon {
+  font-size: 16px;
+  display: flex;
+}
+
+/* Escalar el SVG del pin en la barra de herramientas */
+.compose-pin-picker .tool-icon {
+  width: 14px;
+  height: 20px;
+  filter: none !important;
 }
 
 .compose-photo-btn {
@@ -667,27 +773,43 @@ a {
 .compose-send {
   background: var(--accent);
   color: white;
-  border-radius: 50%;
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
+  border-radius: 20px;
+  padding: 8px 24px;
+  font-size: 14px;
   font-weight: 700;
-  flex-shrink: 0;
   transition: var(--transition);
+  border: none;
+  cursor: pointer;
+  display: inline-block;
+  width: auto;
+  height: auto;
 }
 
 .compose-send:hover {
   background: var(--accent2);
-  transform: scale(1.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--accent-glow);
 }
 
+.compose-send:active {
+  transform: translateY(0);
+}
+
+/* ── 1. FEED EN "Z" (ZIG-ZAG DE IZQUIERDA A DERECHA) ── */
 .feed-list {
   display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  padding-top: 18px;
+}
+
+.feed-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0;
 }
 
 .feed-loading {
@@ -697,21 +819,290 @@ a {
   font-size: 14px;
 }
 
+/* ── TARJETAS ESTILO POST-IT ── */
 .feed-card {
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 2px 16px 2px 16px;
+  box-shadow: 3px 4px 14px rgba(0,0,0,0.08);
+  position: relative;
+  animation: cardIn 0.2s ease-out forwards;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  /* Espacio para la chincheta */
+  padding-top: 14px;
+  margin-top: 28px;
+  margin-bottom: 16px;
+  break-inside: avoid;
+  display: inline-block;
+}
+
+/* ── CHINCHETA: se inyecta como SVG desde JS (.feed-pin) ── */
+.feed-pin {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 42px;
+  z-index: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+}
+
+/* ── COLORES POST-IT ── */
+.feed-card.pin-red    { border-top: 3px solid #ef4444; }
+.feed-card.pin-yellow { border-top: 3px solid #f59e0b; }
+.feed-card.pin-green  { border-top: 3px solid #10b981; }
+.feed-card.pin-blue   { border-top: 3px solid #3b82f6; }
+.feed-card.pin-purple { border-top: 3px solid #8b5cf6; }
+.feed-card.pin-pink   { border-top: 3px solid #ec4899; }
+.feed-card.pin-orange { border-top: 3px solid #f97316; }
+.feed-card.pin-cyan   { border-top: 3px solid #06b6d4; }
+
+/* ── PIN clickeable: popup de colores ── */
+.feed-pin {
+  cursor: pointer;
+  pointer-events: all !important;
+  transition: transform 0.15s ease;
+}
+.feed-pin:hover { transform: translateX(-50%) scale(1.18); }
+.feed-pin.feed-pin-tilted {
+  width: 36px;
+  height: 48px;
+  top: -32px;
+}
+.feed-pin.feed-pin-tilted:hover { transform: translateX(-50%) scale(1.15); }
+
+.pin-color-popup {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 128px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  animation: popupIn 0.15s ease-out;
+}
+@keyframes popupIn {
+  from { opacity:0; transform: translateX(-50%) scale(0.85); }
+  to   { opacity:1; transform: translateX(-50%) scale(1); }
+}
+.pin-color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+}
+.pin-color-dot:hover { transform: scale(1.25); }
+.pin-color-dot.active { border-color: white; transform: scale(1.15); }
+
+/* ── Selector de pin en el compose ── */
+.compose-pin-picker {
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.compose-pin-svg {
+  width: 22px;
+  height: 32px;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+  transition: transform 0.15s;
+}
+.compose-pin-picker:hover .compose-pin-svg { transform: scale(1.15); }
+.compose-pin-dropdown {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 128px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  animation: popupIn 0.15s ease-out;
+}
+.compose-pin-dropdown.open { display: flex; }
+.compose-pin-option {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.compose-pin-option:hover { transform: scale(1.25); }
+.compose-pin-option.active { border-color: white; transform: scale(1.15); }
+
+/* ── Shape selector (dentro del popup de pin) ── */
+.pin-shape-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 6px;
+}
+.pin-shape-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  background: var(--bg2);
+  transition: border-color 0.15s, background 0.15s, transform 0.12s;
+}
+.pin-shape-btn:hover { background: var(--bg3); transform: scale(1.07); }
+.pin-shape-btn.active { border-color: var(--accent2); background: var(--bg3); }
+
+.pin-popup-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0 6px;
+}
+.pin-dots-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  justify-content: center;
+}
+/* Override pin-color-popup width to fit shape row */
+.pin-color-popup {
+  width: 144px !important;
+}
+.compose-pin-dropdown {
+  width: 144px !important;
+}
+
+.feed-card:hover {
+  transform: translateY(-3px) rotate(0.3deg);
+  box-shadow: 5px 10px 24px rgba(0,0,0,0.14);
+}
+
+/* ── LINK PREVIEW ── */
+.feed-link-preview {
+  margin: 0 0 2px;
+  border-radius: 10px;
   overflow: hidden;
-  animation: cardIn 0.3s ease;
-  transition: background 0.3s, border-color 0.3s;
+  border: 1px solid var(--border);
+  background: var(--bg1);
+  transition: transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+}
+.feed-link-preview:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+.feed-link-thumb {
+  width: 100%;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  background: #111;
+  position: relative;
+  flex-shrink: 0;
+}
+.feed-link-thumb-doc {
+  aspect-ratio: 4/3;
+  background: #f5f5f5;
+}
+.feed-link-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.feed-link-thumb-icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  background: var(--bg2);
+}
+.feed-link-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.38);
+  font-size: 32px;
+  color: white;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  transition: background 0.15s;
+}
+.feed-link-preview:hover .feed-link-play { background: rgba(0,0,0,0.55); }
+.feed-link-info {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.feed-link-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 20px;
+  width: fit-content;
+}
+.feed-link-action {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+/* Genérico: ícono grande en lugar de thumbnail */
+.feed-link-generic {
+  flex-direction: row;
+  align-items: center;
+}
+.feed-link-generic .feed-link-info {
+  padding: 10px 12px;
+}
+.feed-link-icon-block {
+  width: 72px;
+  min-width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.feed-link-big-icon {
+  font-size: 32px;
+  line-height: 1;
 }
 
 @keyframes cardIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(5px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
@@ -728,9 +1119,13 @@ a {
 .feed-card-avatar {
   width: 36px;
   height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   border-radius: 50%;
   object-fit: cover;
   background: var(--bg4);
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .feed-card-meta {
@@ -784,46 +1179,110 @@ a {
   line-height: 1.6;
 }
 
+/* ── COLLAGE DE FOTOS EN EL FEED (DISEÑO MEJORADO) ── */
 .feed-card-img {
   width: 100%;
-  max-height: 360px;
+  max-height: 350px;
   object-fit: cover;
   display: block;
   cursor: zoom-in;
+  border-radius: var(--radius-md);
+  margin-top: 10px;
 }
 
 .feed-card-images-grid {
   display: grid;
-  gap: 2px;
+  gap: 4px; /* Separación entre fotos */
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-top: 10px;
 }
 
+/* 1 Foto: Completa */
 .feed-card-images-grid.count-1 {
   grid-template-columns: 1fr;
 }
+.feed-card-images-grid.count-1 img {
+  height: auto;
+  max-height: 350px;
+}
 
+/* 2 Fotos: Mitad y Mitad */
 .feed-card-images-grid.count-2 {
   grid-template-columns: 1fr 1fr;
 }
+.feed-card-images-grid.count-2 img {
+  height: 250px;
+}
 
+/* 3 Fotos: Una grande arriba, dos chicas abajo */
 .feed-card-images-grid.count-3 {
   grid-template-columns: 1fr 1fr;
 }
-
 .feed-card-images-grid.count-3 img:first-child {
   grid-column: span 2;
+  height: 220px;
+}
+.feed-card-images-grid.count-3 img:not(:first-child) {
+  height: 150px;
+}
+
+/* 4 o más Fotos: Cuadrícula de 2x2 */
+.feed-card-images-grid.count-4,
+.feed-card-images-grid.count-more {
+  grid-template-columns: 1fr 1fr;
+}
+.feed-card-images-grid.count-4 img,
+.feed-card-images-grid.count-more img {
+  height: 150px;
 }
 
 .feed-card-images-grid img {
   width: 100%;
-  height: 200px;
   object-fit: cover;
   cursor: zoom-in;
+  transition: filter 0.2s;
 }
 
-.feed-card-images-grid.count-1 img {
-  height: 320px;
+.feed-card-images-grid img:hover {
+  filter: brightness(0.85);
 }
 
+/* Ajuste a la vista previa de fotos ANTES de publicar */
+.compose-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 52px; 
+  margin-top: 8px;
+}
+.compose-preview-item {
+  width: 75px;
+  height: 75px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: none; 
+}
+.compose-preview-remove {
+  background: rgba(239, 68, 68, 0.9) !important; 
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── ACCIONES INFERIORES DE LA TARJETA (Tus estilos originales intactos) ── */
 .feed-card-actions {
   display: flex;
   align-items: center;
@@ -849,9 +1308,18 @@ a {
   color: var(--text0);
 }
 
-.feed-action-btn.liked {
-  color: #f87171;
+/* ── 2. EL FOCO APAGADO / PRENDIDO ── */
+.foco-icon {
+  filter: grayscale(1) opacity(0.5); /* Apagado por defecto */
+  transition: all 0.3s ease;
+  font-size: 16px;
 }
+.feed-action-btn.liked .foco-icon {
+  filter: grayscale(0) opacity(1); /* Prendido */
+  text-shadow: 0 0 12px #fbbf24; /* Brillo amarillo */
+}
+
+.feed-action-btn.liked { color: #fbbf24 !important; } /* Texto amarillo */
 
 .feed-action-btn span {
   font-size: 16px;
@@ -1018,25 +1486,47 @@ a {
 /* ═══════════════════════════════════════════════════════
    MURO PERSONAL
 ═══════════════════════════════════════════════════════ */
+/* ── GAFETE DEL ALUMNO ── */
 .muro-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  background: var(--bg2);
+  gap: 20px;
+  background: linear-gradient(135deg, var(--bg2), var(--bg1));
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 18px;
+  border-left: 12px solid var(--accent); /* Franja lateral de gafete */
+  border-radius: 8px; 
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   margin-bottom: 20px;
+  position: relative; /* Necesario para el "hoyito" del gafete */
+}
+
+/* Hoyito del gafete */
+.muro-header::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -20px;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 30px;
+  background: var(--bg0);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
 }
 
 .muro-avatar-large {
   width: 60px;
   height: 60px;
-  border-radius: 50%;
+  min-width: 60px;
+  min-height: 60px;
+  border-radius: 8px;
   object-fit: cover;
   background: var(--bg4);
-  border: 3px solid var(--accent);
+  border: 2px solid var(--border);
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 /* Contenedor inteligente del avatar en el muro */
@@ -1057,9 +1547,9 @@ a {
 .muro-avatar-fallback {
   width: 60px;
   height: 60px;
-  border-radius: 50%;
+  border-radius: 8px;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
-  border: 3px solid var(--accent);
+  border: 2px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1174,19 +1664,37 @@ a {
 }
 
 .muro-photos-grid {
-  display: grid;
+  display: flex; /* Cambiamos grid por flex para el efecto desordenado */
+  flex-wrap: wrap;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
+  gap: 16px;
+  padding: 20px 10px;
   margin-top: 8px;
 }
 
 .muro-photo-thumb {
-  aspect-ratio: 1;
-  border-radius: 6px;
+  aspect-ratio: 1;  
   overflow: hidden;
-  cursor: zoom-in;
-  background: var(--bg3);
+  cursor: zoom-in;  
   position: relative;
+  width: calc(33.333% - 16px); /* 3 por fila */
+  background: #fdfdfd; /* Marco blanco de la foto impresa */
+  padding: 8px 8px 28px 8px; /* Espacio extra abajo simulando polaroid */
+  border-radius: 2px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  transition: transform 0.3s, z-index 0.3s;  
+  z-index: 1;
+}
+
+/* Efecto de fotos tiradas sobre un escritorio */
+.muro-photo-thumb:nth-child(even) { transform: rotate(3deg); }
+.muro-photo-thumb:nth-child(odd) { transform: rotate(-2deg); }
+.muro-photo-thumb:nth-child(3n) { transform: rotate(1.5deg); }
+
+.muro-photo-thumb:hover {
+  transform: scale(1.15) rotate(0deg); /* Se endereza al mirarla */
+  z-index: 10;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
 }
 
 .muro-photo-thumb img {
@@ -1629,26 +2137,12 @@ a {
   background: rgba(124, 106, 247, 0.05);
 }
 
-/* ── RESPONSIVE APUNTES ── */
-@media (max-width: 768px) {
-  #apuntesGroupsContainer {
-    /* 2 columnas forzadas en tablets/móviles grandes */
-    grid-template-columns: 1fr 1fr;
-  }
+
+
+
+.group-card-top {
+  height: 120px;
 }
-
-/* En celulares, ponemos 4 columnas para que no sean tan chiquitos */
-@media (max-width: 480px) {
-  .biblio-color-picker {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-  }
-}
-
-  .group-card-top {
-    height: 120px;
-  }
-
 
 /* ── NOTAS — comentarios por usuario ── */
 .notas-lista {
@@ -1753,39 +2247,7 @@ a {
   justify-content: flex-end;
 }
 
-/* ── Responsive apuntes ── */
-@media (max-width: 600px) {
-  #apuntesGroupsContainer {
-    flex-direction: column;
-    gap: 14px;
-  }
 
-  .materias-grid2 {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 9px;
-    padding: 11px;
-  }
-
-  .materia-card2-header {
-    height: 64px;
-  }
-
-  .materia-card2-icon {
-    font-size: 28px;
-  }
-
-  .materia-card2-name {
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 375px) {
-  .materias-grid2 {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    padding: 10px;
-  }
-}
 
 /* ── Color picker (modal semestre) ── */
 .color-picker-grid {
@@ -2240,10 +2702,13 @@ a {
 .chat-msg-avatar {
   width: 30px;
   height: 30px;
+  min-width: 30px;
+  min-height: 30px;
   border-radius: 50%;
   object-fit: cover;
   background: var(--bg4);
   flex-shrink: 0;
+  overflow: hidden;
   align-self: flex-end;
 }
 
@@ -3406,341 +3871,9 @@ a {
   color: var(--accent2);
 }
 
-/* ═══════════════════════════════════════════════════════
-   RESPONSIVE — Tablets y Móviles (768px)
-═══════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
 
-  /* Sidebar deslizable */
-  .sidebar {
-    transform: translateX(-100%);
-  }
 
-  .sidebar.open {
-    transform: translateX(0);
-  }
 
-  .sidebar-close {
-    display: block;
-  }
-
-  .sidebar-overlay.show {
-    display: block;
-  }
-
-  .topbar-menu {
-    display: block;
-  }
-
-  .main-content {
-    margin-left: 0;
-    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
-    /* Reducido a 48px */
-  }
-
-  .section {
-    padding: 12px;
-  }
-
-  /* Bottom nav visible */
-  .bottom-nav {
-    display: flex;
-  }
-
-
-  /* Chat ocupa toda la pantalla disponible, respetando el teclado */
-  #sectionChat {
-    height: calc(100dvh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-    padding: 0;
-    position: relative;
-  }
-
-  .chat-messages {
-    padding: 10px 12px;
-    max-width: 100%;
-  }
-
-  .chat-msg {
-    max-width: 88%;
-  }
-
-  /* Ajuste de la nueva barra de chat y emojis en móvil */
-  .chat-compose-wrapper {
-    width: 100%;
-    margin: 0;
-    /* Quitamos el safe-area de aquí porque el bottom-nav ya lo tiene */
-    padding: 10px 12px;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-  }
-
-  .chat-compose {
-    padding: 0;
-    max-width: 100%;
-  }
-
-  /* Apuntes y Semestres */
-  #apuntesGroupsContainer {
-    grid-template-columns: 1fr;
-  }
-
-  /* Semestres en 1 columna en móvil */
-  .materias-grid2 {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    padding: 12px;
-  }
-
-  .materias-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    padding: 10px 12px 12px;
-  }
-
-  /* Galerías y fotos */
-  .photos-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 3px;
-  }
-
-  .apuntes-photos-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 10px;
-    width: 100%;
-  }
-
-  .photo-thumb {
-    border-radius: 4px;
-  }
-
-  .galeria-header {
-    padding: 8px 0 10px;
-  }
-
-  .btn-back-galeria {
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-
-  .galeria-title {
-    font-size: 15px;
-  }
-
-  /* Otros Grids y Elementos */
-  .color-picker-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
-
-  .dinamicas-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .topbar-group-badge {
-    max-width: 80px;
-  }
-
-  .muro-photos-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 3px;
-  }
-
-  #btnInvitarCompa span {
-    display: none;
-  }
-
-  /* Burbuja Flotante */
-  .chat-fab {
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-    right: 14px;
-    width: 48px;
-    height: 48px;
-  }
-
-  .chat-burbuja-panel {
-    bottom: calc(130px + env(safe-area-inset-bottom, 0px));
-    right: 14px;
-    width: calc(100vw - 28px);
-    /* MAGIA AQUÍ: Se adapta dinámicamente al espacio que deja el teclado */
-    max-height: calc(100dvh - 150px);
-  }
-}
-
-/* ═══════════════════════════════════════════════════════
-   RESPONSIVE — iPhone 13 mini y similares (375px)
-═══════════════════════════════════════════════════════ */
-@media (max-width: 390px) {
-
-  /* Login */
-  .login-card {
-    padding: 32px 20px;
-  }
-
-  .login-title {
-    font-size: 20px;
-  }
-
-  /* Topbar compacta */
-  .topbar {
-    padding: 0 10px;
-    gap: 8px;
-  }
-
-  .topbar-title {
-    font-size: 14px;
-  }
-
-  .topbar-right {
-    gap: 4px;
-  }
-
-  .topbar-group-badge {
-    display: none;
-  }
-
-  .btn-theme-toggle {
-    width: 28px;
-    height: 28px;
-    font-size: 13px;
-  }
-
-  #btnInvitarCompa {
-    padding: 5px 8px;
-    font-size: 11px;
-  }
-
-  /* Sections */
-  .section {
-    padding: 10px 8px;
-  }
-
-  /* Feed */
-  .feed-compose {
-    gap: 6px;
-    padding: 10px;
-  }
-
-  .feed-card-header {
-    padding: 10px 12px 8px;
-  }
-
-  .feed-card-actions {
-    padding: 6px 8px 8px;
-  }
-
-  /* Chat y Burbuja */
-  .chat-input {
-    font-size: 16px;
-  }
-
-  /* evitar zoom automático en iOS */
-  .chat-input-wrap {
-    padding: 8px 12px;
-    border-radius: 18px;
-  }
-
-  .chat-send {
-    width: 36px;
-    height: 36px;
-    font-size: 14px;
-  }
-
-  .chat-msg {
-    max-width: 90%;
-  }
-
-  .chat-msg-bubble {
-    font-size: 14px;
-    padding: 8px 12px;
-  }
-
-  .chat-burbuja-panel {
-    max-height: 340px;
-  }
-
-  /* Apuntes y Galerías */
-  .materias-grid2 {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    padding: 10px;
-  }
-
-  .materias-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-
-  .materia-card2-header {
-    height: 65px;
-  }
-
-  .materia-card2-icon {
-    font-size: 28px;
-  }
-
-  .btn-back-galeria {
-    padding: 6px 10px;
-    font-size: 11px;
-    gap: 4px;
-  }
-
-  .galeria-title {
-    font-size: 14px;
-  }
-
-  /* Cuadrículas de fotos (Unificadas) */
-  .photos-grid,
-  .apuntes-photos-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-  }
-
-  /* Modales */
-  .modal-box {
-    padding: 20px 16px;
-    border-radius: var(--radius-lg);
-  }
-
-  .modal-title {
-    font-size: 16px;
-  }
-
-  /* Bottom nav más compacta */
-  .bottom-nav-item {
-    font-size: 8px;
-    padding: 5px 0px;
-  }
-
-  .bottom-nav-item .bnav-icon {
-    font-size: 18px;
-  }
-
-  /* Dinámicas */
-  .dinamicas-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  .dinamica-card {
-    padding: 18px 12px;
-  }
-
-  .dinamica-icon {
-    font-size: 28px;
-    margin-bottom: 8px;
-  }
-
-  .dinamica-card h3 {
-    font-size: 14px;
-  }
-
-  .dinamica-card p {
-    font-size: 12px;
-    margin-bottom: 12px;
-  }
-}
 
 /* ── Tema claro — ajustes burbuja ── */
 [data-theme="light"] .chat-burbuja-panel {
@@ -3782,6 +3915,8 @@ a {
 
 /* ── Compose: preview de fotos antes de publicar ── */
 .compose-preview {
+  padding-left: 52px; 
+  margin-top: -6px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -3828,34 +3963,7 @@ a {
   font-style: italic;
 }
 
-/* ── Chat: layout móvil mejorado ── */
-@media (max-width: 600px) {
-  .chat-compose {
-    padding: 8px 10px;
-    gap: 6px;
-  }
 
-  .chat-input-wrap {
-    padding: 8px 12px;
-    border-radius: 18px;
-  }
-
-  .chat-input {
-    font-size: 15px;
-    /* evita zoom en iOS */
-  }
-
-  .chat-send {
-    width: 38px;
-    height: 38px;
-    font-size: 15px;
-  }
-
-  .chat-msg-bubble {
-    max-width: 75vw;
-    font-size: 14px;
-  }
-}
 
 /* ── Lista de miembros en modal ── */
 .miembro-list-item {
@@ -4089,12 +4197,6 @@ a {
   opacity: 1;
 }
 
-/* En móvil siempre visible (no hay hover) */
-@media (max-width: 600px) {
-  .muro-photo-del {
-    opacity: 1;
-  }
-}
 
 /* Botón eliminar comentario */
 .comment-del-btn {
@@ -4115,12 +4217,6 @@ a {
 
 .comment-del-btn:hover {
   opacity: 1 !important;
-}
-
-@media (max-width: 600px) {
-  .comment-del-btn {
-    opacity: 0.5;
-  }
 }
 
 /* Botón eliminar mensaje de chat */
@@ -4144,11 +4240,6 @@ a {
   opacity: 1 !important;
 }
 
-@media (max-width: 600px) {
-  .chat-del-btn {
-    opacity: 0.4;
-  }
-}
 
 /* ═══════════════════════════════════════════════════════
    BOTÓN CALENDARIO EN TOOLBAR TAREAS
@@ -4490,47 +4581,8 @@ a {
   color: var(--text2);
 }
 
-@media (max-width: 768px) {
-  .tareas-toolbar {
-    gap: 8px;
-  }
 
-  .btn-calendario {
-    margin-left: 0;
-  }
 
-  .biblio-item {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
-
-@media (max-width: 390px) {
-  #apuntesGroupsContainer {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .semestre-banner {
-    min-height: 74px;
-    padding: 14px 14px;
-  }
-
-  .materias-grid2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: 10px;
-    gap: 8px;
-  }
-
-  .cal-grid {
-    gap: 3px;
-    padding: 8px;
-  }
-
-  .cal-dia {
-    min-height: 42px;
-  }
-}
 
 /* Adaptador para iniciales en Feed y Chat */
 .sidebar-member-initial.feed-avatar {
@@ -5169,16 +5221,6 @@ a {
   transform: scale(1.08);
 }
 
-/* ── Responsive — ocultar FAB en pantallas grandes sin bottom nav ── */
-@media (min-width: 769px) {
-  .chat-fab {
-    bottom: 24px;
-  }
-
-  .chat-burbuja-panel {
-    bottom: 86px;
-  }
-}
 
 /* ═══════════════════════════════════════════════════════
    ZONA DE SUBIDA DE APUNTES (Fix de diseño)
@@ -5738,4 +5780,1080 @@ a {
   justify-content: center;
   font-size: 10px;
   cursor: pointer;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SECCIÓN VIDEOTUTORIALES — Estilo cajas de DVD
+═══════════════════════════════════════════════════════ */
+
+.dvd-shell {
+  padding: 20px 16px 100px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.dvd-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.dvd-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text0);
+}
+
+.dvd-subtitle {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.dvd-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dvd-search {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text0);
+  font-size: 13px;
+  padding: 7px 12px;
+  width: 180px;
+  outline: none;
+  transition: var(--transition);
+}
+.dvd-search:focus { border-color: var(--accent); }
+
+/* Barra de categorías */
+.dvd-cats-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.dvd-cat-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text1);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.dvd-cat-btn:hover { border-color: var(--accent); color: var(--accent); }
+.dvd-cat-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* ── GRID DE DVDs ── */
+.dvd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 20px 16px;
+}
+
+/* ── CAJA DVD INDIVIDUAL ── */
+.dvd-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  gap: 8px;
+  position: relative;
+}
+
+.dvd-item:hover .dvd-case { transform: perspective(600px) rotateY(-12deg) translateX(4px); }
+.dvd-item:hover .dvd-case-shadow { opacity: 0.7; transform: translateX(6px) scaleX(0.85); }
+
+/* La caja en 3D */
+.dvd-case {
+  position: relative;
+  width: 100px;
+  height: 140px;
+  border-radius: 3px 6px 6px 3px;
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transform: perspective(600px) rotateY(-6deg);
+  transform-style: preserve-3d;
+}
+
+/* Lomo izquierdo */
+.dvd-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 140px;
+  border-radius: 3px 0 0 3px;
+  background: linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0.25));
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dvd-spine-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 8px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 0.05em;
+  overflow: hidden;
+  max-height: 120px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Cara frontal */
+.dvd-front {
+  position: absolute;
+  left: 14px;
+  top: 0;
+  right: 0;
+  height: 140px;
+  border-radius: 0 4px 4px 0;
+  overflow: hidden;
+  background: #111;
+}
+
+/* Thumbnail de YouTube como portada */
+.dvd-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Brillo plástico — efecto DVD real */
+.dvd-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.22) 0%,
+    rgba(255,255,255,0.06) 35%,
+    transparent 50%,
+    rgba(255,255,255,0.04) 80%
+  );
+  pointer-events: none;
+  z-index: 3;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Banda inferior con logo YT */
+.dvd-band {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 22px;
+  background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 6px;
+  z-index: 4;
+}
+
+.dvd-yt-badge {
+  background: #FF0000;
+  color: white;
+  font-size: 7px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+}
+
+/* Sello de categoría en esquina superior */
+.dvd-cat-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0,0,0,0.7);
+  color: rgba(255,255,255,0.85);
+  font-size: 7px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  z-index: 5;
+  max-width: 65px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sombra debajo de la caja */
+.dvd-case-shadow {
+  width: 90px;
+  height: 8px;
+  background: radial-gradient(ellipse, rgba(0,0,0,0.5) 0%, transparent 70%);
+  border-radius: 50%;
+  margin-top: -4px;
+  transition: var(--transition);
+}
+
+/* Título y canal bajo el DVD */
+.dvd-info {
+  text-align: center;
+  width: 110px;
+}
+
+.dvd-info-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text0);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dvd-info-channel {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Botón eliminar en hover */
+.dvd-del-btn {
+  position: absolute;
+  top: -6px;
+  right: -2px;
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  line-height: 1;
+}
+.dvd-item:hover .dvd-del-btn { display: flex; }
+
+/* Empty state */
+.dvd-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--text3);
+}
+.dvd-empty-icon { font-size: 48px; margin-bottom: 12px; }
+.dvd-empty-text { font-size: 14px; }
+
+/* ── MODAL: AGREGAR DVD ── */
+.dvd-color-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.dvd-color-opt {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.dvd-color-opt:hover { transform: scale(1.15); }
+.dvd-color-opt.selected {
+  border-color: white;
+  transform: scale(1.2);
+  box-shadow: 0 0 8px rgba(255,255,255,0.4);
+}
+
+/* Preview del DVD en el modal */
+.dvd-preview-case {
+  display: flex;
+  width: 120px;
+  height: 160px;
+  margin: 0 auto;
+  border-radius: 3px 6px 6px 3px;
+  overflow: hidden;
+  box-shadow: 4px 4px 16px rgba(0,0,0,0.6);
+}
+
+.dvd-preview-spine {
+  width: 16px;
+  background: rgba(0,0,0,0.5);
+  flex-shrink: 0;
+}
+
+.dvd-preview-front {
+  flex: 1;
+  position: relative;
+  background: #111;
+  overflow: hidden;
+}
+
+.dvd-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dvd-preview-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.dvd-preview-logo {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  background: #FF0000;
+  color: white;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+/* ══════════════════════════════════════════════
+   NUEVOS ESTILOS v1.5.0
+══════════════════════════════════════════════ */
+
+/* ── DVD / VIDEO TUTORIALES — Tarjetas rectangulares ── */
+.dvd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.dvd-item-rect {
+  background: var(--bg2);
+  border: 1px solid var(--border);  
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.dvd-item-rect:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  border-color: var(--accent);
+}
+
+.dvd-rect-thumb {
+  width: 100%;
+  aspect-ratio: 16/9;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.dvd-rect-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+.dvd-item-rect:hover .dvd-rect-img { transform: scale(1.04); }
+
+.dvd-rect-noimg {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  color: rgba(255,255,255,0.5);
+}
+
+.dvd-rect-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.35);
+  color: white;
+  font-size: 28px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.dvd-item-rect:hover .dvd-rect-play-overlay { opacity: 1; }
+
+.dvd-rect-info {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.dvd-rect-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text1);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dvd-rect-desc {
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dvd-rect-meta {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 4px;
+}
+
+.dvd-item-rect .dvd-del-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 10;
+  display: none;
+}
+.dvd-item-rect:hover .dvd-del-btn { display: flex; }
+
+
+/* ── 2. EL FOCO APAGADO / PRENDIDO ── */
+.foco-icon {
+  filter: grayscale(1) opacity(0.5); /* Apagado por defecto */
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+.feed-action-btn.liked .foco-icon {
+  filter: grayscale(0) opacity(1); /* Prendido */
+  text-shadow: 0 0 12px #fbbf24; /* Brillo amarillo */
+}
+.feed-action-btn.liked { color: #fbbf24 !important; } /* Texto amarillo */
+
+/* ── 3. DISEÑO DEL LIBRO ABIERTO ── */
+.libro-abierto-ui {
+  display: flex;
+  min-height: 320px;
+  border-radius: 4px 12px 12px 4px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  background: var(--bg1); /* Se adapta al modo oscuro/claro */
+  padding: 4px 6px 4px 4px; /* Simula el borde de la pasta dura */
+}
+
+.libro-pagina {
+  flex: 1;
+  
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.libro-pagina-izq {
+  border-radius: 2px 0 0 2px;
+  background: var(--bg3);
+  border-right: 1px solid #ccc;
+  box-shadow: inset -15px 0 20px rgba(0,0,0,0.06); /* Sombra del doblez */
+  position: relative;
+}
+
+.libro-pagina-der {
+  background: var(--bg2); /* Lado del texto */
+  border-radius: 0 8px 8px 0;
+  box-shadow: inset 15px 0 20px rgba(0,0,0,0.04); /* Sombra del doblez */
+}
+
+/* El color de la materia en el lomo interno del libro */
+.libro-lomo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  background: var(--accent); /* Se inyectará por JS */
+  box-shadow: inset -4px 0 8px rgba(0,0,0,0.3); 
+}
+.libro-contenido-izq { padding-left: 14px; }
+
+
+/* ── TARJETAS VISUALES EN EL TABLERO (LIBROS Y DVDS COMPARTIDOS) ── */
+.feed-libro-shared {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg3);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  margin: 10px 16px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: var(--transition);
+}
+.feed-libro-shared:hover { border-color: var(--accent); transform: translateY(-2px); }
+.feed-libro-info h4 { font-size: 14px; color: var(--text0); margin-bottom: 4px; line-height: 1.3;}
+.feed-libro-info span { font-size: 11px; color: var(--accent); font-weight: 700; background: rgba(124,106,247,0.15); padding: 4px 8px; border-radius: 6px;}
+
+.feed-dvd-shared {
+  margin: 10px 16px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg3);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: var(--transition);
+}
+.feed-dvd-shared:hover { border-color: var(--accent); transform: translateY(-2px); }
+.feed-dvd-shared .dvd-rect-thumb { aspect-ratio: 16/9; position: relative; }
+.feed-dvd-info { padding: 12px; }
+.feed-dvd-info h4 { font-size: 13.5px; color: var(--text0); margin: 0; line-height: 1.3;}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Adaptación responsive de las columnas */
+@media (max-width: 1200px) {
+  .feed-list { gap: 12px; }
+}
+@media (max-width: 900px) {
+  .feed-list { gap: 10px; }
+  .feed-col:last-child { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE — Tablets y Móviles (769px)
+═══════════════════════════════════════════════════════ */
+
+
+/* ── Responsive — ocultar FAB en pantallas grandes sin bottom nav ── */
+@media (min-width: 769px) {
+  .chat-fab {
+    bottom: 24px;
+  }
+
+  .chat-burbuja-panel {
+    bottom: 86px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE — Tablets y Móviles (768px)
+═══════════════════════════════════════════════════════ */
+/* ── RESPONSIVE APUNTES ── */
+@media (max-width: 768px) {
+  #apuntesGroupsContainer {
+    /* 2 columnas forzadas en tablets/móviles grandes */
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tareas-toolbar {
+    gap: 8px;
+  }
+
+  .feed-list { flex-direction: column; }
+  .feed-col { display: flex !important; }
+  
+
+  .btn-calendario {
+    margin-left: 0;
+  }
+
+  .biblio-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  /* Sidebar deslizable */
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-close {
+    display: block;
+  }
+
+  .sidebar-overlay.show {
+    display: block;
+  }
+
+  .topbar-menu {
+    display: block;
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+    /* Reducido a 48px */
+  }
+
+  .section {
+    padding: 12px;
+  }
+
+  /* Bottom nav visible */
+  .bottom-nav {
+    display: flex;
+  }
+
+
+  /* Chat ocupa toda la pantalla disponible, respetando el teclado */
+  #sectionChat {
+    height: calc(100dvh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    padding: 0;
+    position: relative;
+  }
+
+  .chat-messages {
+    padding: 10px 12px;
+    max-width: 100%;
+  }
+
+  .chat-msg {
+    max-width: 88%;
+  }
+
+  /* Ajuste de la nueva barra de chat y emojis en móvil */
+  .chat-compose-wrapper {
+    width: 100%;
+    margin: 0;
+    /* Quitamos el safe-area de aquí porque el bottom-nav ya lo tiene */
+    padding: 10px 12px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+  }
+
+  .chat-compose {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  /* Apuntes y Semestres */
+  #apuntesGroupsContainer {
+    grid-template-columns: 1fr;
+  }
+
+  /* Semestres en 1 columna en móvil */
+  .materias-grid2 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .materias-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 10px 12px 12px;
+  }
+
+  /* Galerías y fotos */
+  .photos-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+  }
+
+  .apuntes-photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    width: 100%;
+  }
+
+  .photo-thumb {
+    border-radius: 4px;
+  }
+
+  .galeria-header {
+    padding: 8px 0 10px;
+  }
+
+  .btn-back-galeria {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .galeria-title {
+    font-size: 15px;
+  }
+
+  /* Otros Grids y Elementos */
+  .color-picker-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .dinamicas-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .topbar-group-badge {
+    max-width: 80px;
+  }
+
+  .muro-photos-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+  }
+
+  #btnInvitarCompa span {
+    display: none;
+  }
+
+  /* Burbuja Flotante */
+  .chat-fab {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    right: 14px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .chat-burbuja-panel {
+    bottom: calc(130px + env(safe-area-inset-bottom, 0px));
+    right: 14px;
+    width: calc(100vw - 28px);
+    /* MAGIA AQUÍ: Se adapta dinámicamente al espacio que deja el teclado */
+    max-height: calc(100dvh - 150px);
+  }
+}
+
+
+/* ── Responsive apuntes ── */
+@media (max-width: 600px) {
+  #apuntesGroupsContainer {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .feed-list { flex-direction: column; }
+  .feed-col { display: flex !important; }
+
+  .materias-grid2 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .materia-card2-header {
+    height: 64px;
+  }
+
+  .materia-card2-icon {
+    font-size: 28px;
+  }
+
+  .materia-card2-name {
+    font-size: 12px;
+  }
+/* ── Chat: layout móvil mejorado ── */
+
+  .chat-compose {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .chat-input-wrap {
+    padding: 8px 12px;
+    border-radius: 18px;
+  }
+
+  .chat-input {
+    font-size: 15px;
+    /* evita zoom en iOS */
+  }
+
+  .chat-send {
+    width: 38px;
+    height: 38px;
+    font-size: 15px;
+  }
+
+  .chat-msg-bubble {
+    max-width: 75vw;
+    font-size: 14px;
+  }
+
+ /* En móvil siempre visible (no hay hover) */
+
+  .muro-photo-del {
+    opacity: 1;
+  }
+
+  .comment-del-btn {
+    opacity: 0.5;
+  }
+
+  .chat-del-btn {
+    opacity: 0.4;
+  }
+}
+
+
+@media (min-width: 500px) {
+  .dvd-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .libro-abierto-ui { flex-direction: column; }
+  .libro-pagina-izq { border-right: none; border-bottom: 1px solid #ccc; border-radius: 8px 8px 0 0; }
+  .libro-pagina-der { border-radius: 0 0 8px 8px; }
+  .libro-lomo { width: 100%; height: 8px; bottom: auto; }
+  .libro-contenido-izq { padding-left: 0; padding-top: 8px; }
+}
+
+/* En celulares, ponemos 4 columnas para que no sean tan chiquitos */
+@media (max-width: 480px) {
+  .biblio-color-picker {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE — iPhone 13 mini y similares (375px)
+═══════════════════════════════════════════════════════ */
+@media (max-width: 390px) {
+
+  /* Login */
+  .login-card {
+    padding: 32px 20px;
+  }
+
+  .login-title {
+    font-size: 20px;
+  }
+
+  /* Topbar compacta */
+  .topbar {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .topbar-title {
+    font-size: 14px;
+  }
+
+  .topbar-right {
+    gap: 4px;
+  }
+
+  .topbar-group-badge {
+    display: none;
+  }
+
+  .btn-theme-toggle {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  #btnInvitarCompa {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  /* Sections */
+  .section {
+    padding: 10px 8px;
+  }
+
+  /* Feed */
+  .feed-compose {
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .feed-card-header {
+    padding: 10px 12px 8px;
+  }
+
+  .feed-card-actions {
+    padding: 6px 8px 8px;
+  }
+
+  /* Chat y Burbuja */
+  .chat-input {
+    font-size: 16px;
+  }
+
+  /* evitar zoom automático en iOS */
+  .chat-input-wrap {
+    padding: 8px 12px;
+    border-radius: 18px;
+  }
+
+  .chat-send {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .chat-msg {
+    max-width: 90%;
+  }
+
+  .chat-msg-bubble {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+
+  .chat-burbuja-panel {
+    max-height: 340px;
+  }
+
+  /* Apuntes y Galerías */
+  .materias-grid2 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .materias-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .materia-card2-header {
+    height: 65px;
+  }
+
+  .materia-card2-icon {
+    font-size: 28px;
+  }
+
+  .btn-back-galeria {
+    padding: 6px 10px;
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  .galeria-title {
+    font-size: 14px;
+  }
+
+  /* Cuadrículas de fotos (Unificadas) */
+  .photos-grid,
+  .apuntes-photos-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+
+  /* Modales */
+  .modal-box {
+    padding: 20px 16px;
+    border-radius: var(--radius-lg);
+  }
+
+  .modal-title {
+    font-size: 16px;
+  }
+
+  /* Bottom nav más compacta */
+  .bottom-nav-item {
+    font-size: 8px;
+    padding: 5px 0px;
+  }
+
+  .bottom-nav-item .bnav-icon {
+    font-size: 18px;
+  }
+
+  /* Dinámicas */
+  .dinamicas-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .dinamica-card {
+    padding: 18px 12px;
+  }
+
+  .dinamica-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+
+  .dinamica-card h3 {
+    font-size: 14px;
+  }
+
+  .dinamica-card p {
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  #apuntesGroupsContainer {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .semestre-banner {
+    min-height: 74px;
+    padding: 14px 14px;
+  }
+
+  .materias-grid2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .cal-grid {
+    gap: 3px;
+    padding: 8px;
+  }
+
+  .cal-dia {
+    min-height: 42px;
+  }
+}
+
+
+@media (max-width: 375px) {
+  .materias-grid2 {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
 }
