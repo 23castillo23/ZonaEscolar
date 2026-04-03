@@ -24,7 +24,6 @@ let apunteFiles = [];
 
 let feedUnsub = null;
 let chatUnsub = null;
-let currentChannelId = 'general'; // canal activo
 let tareasUnsub = null;
 let votacionUnsub = null;
 let gruposUnsub = null;
@@ -778,7 +777,6 @@ function activarSeccion(section) {
   }
 
   if (section === 'chat') {
-    initChatCanales();
     if (!chatUnsub) initChat();
     else {
       initChatOnline();
@@ -2769,40 +2767,26 @@ function initChat() {
 
   const startListener = (ordered) => {
     if (chatUnsub) { chatUnsub(); chatUnsub = null; }
-    const canal = currentChannelId || 'general';
-
-    // Para el canal general incluimos mensajes sin channelId (mensajes viejos)
-    // Para otros canales filtramos estrictamente por channelId
     const q = ordered
       ? query(
         collection(db(), 'ec_chat'),
         where('groupId', '==', currentGroupId),
-        where('channelId', '==', canal),
         orderBy('createdAt', 'desc'),
         limit(120)
       )
       : query(
         collection(db(), 'ec_chat'),
         where('groupId', '==', currentGroupId),
-        limit(200)
+        limit(120)
       );
 
     chatUnsub = onSnapshot(q, snap => {
       const loading = $('chatLoading');
       if (loading) loading.remove();
       const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 220;
-
-      let mensajes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      // En el fallback (sin orderBy) filtramos por canal en el cliente
-      if (!ordered) {
-        mensajes = mensajes.filter(m => {
-          if (canal === 'general') return !m.channelId || m.channelId === 'general';
-          return m.channelId === canal;
-        });
-      }
-
-      mensajes = mensajes.sort((a, b) => getChatMsgMillis(a) - getChatMsgMillis(b));
+      const mensajes = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => getChatMsgMillis(a) - getChatMsgMillis(b));
 
       box.innerHTML = '';
       lastChatDateStr = '';
@@ -2817,19 +2801,14 @@ function initChat() {
     }, err => {
       console.error('Chat error:', err);
       if (ordered && err.code === 'failed-precondition') {
+        // Fallback para grupos viejos sin índice compuesto.
         usingOrdered = false;
         isFirst = true;
         startListener(false);
         return;
       }
-      // Si ya estamos en fallback y hay error de índice, usar fallback simple
-      if (!ordered && err.code === 'failed-precondition') {
+      if (err.code === 'failed-precondition' && !usingOrdered) {
         box.innerHTML = '<div class="feed-loading" style="color:var(--amber);">⚠️ Falta un índice en Firestore. Revisa la consola (F12).</div>';
-      } else if (ordered && err.code !== 'failed-precondition') {
-        // Para canal general, si falla el where+orderBy, usar fallback sin filtro de canal
-        usingOrdered = false;
-        isFirst = true;
-        startListener(false);
       } else {
         box.innerHTML = '<div class="feed-loading" style="color:var(--red);">⚠️ Error de conexión</div>';
       }
@@ -2896,7 +2875,6 @@ async function enviarMensaje() {
   try {
     await addDoc(collection(db(), 'ec_chat'), {
       groupId: currentGroupId,
-      channelId: currentChannelId || 'general',
       text,
       authorUid: currentUser.uid,
       authorName: getUserAlias(),
@@ -3114,7 +3092,6 @@ $('chatImgInput').addEventListener('change', async e => {
     const { collection, addDoc, serverTimestamp } = lib();
     await addDoc(collection(db(), 'ec_chat'), {
       groupId: currentGroupId,
-      channelId: currentChannelId || 'general',
       text: '',
       imageUrl: url,
       authorUid: currentUser.uid,
@@ -3132,103 +3109,6 @@ $('chatImgInput').addEventListener('change', async e => {
     btn.disabled = false;
     $('chatImgInput').value = '';
   }
-});
-
-/* ═══════════════════════════════════════════════════
-   CHAT — CANALES
-═══════════════════════════════════════════════════ */
-let chatCanalesUnsub = null;
-
-function initChatCanales() {
-  if (chatCanalesUnsub) { chatCanalesUnsub(); chatCanalesUnsub = null; }
-  if (!currentGroupId) return;
-
-  // Mostrar botón + solo para admin
-  const btnAdd = $('btnAddChannel');
-  if (btnAdd) btnAdd.style.display = isAdmin ? 'flex' : 'none';
-
-  const { collection, query, where, orderBy, onSnapshot } = lib();
-  const q = query(
-    collection(db(), 'ec_chat_canales'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'asc')
-  );
-
-  chatCanalesUnsub = onSnapshot(q, snap => {
-    const lista = $('chatChannelsList');
-    if (!lista) return;
-
-    // Construir pestañas: siempre empieza con general
-    const canales = [{ id: 'general', nombre: 'general' }];
-    snap.docs.forEach(d => canales.push({ id: d.id, nombre: d.data().nombre }));
-
-    lista.innerHTML = canales.map(c => `
-      <button class="chat-channel-tab ${currentChannelId === c.id ? 'active' : ''}"
-              data-channel="${escHtml(c.id)}">
-        # ${escHtml(c.nombre)}
-        ${c.id !== 'general' && isAdmin ? `<span class="canal-del" data-id="${escHtml(c.id)}" title="Eliminar">✕</span>` : ''}
-      </button>`).join('');
-
-    // Listeners de pestañas
-    lista.querySelectorAll('.chat-channel-tab').forEach(btn => {
-      btn.addEventListener('click', e => {
-        // Si hicieron clic en la X de borrar, no cambiar de canal
-        if (e.target.classList.contains('canal-del')) return;
-        const id = btn.dataset.channel;
-        if (id === currentChannelId) return;
-        currentChannelId = id;
-        lista.querySelectorAll('.chat-channel-tab').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        initChat();
-      });
-    });
-
-    // Listeners de borrar canal
-    lista.querySelectorAll('.canal-del').forEach(x => {
-      x.addEventListener('click', async e => {
-        e.stopPropagation();
-        const id = x.dataset.id;
-        if (!confirm('¿Eliminar este canal y todos sus mensajes?')) return;
-        try {
-          const { collection: col, query: q2, where: wh, getDocs, deleteDoc, doc } = lib();
-          // Borrar mensajes del canal
-          const msgs = await getDocs(q2(col(db(), 'ec_chat'), wh('groupId', '==', currentGroupId), wh('channelId', '==', id)));
-          await Promise.all(msgs.docs.map(d => deleteDoc(doc(db(), 'ec_chat', d.id))));
-          await deleteDoc(doc(db(), 'ec_chat_canales', id));
-          if (currentChannelId === id) {
-            currentChannelId = 'general';
-            initChat();
-          }
-        } catch (err) { alert('Error al eliminar: ' + err.message); }
-      });
-    });
-  }, () => {
-    // Si falla (índice no creado aún), solo mostrar el canal general
-    const lista = $('chatChannelsList');
-    if (lista) lista.innerHTML = `<button class="chat-channel-tab active" data-channel="general"># general</button>`;
-  });
-}
-
-// Botón ＋ nuevo canal
-$('btnAddChannel')?.addEventListener('click', () => openModal('modalNuevoCanal'));
-
-$('btnConfirmarCanal')?.addEventListener('click', async () => {
-  const input = $('canalNombre');
-  const nombre = (input?.value || '').trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-  if (!nombre) { alert('Escribe un nombre válido para el canal.'); return; }
-  if (!currentGroupId) return;
-
-  try {
-    const { collection, addDoc, serverTimestamp } = lib();
-    await addDoc(collection(db(), 'ec_chat_canales'), {
-      groupId: currentGroupId,
-      nombre,
-      createdAt: serverTimestamp(),
-      createdBy: currentUser.uid
-    });
-    input.value = '';
-    closeModal('modalNuevoCanal');
-  } catch (e) { alert('Error al crear canal: ' + e.message); }
 });
 
 /* ═══════════════════════════════════════════════════
@@ -6180,6 +6060,12 @@ window.abrirModalLibro = function(libroId) {
       'book-default': '#7c6af7', 'book-cyan': '#06b6d4', 'book-ppt': '#ea580c'
     };
     $('libroModalLomo').style.background = colorClasses[libroSeleccionado.colorClass] || '#7c6af7';
+
+    // ← agrega estas 3 líneas:
+    const color = colorClasses[libroSeleccionado.colorClass] || '#7c6af7';
+    $('libroModalContent').style.background = `linear-gradient(135deg, ${color}18 0%, var(--bg2) 40%)`;
+    $('btnLeerLibro').style.background = color;
+    $('btnLeerLibro').style.borderColor = color;
     
     // El botón siempre estará visible con su estilo flex original
     const btnCompartir = $('btnCompartirLibro');

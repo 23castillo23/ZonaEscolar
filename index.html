@@ -329,13 +329,6 @@
 
       <!-- ── SECCIÓN: CHAT ── -->
       <section class="section" id="sectionChat">
-        <!-- Barra de canales -->
-        <div class="chat-channels-bar" id="chatChannelsBar">
-          <div class="chat-channels-list" id="chatChannelsList">
-            <button class="chat-channel-tab active" data-channel="general"># general</button>
-          </div>
-          <button class="chat-channel-add" id="btnAddChannel" style="display:none" title="Nuevo canal">＋</button>
-        </div>
         <!-- Barra de usuarios online -->
         <div class="chat-online-bar" id="chatOnlineBar">
           <div class="chat-online-list" id="chatOnlineList" style="display:none"></div>
@@ -674,7 +667,7 @@
         <div id="libroModalBadge" class="libro-ext-badge">PDF</div>
       </div>
 
-      <div class="libro-modal-content">
+      <div class="libro-modal-content" id="libroModalContent">
         <h3 id="libroModalTitulo" class="libro-modal-titulo">Título del Archivo</h3>
         <p class="libro-modal-autor">Subido por <strong id="libroModalAutor">Autor</strong></p>
 
@@ -1034,21 +1027,6 @@
           <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
       </button>
-    </div>
-  </div>
-
-  <!-- MODAL: NUEVO CANAL DE CHAT -->
-  <div class="modal-overlay" id="modalNuevoCanal">
-    <div class="modal-box">
-      <button class="modal-close" data-close="modalNuevoCanal">✕</button>
-      <h3 class="modal-title">💬 Nuevo canal de chat</h3>
-      <label class="modal-label">Nombre del canal</label>
-      <input type="text" id="canalNombre" class="modal-input" placeholder="Ej: matemáticas, programación…" maxlength="30">
-      <p style="font-size:11px;color:var(--text3);margin-top:4px">Solo letras, números y guiones. Sin espacios.</p>
-      <div class="modal-actions">
-        <button class="btn-cancel" data-close="modalNuevoCanal">Cancelar</button>
-        <button class="btn-primary" id="btnConfirmarCanal">Crear canal</button>
-      </div>
     </div>
   </div>
 
