@@ -3171,7 +3171,10 @@ function renderTareas(tareas) {
           </span>` : ''}
         </div>
       </div>
-      <button class="tarea-delete" onclick="eliminarTarea('${t.id}')">🗑️</button>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+        <button class="tarea-share-btn" title="Compartir en tablero" onclick="compartirTarea('${t.id}')">📌</button>
+        <button class="tarea-delete" onclick="eliminarTarea('${t.id}')">🗑️</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -3227,11 +3230,10 @@ function buildTareaHTML(t) {
                     </div>
                 </div>
             </div>
-            ${tienePermiso ? `
-                <button class="tarea-delete" onclick="eliminarTarea('${t.id}')" style="margin-left:10px;">
-                    🗑️
-                </button>
-            ` : ''}
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:10px;">
+              <button class="tarea-share-btn" title="Compartir en tablero" onclick="compartirTarea('${t.id}')">📌</button>
+              ${tienePermiso ? `<button class="tarea-delete" onclick="eliminarTarea('${t.id}')">🗑️</button>` : ''}
+            </div>
         </div>
         ${subTareasHtml}
     </div>`;
@@ -3722,6 +3724,63 @@ function renderTareasEnListaPrincipal(tareas, dia, mes) {
 window.toggleTarea = async function (id, done) {
   const { doc, updateDoc } = lib();
   await updateDoc(doc(db(), 'ec_tareas', id), { done });
+};
+
+window.compartirTarea = async function(tareaId) {
+  if (!currentGroupId) return;
+
+  const { collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, serverTimestamp } = lib();
+
+  // Obtener datos de la tarea primero
+  const tareaSnap = await getDoc(doc(db(), 'ec_tareas', tareaId)).catch(() => null);
+  if (!tareaSnap?.exists()) { alert('No se encontró la tarea.'); return; }
+  const tData = tareaSnap.data();
+  const titulo = tData.titulo || 'Tarea';
+
+  // Consultar en qué tableros ya existe esta tarea compartida en el feed
+  const existingSnap = await getDocs(query(
+    collection(db(), 'ec_feed'),
+    where('groupId', '==', currentGroupId),
+    where('type', '==', 'tarea_compartida'),
+    where('tareaId', '==', tareaId)
+  )).catch(() => null);
+
+  const yaEn = new Set();
+  existingSnap?.forEach(d => yaEn.add(d.data().tableroId ?? ''));
+
+  mostrarSelectorTablero(
+    `¿En qué tablero compartir "${titulo}"?`,
+    async (tableroId, tableroNombre) => {
+      try {
+        const enEste = existingSnap?.docs.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
+        if (enEste) {
+          await updateDoc(doc(db(), 'ec_feed', enEste.id), { createdAt: serverTimestamp() });
+          alert(`🚀 ¡La tarea subió al inicio de "${tableroNombre}"!`);
+        } else {
+
+          const metaPartes = [];
+          if (tData.responsable) metaPartes.push(`Responsable: ${tData.responsable}`);
+          if (tData.fecha) metaPartes.push(`Fecha: ${new Date(tData.fecha).toLocaleDateString('es-MX')}`);
+
+          await addDoc(collection(db(), 'ec_feed'), {
+            groupId: currentGroupId,
+            tableroId: tableroId || '',
+            type: 'tarea_compartida',
+            tareaId: tareaId,
+            text: `📋 Nueva tarea: "${titulo}"${metaPartes.length ? ' · ' + metaPartes.join(' · ') : ''}`,
+            images: [],
+            authorUid: currentUser.uid,
+            authorName: currentUser.name,
+            authorAvatar: currentUser.avatar,
+            likes: 0, likedBy: [], commentCount: 0,
+            createdAt: serverTimestamp()
+          });
+          alert(`📢 ¡Tarea compartida en "${tableroNombre}"!`);
+        }
+      } catch (e) { alert('Error al compartir: ' + e.message); }
+    },
+    yaEn
+  );
 };
 
 window.eliminarTarea = async function (id) {

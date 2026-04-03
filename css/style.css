@@ -3457,6 +3457,22 @@ a {
   color: var(--red);
 }
 
+.tarea-share-btn {
+  color: var(--text3);
+  font-size: 14px;
+  padding: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: var(--transition);
+}
+
+.tarea-share-btn:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
 /* ═══════════════════════════════════════════════════════
    DINÁMICAS
 ═══════════════════════════════════════════════════════ */
