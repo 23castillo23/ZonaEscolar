@@ -3457,22 +3457,6 @@ a {
   color: var(--red);
 }
 
-.tarea-share-btn {
-  color: var(--text3);
-  font-size: 14px;
-  padding: 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: var(--transition);
-}
-
-.tarea-share-btn:hover {
-  opacity: 1;
-  transform: scale(1.15);
-}
-
 /* ═══════════════════════════════════════════════════════
    DINÁMICAS
 ═══════════════════════════════════════════════════════ */
@@ -7661,4 +7645,35 @@ a {
 
 .muro-photo-publish.ya-pub:hover {
   background: rgba(22, 163, 74, 1);
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE MÓVIL — 2 columnas en Tableros y Apuntes
+═══════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  /* Tableros: mantener 2 columnas compactas */
+  .tableros-galeria {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .tablero-card {
+    aspect-ratio: 1/1;
+  }
+  .tablero-card-icon {
+    font-size: 20px;
+    margin-bottom: 2px;
+  }
+  .tablero-card-nombre {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  /* Apuntes (semestres): 2 columnas compactas */
+  #apuntesGroupsContainer {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .group-accordion {
+    font-size: 13px;
+  }
 }
