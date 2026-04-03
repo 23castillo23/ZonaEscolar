@@ -628,6 +628,260 @@ a {
   line-height: 1.7;
 }
 
+
+/* ═══════════════════════════════════════════════════════
+   TABLEROS TEMÁTICOS
+═══════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+   TABLEROS — GALERÍA
+═══════════════════════════════════════════════════════ */
+#vistaTableros {
+  width: 100%;
+}
+
+.tableros-galeria-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+.tableros-galeria-titulo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text1);
+  margin: 0;
+}
+.tableros-btn-nuevo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 20px;
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.tableros-btn-nuevo:hover {
+  border-style: solid;
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--bg2);
+}
+
+/* ── Grid de cards de tablero ── */
+.tableros-galeria {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.tablero-card {
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  aspect-ratio: 4/3;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  user-select: none;
+  border: none;
+  text-align: left;
+  padding: 0;
+  position: relative;
+}
+.tablero-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+}
+.tablero-card:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+/* Wrapper interno que tiene el position:relative y los pseudo-elementos */
+.tablero-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 14px;
+  min-height: 0;
+}
+
+/* Fondo degradado sobre el color del tablero */
+.tablero-card-inner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.35) 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Patrón de puntos decorativo */
+.tablero-card-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px);
+  background-size: 16px 16px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tablero-card-content {
+  position: relative;
+  z-index: 1;
+}
+.tablero-card-nombre {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  word-break: break-word;
+}
+.tablero-card-meta {
+  font-size: 11px;
+  color: rgba(255,255,255,0.75);
+  margin-top: 4px;
+}
+.tablero-card-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+  display: block;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+.tablero-card-del {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  background: rgba(0,0,0,0.4);
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  color: rgba(255,255,255,0.8);
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+.tablero-card:hover .tablero-card-del { opacity: 1; }
+.tablero-card-del:hover { background: rgba(220,38,38,0.8); color: #fff; }
+
+/* Card especial: "Feed general" */
+.tablero-card.tablero-general {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+}
+
+/* Card especial: "Nuevo tablero" */
+.tablero-card.tablero-card-nuevo {
+  background: var(--bg2);
+  border: 2px dashed var(--border);
+  box-shadow: none;
+}
+.tablero-card.tablero-card-nuevo .tablero-card-nombre {
+  color: var(--text2);
+  text-shadow: none;
+}
+.tablero-card.tablero-card-nuevo:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-soft, rgba(99,102,241,0.2));
+}
+
+/* Botón de ordenar tableros */
+.tableros-btn-sort {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--bg2);
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.tableros-btn-sort:hover {
+  background: var(--bg3, var(--bg2));
+  color: var(--text1);
+  border-color: var(--primary);
+}
+
+/* ═══════════════════════════════════════════════════════
+   TABLEROS — VISTA FEED DESPLEGADO
+═══════════════════════════════════════════════════════ */
+#vistaFeedTablero {
+  width: 100%;
+  animation: cardIn 0.2s ease-out;
+}
+
+.tablero-feed-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.tablero-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--bg2);
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tablero-back-btn:hover {
+  color: var(--text1);
+  background: var(--bg3);
+}
+.tablero-feed-titulo {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tablero-feed-del {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text2);
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+.tablero-feed-del:hover {
+  background: rgba(220,38,38,0.1);
+  color: var(--red, #ef4444);
+}
+
 /* ═══════════════════════════════════════════════════════
    FEED
 ═══════════════════════════════════════════════════════ */
@@ -835,6 +1089,7 @@ a {
   margin-bottom: 16px;
   break-inside: avoid;
   display: inline-block;
+  overflow: visible;
 }
 
 /* ── CHINCHETA: se inyecta como SVG desde JS (.feed-pin) ── */
@@ -875,25 +1130,23 @@ a {
 .feed-pin.feed-pin-tilted:hover { transform: translateX(-50%) scale(1.15); }
 
 .pin-color-popup {
-  position: absolute;
-  top: 18px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
   background: var(--bg1);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 8px;
+  padding: 10px;
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  width: 128px;
-  z-index: 100;
+  width: 168px;
+  z-index: 9999;
   box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   animation: popupIn 0.15s ease-out;
+  overflow: hidden;
 }
 @keyframes popupIn {
-  from { opacity:0; transform: translateX(-50%) scale(0.85); }
-  to   { opacity:1; transform: translateX(-50%) scale(1); }
+  from { opacity: 0; transform: scale(0.88); }
+  to   { opacity: 1; transform: scale(1); }
 }
 .pin-color-dot {
   width: 20px;
@@ -904,7 +1157,7 @@ a {
   transition: transform 0.12s, border-color 0.12s;
   flex-shrink: 0;
 }
-.pin-color-dot:hover { transform: scale(1.25); }
+.pin-color-dot:hover { transform: scale(1.1); }
 .pin-color-dot.active { border-color: white; transform: scale(1.15); }
 
 /* ── Selector de pin en el compose ── */
@@ -933,7 +1186,7 @@ a {
   padding: 8px;
   gap: 6px;
   flex-wrap: wrap;
-  width: 128px;
+  width: 160px !important;
   z-index: 200;
   box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   animation: popupIn 0.15s ease-out;
@@ -953,24 +1206,25 @@ a {
 /* ── Shape selector (dentro del popup de pin) ── */
 .pin-shape-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   justify-content: center;
   width: 100%;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .pin-shape-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 36px;
+  width: 56px;
+  height: 46px;
   border-radius: 8px;
   cursor: pointer;
   border: 2px solid transparent;
-  background: var(--bg2);
-  transition: border-color 0.15s, background 0.15s, transform 0.12s;
+  background: var(--bg3);
+  transition: border-color 0.15s, background 0.15s;
+  flex-shrink: 0;
 }
-.pin-shape-btn:hover { background: var(--bg3); transform: scale(1.07); }
+.pin-shape-btn:hover { background: var(--bg4); border-color: var(--border); }
 .pin-shape-btn.active { border-color: var(--accent2); background: var(--bg3); }
 
 .pin-popup-divider {
@@ -986,13 +1240,8 @@ a {
   width: 100%;
   justify-content: center;
 }
-/* Override pin-color-popup width to fit shape row */
-.pin-color-popup {
-  width: 144px !important;
-}
-.compose-pin-dropdown {
-  width: 144px !important;
-}
+
+/* ── FIN SELECTOR PIN ── */
 
 .feed-card:hover {
   transform: translateY(-3px) rotate(0.3deg);
@@ -1294,13 +1543,14 @@ a {
 .feed-action-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
+  gap: 4px;
+  padding: 4px 8px;
   border-radius: var(--radius-sm);
   color: var(--text2);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   transition: var(--transition);
+  white-space: nowrap;
 }
 
 .feed-action-btn:hover {
@@ -1322,7 +1572,7 @@ a {
 .feed-action-btn.liked { color: #fbbf24 !important; } /* Texto amarillo */
 
 .feed-action-btn span {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 /* Comentarios en feed */
@@ -1664,37 +1914,31 @@ a {
 }
 
 .muro-photos-grid {
-  display: flex; /* Cambiamos grid por flex para el efecto desordenado */
-  flex-wrap: wrap;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  padding: 20px 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  padding: 16px 0;
   margin-top: 8px;
 }
 
 .muro-photo-thumb {
-  aspect-ratio: 1;  
+  aspect-ratio: 1;
   overflow: hidden;
-  cursor: zoom-in;  
+  cursor: pointer;
   position: relative;
-  width: calc(33.333% - 16px); /* 3 por fila */
-  background: #fdfdfd; /* Marco blanco de la foto impresa */
-  padding: 8px 8px 28px 8px; /* Espacio extra abajo simulando polaroid */
-  border-radius: 2px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  transition: transform 0.3s, z-index 0.3s;  
+  background: var(--bg3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
   z-index: 1;
 }
 
-/* Efecto de fotos tiradas sobre un escritorio */
-.muro-photo-thumb:nth-child(even) { transform: rotate(3deg); }
-.muro-photo-thumb:nth-child(odd) { transform: rotate(-2deg); }
-.muro-photo-thumb:nth-child(3n) { transform: rotate(1.5deg); }
-
 .muro-photo-thumb:hover {
-  transform: scale(1.15) rotate(0deg); /* Se endereza al mirarla */
+  transform: translateY(-3px);
   z-index: 10;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  border-color: var(--accent);
 }
 
 .muro-photo-thumb img {
@@ -1702,10 +1946,11 @@ a {
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s;
+  display: block;
 }
 
 .muro-photo-thumb:hover img {
-  transform: scale(1.08);
+  transform: scale(1.06);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1873,8 +2118,8 @@ a {
 
 .group-mini-btn {
   flex: 1;
-  padding: 10px 8px;
-  font-size: 0.8rem;
+  padding: 7px 8px;
+  font-size: 0.75rem;
   font-weight: 700;
   border-radius: var(--radius-sm);
   background: var(--bg3);
@@ -1946,7 +2191,7 @@ a {
 }
 
 .carousel-wrap {
-  overflow: hidden;
+  overflow: visible;
   margin-bottom: 12px;
 }
 
@@ -1971,7 +2216,7 @@ a {
 }
 
 .album-card {
-  height: 280px;
+  height: 220px;
   background: var(--bg2);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
@@ -1989,15 +2234,13 @@ a {
 }
 
 .album-cover {
-  height: 110px;
-  /* Altura fija para la portada */
+  height: 80px;
   background: linear-gradient(135deg, var(--bg3), var(--bg1));
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   overflow: hidden;
-  /* Esto evita que la imagen se salga de la tarjeta */
 }
 
 /* La imagen de fondo de la materia */
@@ -2353,6 +2596,7 @@ a {
 .foto-publish-btn {
   position: absolute;
   top: 6px;
+  left: 8px;
   right: 6px;
   width: 30px;
   height: 30px;
@@ -2377,8 +2621,8 @@ a {
 }
 
 .foto-publish-btn:hover {
-  background: rgba(124, 106, 247, 0.85);
-  transform: scale(1.12);
+  transform: scale(1.1);
+  background: var(--accent2);
 }
 
 .foto-publish-btn.published {
@@ -4173,27 +4417,63 @@ a {
 ═══════════════════════════════════════════════════════ */
 
 /* Foto del muro con botón eliminar */
-.muro-photo-thumb {
-  position: relative;
-  overflow: hidden;
+/* ── Overlay de acciones sobre la foto del muro ── */
+.muro-photo-thumb .muro-photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 8px;
+  gap: 5px;
+}
+
+.muro-photo-thumb:hover .muro-photo-overlay {
+  opacity: 1;
 }
 
 .muro-photo-del {
   position: absolute;
   top: 6px;
   right: 6px;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(220, 38, 38, 0.85);
   border: none;
   border-radius: 6px;
-  padding: 4px 7px;
-  font-size: 13px;
+  padding: 4px 8px;
+  font-size: 12px;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.18s;
   line-height: 1;
+  color: white;
+  z-index: 2;
 }
 
-.muro-photo-thumb:hover .muro-photo-del {
+.muro-photo-publish {
+  display: block;
+  width: 100%;
+  background: rgba(99, 102, 241, 0.92);
+  border: none;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s;
+  line-height: 1.4;
+  color: white;
+  white-space: nowrap;
+  text-align: center;
+  z-index: 2;
+  position: relative;
+}
+
+.muro-photo-thumb:hover .muro-photo-del,
+.muro-photo-thumb:hover .muro-photo-publish {
   opacity: 1;
 }
 
@@ -5542,8 +5822,15 @@ a {
 }
 
 .photo-action-btn.liked {
-  color: #f87171;
-  /* Rojo */
+  color: #fbbf24 !important;
+}
+.photo-action-btn.liked .foco-icon {
+  filter: grayscale(0) opacity(1); /* Prendido */
+  text-shadow: 0 0 12px #fbbf24; /* Brillo amarillo */  
+  opacity: 1;  
+}
+.photo-action-btn:not(.liked) .foco-icon {
+  filter: grayscale(1) opacity(0.55);
 }
 
 /* Ocultar el caption que tapa los botones */
@@ -6088,6 +6375,32 @@ a {
   box-shadow: 0 0 8px rgba(255,255,255,0.4);
 }
 
+/* Emoji picker de tableros */
+.tablero-emoji-opt {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background: var(--bg2);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.tablero-emoji-opt:hover {
+  transform: scale(1.2);
+  background: var(--bg3, var(--bg2));
+}
+.tablero-emoji-opt.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft, rgba(99,102,241,0.15));
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
 /* Preview del DVD en el modal */
 .dvd-preview-case {
   display: flex;
@@ -6206,35 +6519,72 @@ a {
 .dvd-item-rect:hover .dvd-rect-play-overlay { opacity: 1; }
 
 .dvd-rect-info {
-  padding: 12px 14px;
+  padding: 12px 14px 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   flex: 1;
 }
 .dvd-rect-title {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text1);
-  line-height: 1.3;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text0);
+  line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .dvd-rect-desc {
-  font-size: 12px;
-  color: var(--text3);
-  line-height: 1.4;
+  font-size: 12.5px;
+  color: var(--text2);
+  line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .dvd-rect-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  padding: 6px 0 0;
+  border-top: 1px solid var(--border);
+}
+.dvd-rect-meta-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
   font-size: 11px;
-  color: var(--text3);
-  margin-top: 4px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+.dvd-share-btn {
+  margin-top: 8px;
+  padding: 9px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s, color 0.15s;
+}
+.dvd-share-btn:hover {
+  background: var(--accent);
+  color: #fff;
 }
 
 .dvd-item-rect .dvd-del-btn {
@@ -6259,36 +6609,154 @@ a {
 }
 .feed-action-btn.liked { color: #fbbf24 !important; } /* Texto amarillo */
 
-/* ── 3. DISEÑO DEL LIBRO ABIERTO ── */
-.libro-abierto-ui {
-  display: flex;
-  min-height: 320px;
-  border-radius: 4px 12px 12px 4px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-  background: var(--bg1); /* Se adapta al modo oscuro/claro */
-  padding: 4px 6px 4px 4px; /* Simula el borde de la pasta dura */
+/* =========================================
+   NUEVO DISEÑO: MODAL DE ARCHIVO/LIBRO
+   ========================================= */
+.libro-modal-box {
+  padding: 0 !important; /* Quitamos el padding global para hacer el diseño a borde completo */
+  overflow: hidden;
+  max-width: 480px;
 }
 
-.libro-pagina {
-  flex: 1;
-  
-  padding: 24px;
+.libro-modal-layout {
+  display: flex;
+  min-height: 240px;
+}
+
+/* Panel izquierdo de color */
+.libro-modal-cover {
+  width: 130px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-}
-
-.libro-pagina-izq {
-  border-radius: 2px 0 0 2px;
-  background: var(--bg3);
-  border-right: 1px solid #ccc;
-  box-shadow: inset -15px 0 20px rgba(0,0,0,0.06); /* Sombra del doblez */
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: white;
+  text-align: center;
   position: relative;
 }
 
-.libro-pagina-der {
-  background: var(--bg2); /* Lado del texto */
-  border-radius: 0 8px 8px 0;
-  box-shadow: inset 15px 0 20px rgba(0,0,0,0.04); /* Sombra del doblez */
+/* Sombra interna para dar efecto de relieve 3D al lomo */
+.libro-modal-cover::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 12px;
+  background: linear-gradient(to left, rgba(0,0,0,0.15), transparent);
+}
+
+.libro-modal-icon {
+  font-size: 44px;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25));
+}
+
+.libro-ext-badge {
+  background: rgba(0,0,0,0.35);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(4px);
+}
+
+/* Panel derecho de información */
+.libro-modal-content {
+  flex: 1;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2);
+}
+
+.libro-modal-titulo {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text0);
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.libro-modal-autor {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 20px;
+}
+
+.libro-modal-autor strong {
+  color: var(--text0);
+}
+
+.libro-modal-desc-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.libro-modal-desc {
+  font-size: 13px;
+  color: var(--text1);
+  line-height: 1.5;
+}
+
+.libro-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.btn-abrir-archivo {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 10px;
+}
+
+.btn-compartir-archivo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+/* Responsive para móviles */
+@media (max-width: 480px) {
+  .libro-modal-layout {
+    flex-direction: column;
+  }
+  .libro-modal-cover {
+    width: 100%;
+    height: 100px;
+    flex-direction: row;
+    gap: 16px;
+  }
+  .libro-modal-icon {
+    margin-bottom: 0;
+    font-size: 36px;
+  }
+  .libro-modal-cover::after {
+    top: auto; bottom: 0; left: 0; right: 0;
+    width: 100%; height: 12px;
+    background: linear-gradient(to top, rgba(0,0,0,0.15), transparent);
+  }
+  .libro-modal-content {
+    padding: 20px;
+  }
+  .libro-modal-actions {
+    flex-direction: column;
+  }
 }
 
 /* El color de la materia en el lomo interno del libro */
@@ -6336,6 +6804,18 @@ a {
 .feed-dvd-info h4 { font-size: 13.5px; color: var(--text0); margin: 0; line-height: 1.3;}
 
 
+/* ── EL FOCO APAGADO / PRENDIDO ── */
+.feed-action-btn .foco-icon, 
+.photo-action-btn .foco-icon {
+  filter: grayscale(1) opacity(0.6); /* Apagado por defecto */
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+
+.feed-action-btn.liked .foco-icon,
+
+/* El texto "Útil" se pinta amarillo */
+.feed-action-btn.liked, 
 
 
 
@@ -6358,7 +6838,27 @@ a {
 }
 @media (max-width: 900px) {
   .feed-list { gap: 10px; }
-  .feed-col:last-child { display: none; }
+}
+@media (max-width: 600px) {
+  .feed-list {
+    flex-direction: column;
+    gap: 0;
+  }
+  .feed-col {
+    width: 100%;
+    flex-direction: column;
+  }
+  /* Galería de tableros: 2 columnas en mobile */
+  .tableros-galeria {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .tablero-card {
+    aspect-ratio: 3/2;
+    padding: 10px;
+  }
+  .tablero-card-icon { font-size: 22px; margin-bottom: 4px; }
+  .tablero-card-nombre { font-size: 13px; }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -6390,10 +6890,6 @@ a {
   .tareas-toolbar {
     gap: 8px;
   }
-
-  .feed-list { flex-direction: column; }
-  .feed-col { display: flex !important; }
-  
 
   .btn-calendario {
     margin-left: 0;
@@ -6461,12 +6957,13 @@ a {
   .chat-compose-wrapper {
     width: 100%;
     margin: 0;
-    /* Quitamos el safe-area de aquí porque el bottom-nav ya lo tiene */
     padding: 10px 12px;
     border-radius: 0;
     border-left: none;
     border-right: none;
     border-bottom: none;
+    box-sizing: border-box;
+    overflow: visible;
   }
 
   .chat-compose {
@@ -6499,8 +6996,8 @@ a {
   }
 
   .apuntes-photos-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 10px;
     width: 100%;
   }
@@ -6569,9 +7066,6 @@ a {
     gap: 14px;
   }
 
-  .feed-list { flex-direction: column; }
-  .feed-col { display: flex !important; }
-
   .materias-grid2 {
     grid-template-columns: repeat(2, 1fr);
     gap: 9px;
@@ -6609,7 +7103,9 @@ a {
   .chat-send {
     width: 38px;
     height: 38px;
+    min-width: 38px;
     font-size: 15px;
+    flex-shrink: 0;
   }
 
   .chat-msg-bubble {
@@ -6726,7 +7222,9 @@ a {
   .chat-send {
     width: 36px;
     height: 36px;
+    min-width: 36px;
     font-size: 14px;
+    flex-shrink: 0;
   }
 
   .chat-msg {
@@ -6773,10 +7271,13 @@ a {
   }
 
   /* Cuadrículas de fotos (Unificadas) */
-  .photos-grid,
-  .apuntes-photos-grid {
+  .photos-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 4px;
+  }
+  .apuntes-photos-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px;
   }
 
   /* Modales */
@@ -6856,4 +7357,140 @@ a {
     gap: 8px;
     padding: 10px;
   }
+}
+/* ── MODAL SELECTOR DE TABLERO ── */
+.selector-tablero-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.selector-tablero-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: var(--bg3); /* Color de fondo base para todos */
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  text-align: left;
+  width: 100%;
+  color: var(--text1);
+  margin-bottom: 8px; /* Espaciado entre tableros */
+}
+
+.selector-tablero-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  border-color: rgba(255,255,255,0.2);
+  background: var(--bg4);  
+}
+
+/* El tablero activo (o el general por defecto) */
+.selector-tablero-item.active {
+  background: var(--accent);
+  color: white;
+}
+
+.selector-tablero-item.general {
+  background: var(--accent);
+}
+
+.selector-tablero-item-color {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.selector-tablero-item-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.selector-tablero-item-nombre {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text1); /* Color de texto para los no seleccionados */
+}
+
+.selector-tablero-item-meta {
+  font-size: 11px;
+  opacity: 0.65;
+  margin-top: 1px;
+}
+
+/* ── Estado: ya compartido en este tablero ── */
+.selector-tablero-item.ya-compartido {
+  opacity: 0.72;
+  position: relative;
+}
+
+.selector-tablero-item.ya-compartido .selector-tablero-item-meta {
+  color: #4ade80;
+  opacity: 1;
+  font-weight: 600;
+}
+
+.selector-tablero-check {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.selector-tablero-item.ya-compartido:hover {
+  opacity: 1;
+}
+
+/* ── Badge "ya compartida" en fotos del muro ── */
+.muro-photo-compartido-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(22, 163, 74, 0.92);
+  border-radius: 20px;
+  padding: 3px 8px 3px 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 3;
+  max-width: calc(100% - 12px);
+  cursor: default;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.muro-photo-compartido-lista {
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* Botón "Volver a compartir" — tono distinto */
+.muro-photo-publish.ya-pub {
+  background: rgba(22, 163, 74, 0.88);
+}
+
+.muro-photo-publish.ya-pub:hover {
+  background: rgba(22, 163, 74, 1);
 }

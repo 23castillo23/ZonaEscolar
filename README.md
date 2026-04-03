@@ -131,6 +131,20 @@ service cloud.firestore {
     match /ec_online/{docId} {
       allow get, list, write: if isAuth();
     }
+
+    match /ec_chat_reads/{docId} {
+      allow get, list, write: if isAuth();
+    }
+
+    match /ec_videotutoriales/{docId} {
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
+    }
+
+    match /ec_biblio_categorias/{docId} {
+      allow get, list, create: if isAuth();
+      allow update, delete: if isAuth();
+    }
   }
 }
 ```

@@ -49,6 +49,11 @@ let puntosMarcador = [];
 let bibliotecaUnsub = null;
 let sidebarOnlineUnsub = null;
 
+// ── TABLEROS TEMÁTICOS ──
+let tablerosUnsub = null;
+let currentTableroId = null;   // null = feed general
+let tableroFeedUnsub = null;   // listener del feed filtrado por tablero
+
 
 let semestresAbiertos = new Set(); // Recuerda qué semestres están abiertos
 let scrollPosicionApuntes = 0;
@@ -101,7 +106,8 @@ const qsa = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 function escHtml(str) {
   return String(str || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 function fmtTime(ts) {
   if (!ts) return '';
@@ -458,6 +464,9 @@ async function activarGrupo(groupId) {
   if (galeriasUnsub) { galeriasUnsub(); galeriasUnsub = null; }
   if (chatTypingUnsub) { chatTypingUnsub(); chatTypingUnsub = null; }
   if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
+  if (tablerosUnsub) { tablerosUnsub(); tablerosUnsub = null; }
+  if (tableroFeedUnsub) { tableroFeedUnsub(); tableroFeedUnsub = null; }
+  currentTableroId = null;
   if (sidebarOnlineUnsub) { sidebarOnlineUnsub(); sidebarOnlineUnsub = null; }
   if (dvdUnsub) { dvdUnsub(); dvdUnsub = null; }
   if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
@@ -752,7 +761,15 @@ function activarSeccion(section) {
     chatFabEl.style.pointerEvents = hideFab ? 'none' : '';
   }
 
-  if (section === 'feed') initFeed();
+  if (section === 'feed') {
+    // Asegurarse de que la galería sea visible y el feed expandido esté oculto
+    const vistaGaleria = $('vistaTableros');
+    const vistaFeed = $('vistaFeedTablero');
+    if (vistaGaleria) vistaGaleria.style.display = '';
+    if (vistaFeed) vistaFeed.style.display = 'none';
+    currentTableroId = null;
+    initTableros();
+  }
   if (section === 'chat') {
     if (!chatUnsub) initChat();
     else {
@@ -803,47 +820,378 @@ function closeSidebar() {
 }
 
 /* ═══════════════════════════════════════════════════
+   TABLEROS TEMÁTICOS — GALERÍA
+═══════════════════════════════════════════════════ */
+
+// Íconos temáticos para los tableros según palabras clave en el nombre
+const TABLERO_ICONOS = {
+  mat: '📐', calc: '📐', álgeb: '📐', trigo: '📐',
+  fis: '⚗️', quim: '🧪', bio: '🔬', cien: '🔬',
+  hist: '📜', geo: '🌍', civil: '📜',
+  espa: '📖', liter: '📖', lect: '📖',
+  ingl: '🇬🇧', franc: '🇫🇷', idio: '🗣️',
+  progr: '💻', inform: '💻', comp: '💻', tecn: '🖥️',
+  arte: '🎨', mús: '🎵', educ: '🏃', depo: '⚽',
+  aviso: '📢', tarea: '✅', examen: '📝', proyecto: '🏗️',
+  tip: '💡', recur: '📚', apunt: '📓',
+};
+
+function getTableroIcono(nombre) {
+  const n = (nombre || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  for (const [key, icon] of Object.entries(TABLERO_ICONOS)) {
+    if (n.includes(key)) return icon;
+  }
+  return '📌';
+}
+
+function initTableros() {
+  if (tablerosUnsub) { tablerosUnsub(); tablerosUnsub = null; }
+  if (!currentGroupId) return;
+
+  // Sync sort button label
+  const btnSort = $('btnSortTableros');
+  if (btnSort) btnSort.textContent = (window._ordenTableros === 'nombre') ? '🔤 A-Z' : '📅 Fecha';
+
+  const { collection, query, where, orderBy, onSnapshot } = lib();
+
+  // Intentamos primero con orderBy (requiere índice compuesto)
+  const qOrdenada = query(
+    collection(db(), 'ec_tableros'),
+    where('groupId', '==', currentGroupId),
+    orderBy('createdAt', 'asc')
+  );
+
+  tablerosUnsub = onSnapshot(qOrdenada, snap => {
+    const tableros = [];
+    snap.forEach(d => tableros.push({ id: d.id, ...d.data() }));
+    window._tablerosCache = tableros;
+    renderGaleriaTableros(tableros);
+  }, err => {
+    // Si falla por índice pendiente, usamos query simple sin orderBy
+    if (err.code === 'failed-precondition' || err.message?.includes('index')) {
+      console.warn('Índice de tableros compilando, usando query sin orden…');
+      const qSimple = query(
+        collection(db(), 'ec_tableros'),
+        where('groupId', '==', currentGroupId)
+      );
+      tablerosUnsub = onSnapshot(qSimple, snap => {
+        const tableros = [];
+        snap.forEach(d => tableros.push({ id: d.id, ...d.data() }));
+        // Ordenar en el cliente mientras el índice compila
+        tableros.sort((a, b) => {
+          const ta = a.createdAt?.toMillis?.() ?? 0;
+          const tb = b.createdAt?.toMillis?.() ?? 0;
+          return ta - tb;
+        });
+        window._tablerosCache = tableros;
+        renderGaleriaTableros(tableros);
+      }, e2 => console.error('Error tableros (fallback):', e2));
+    } else {
+      console.error('Error tableros:', err);
+    }
+  });
+}
+
+function renderGaleriaTableros(tableros) {
+  const galeria = $('tablerosGaleria');
+  if (!galeria) return;
+
+  const btnNuevo = $('btnNuevoTableroGaleria');
+  if (btnNuevo) btnNuevo.style.display = isAdmin ? 'inline-flex' : 'none';
+
+  // Ordenar
+  const orden = window._ordenTableros || 'fecha';
+  const tablerosSorted = [...tableros];
+  if (orden === 'nombre') {
+    tablerosSorted.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+  } else {
+    tablerosSorted.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  }
+
+  let html = '';
+
+  // 1. Card "Nuevo tablero" (Solo para Admin)
+  if (isAdmin) {
+    html += `
+      <button class="tablero-card tablero-card-nuevo" onclick="abrirModalNuevoTablero()">
+        <div class="tablero-card-inner">
+          <div class="tablero-card-content">
+            <span class="tablero-card-icon">➕</span>
+            <div class="tablero-card-nombre">Nuevo tablero</div>
+          </div>
+        </div>
+      </button>`;
+  }
+
+  // 2. Card "Tablero general" (La que se ve bien)
+  html += `
+    <button class="tablero-card tablero-general" onclick="abrirTablero(null)">
+      <div class="tablero-card-inner">
+        <div class="tablero-card-content">
+          <span class="tablero-card-icon">🏠</span>
+          <div class="tablero-card-nombre">Tablero general</div>
+        </div>
+      </div>
+    </button>`;
+
+  // 3. CARDS DE LOS DEMÁS TABLEROS (Aquí es donde estaba el error)
+  tablerosSorted.forEach(t => {
+    const icono = t.icono || getTableroIcono(t.nombre);
+    const bg = t.color || '#1a237e';
+    const delBtn = isAdmin
+      ? `<button class="tablero-card-del" onclick="event.stopPropagation(); eliminarTablero('${t.id}','${escHtml(t.nombre)}')">🗑️</button>`
+      : '';
+    
+    // IMPORTANTE: Aquí envolvemos el nombre en las mismas clases que el Tablero General
+    html += `
+    <button class="tablero-card" style="background:${bg}" onclick="abrirTablero('${t.id}','${escHtml(t.nombre)}','${bg}')">
+      <div class="tablero-card-inner">
+        <div class="tablero-card-content">
+          <span class="tablero-card-icon">${icono}</span>
+          <div class="tablero-card-nombre">${escHtml(t.nombre)}</div>
+        </div>
+      </div>
+    </button>`;
+  });
+
+  galeria.innerHTML = html;
+}
+
+/* ── Abrir un tablero (desplegar feed) ── */
+window.abrirTablero = function(tableroId, nombre, color) {
+  currentTableroId = tableroId;
+
+  const vistaGaleria = $('vistaTableros');
+  const vistaFeed = $('vistaFeedTablero');
+  const titulo = $('tableroFeedTitulo');
+  const delBtn = $('tableroFeedDel');
+  const header = $('tableroFeedHeader');
+
+  if (vistaGaleria) vistaGaleria.style.display = 'none';
+  if (vistaFeed) vistaFeed.style.display = 'block';
+
+  if (tableroId) {
+    titulo.textContent = (nombre || 'Tablero');
+    if (color && header) header.style.borderBottomColor = color;
+    if (delBtn) delBtn.style.display = isAdmin ? 'block' : 'none';
+  } else {
+    titulo.textContent = '🏠 Feed general';
+    if (header) header.style.borderBottomColor = '';
+    if (delBtn) delBtn.style.display = 'none';
+  }
+
+  // Actualizar placeholder del compose
+  const compose = $('composeInput');
+  if (compose) {
+    compose.placeholder = tableroId
+      ? `Publica en "${nombre || 'este tablero'}"…`
+      : 'Comparte un apunte, aviso o material con tu grupo...';
+  }
+
+  initFeed();
+};
+
+/* ── Cerrar tablero y volver a la galería ── */
+window.cerrarTablero = function () {
+  currentTableroId = null;
+  if (feedUnsub) { feedUnsub(); feedUnsub = null; }
+
+  const vistaFeed = $('vistaFeedTablero');
+  const vistaTableros = $('vistaTableros');
+
+  // Ocultamos el feed del tablero
+  if (vistaFeed) vistaFeed.style.display = 'none';
+
+  // Si venías de la galería de tableros, la volvemos a mostrar
+  if (currentSection === 'tableros' && vistaTableros) {
+    vistaTableros.style.display = '';
+  }
+
+  const feedList = $('feedList');
+  if (feedList) feedList.innerHTML = '';
+};
+
+/* ── Eliminar el tablero actualmente abierto ── */
+window.eliminarTableroActivo = function() {
+  if (!currentTableroId || !isAdmin) return;
+  const titulo = $('tableroFeedTitulo')?.textContent || 'este tablero';
+  eliminarTablero(currentTableroId, titulo);
+};
+
+/* ── Ordenar tableros ── */
+window._ordenTableros = localStorage.getItem('ze_orden_tableros') || 'fecha';
+window.toggleOrdenTableros = function() {
+  window._ordenTableros = window._ordenTableros === 'fecha' ? 'nombre' : 'fecha';
+  localStorage.setItem('ze_orden_tableros', window._ordenTableros);
+  const btn = $('btnSortTableros');
+  if (btn) btn.textContent = window._ordenTableros === 'nombre' ? '🔤 A-Z' : '📅 Fecha';
+  // Re-render con los tableros actuales
+  if (window._tablerosCache) renderGaleriaTableros(window._tablerosCache);
+};
+
+window.abrirModalNuevoTablero = function() {
+  $('nuevoTableroNombre').value = '';
+  document.querySelectorAll('#tableroColorPicker .dvd-color-opt').forEach((btn, i) => {
+    btn.classList.toggle('selected', i === 0);
+  });
+  // Reset emoji picker
+  document.querySelectorAll('#tableroEmojiPicker .tablero-emoji-opt').forEach((btn, i) => {
+    btn.classList.toggle('selected', i === 0);
+  });
+  openModal('modalNuevoTablero');
+};
+
+// Bind color picker del modal
+document.querySelectorAll('#tableroColorPicker .dvd-color-opt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#tableroColorPicker .dvd-color-opt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
+});
+
+// Bind emoji picker del modal
+document.querySelectorAll('#tableroEmojiPicker .tablero-emoji-opt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#tableroEmojiPicker .tablero-emoji-opt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
+});
+
+$('btnConfirmarTablero').addEventListener('click', async () => {
+  const nombre = $('nuevoTableroNombre').value.trim();
+  if (!nombre) { alert('Escribe el nombre del tablero.'); return; }
+  if (!isAdmin) { alert('Solo el administrador puede crear tableros.'); return; }
+
+  const selectedColor = document.querySelector('#tableroColorPicker .dvd-color-opt.selected');
+  const color = selectedColor?.dataset.color || '#1a237e';
+
+  const selectedEmoji = document.querySelector('#tableroEmojiPicker .tablero-emoji-opt.selected');
+  const icono = selectedEmoji?.dataset.emoji || '📌';
+
+  const btn = $('btnConfirmarTablero');
+  btn.disabled = true;
+  btn.textContent = '⏳';
+
+  try {
+    const { collection, addDoc, serverTimestamp } = lib();
+    await addDoc(collection(db(), 'ec_tableros'), {
+      groupId: currentGroupId,
+      nombre,
+      color,
+      icono,
+      createdBy: currentUser.uid,
+      createdAt: serverTimestamp()
+    });
+    closeModal('modalNuevoTablero');
+  } catch (e) {
+    alert('Error al crear tablero: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Crear Tablero';
+  }
+});
+
+window.eliminarTablero = async function(tableroId, nombre) {
+  if (!isAdmin) return;
+  if (!confirm(`¿Eliminar el tablero "${nombre}"?\nLas publicaciones del tablero no se borran.`)) return;
+  try {
+    const { doc, deleteDoc } = lib();
+    await deleteDoc(doc(db(), 'ec_tableros', tableroId));
+    // Si estamos dentro del tablero eliminado, volver a la galería
+    if (currentTableroId === tableroId) cerrarTablero();
+  } catch (e) {
+    alert('Error al eliminar: ' + e.message);
+  }
+};
+
+/* ═══════════════════════════════════════════════════
    FEED
 ═══════════════════════════════════════════════════ */
 function initFeed() {
   if (feedUnsub) { feedUnsub(); feedUnsub = null; }
-  
+
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
-  const q = query(
-    collection(db(), 'ec_feed'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'desc'),
-    limit(40)
-  );
 
   $('feedList').innerHTML = '<div class="feed-loading">Cargando…</div>';
 
-  feedUnsub = onSnapshot(q, { includeMetadataChanges: false }, snap => {
-    const posts = [];
-    snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
-    renderFeed(posts);
-  }, err => {
-    // ─── AQUÍ ESTÁ EL MANEJO DE ERRORES MEJORADO ───
+  const onErr = err => {
     console.error('Error en el Feed:', err.code, err.message);
-
     if (err.code === 'failed-precondition') {
-      // Este error suele significar que falta un índice compuesto
-      console.warn(
-        "%c⚠️ ÍNDICE FALTANTE EN FIRESTORE", 
-        "color: white; background: #f59e0b; padding: 4px 8px; border-radius: 4px; font-weight: bold;"
-      );
-      console.warn("Haz clic aquí para crearlo automáticamente:\n", err.message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0] || "URL no encontrada en el mensaje de error.");
-      
-      $('feedList').innerHTML = `
-        <div class="feed-loading" style="color:var(--amber);">
-          ⚠️ Falta configurar un índice en la base de datos.<br>
-          <small>Revisa la consola del navegador (F12) para el enlace de creación.</small>
-        </div>`;
+      console.warn('%c⚠️ ÍNDICE FALTANTE EN FIRESTORE',
+        'color:white;background:#f59e0b;padding:4px 8px;border-radius:4px;font-weight:bold;');
+      console.warn('Haz clic aquí para crearlo automáticamente:\n',
+        err.message.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0] || 'URL no encontrada.');
+      $('feedList').innerHTML = `<div class="feed-loading" style="color:var(--amber);">⚠️ Falta configurar un índice en la base de datos.<br><small>Revisa la consola del navegador (F12) para el enlace de creación.</small></div>`;
     } else {
       $('feedList').innerHTML = `<div class="feed-loading" style="color:var(--red);">⚠️ Error de conexión: ${err.code}</div>`;
     }
-  });
+  };
+
+  if (currentTableroId) {
+    // ── Feed de tablero específico ──
+    const q = query(
+      collection(db(), 'ec_feed'),
+      where('groupId', '==', currentGroupId),
+      where('tableroId', '==', currentTableroId),
+      orderBy('createdAt', 'desc'),
+      limit(40)
+    );
+    feedUnsub = onSnapshot(q, { includeMetadataChanges: false }, snap => {
+      const posts = [];
+      snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
+      renderFeed(posts);
+    }, onErr);
+
+  } else {
+    // ── Feed general: posts nuevos (tableroId='') + posts legacy (sin campo) ──
+    // Firestore no soporta OR en una sola query, así que hacemos dos getDocs
+    // y combinamos, luego un onSnapshot para tiempo real con tableroId=''
+    const { getDocs } = lib();
+
+    const qNew = query(
+      collection(db(), 'ec_feed'),
+      where('groupId', '==', currentGroupId),
+      where('tableroId', '==', ''),
+      orderBy('createdAt', 'desc'),
+      limit(40)
+    );
+    // Primera carga: incluir legacy posts (sin tableroId)
+    const qLegacy = query(
+      collection(db(), 'ec_feed'),
+      where('groupId', '==', currentGroupId),
+      orderBy('createdAt', 'desc'),
+      limit(60)
+    );
+
+    getDocs(qLegacy).then(legacySnap => {
+      const legacyPosts = [];
+      legacySnap.forEach(d => {
+        const data = d.data();
+        // Solo incluir posts sin tableroId asignado (general o legacy)
+        if (!data.tableroId) legacyPosts.push({ id: d.id, ...data });
+      });
+      if (legacyPosts.length) renderFeed(legacyPosts);
+    }).catch(() => {});
+
+    // Tiempo real con posts nuevos del feed general
+    feedUnsub = onSnapshot(qNew, { includeMetadataChanges: false }, snap => {
+      const posts = [];
+      snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
+      // Merge con legacy posts que ya estén en el DOM
+      const existingLegacy = [];
+      document.querySelectorAll('#feedList .feed-card[data-id]').forEach(el => {
+        // Si la card ya existía y no viene en este snapshot, es legacy — la dejamos
+        if (!posts.find(p => p.id === el.dataset.id)) {
+          // No la tocamos; renderFeed solo elimina las que no estén en newIds
+          // Así que las agregamos al array para que no se borren
+          existingLegacy.push({ id: el.dataset.id, _keepOnly: true });
+        }
+      });
+      renderFeed([...posts, ...existingLegacy]);
+    }, onErr);
+  }
 }
+
 
 function bindFeedCard(cardEl, postId) {
   const likeBtn = cardEl.querySelector('.feed-action-btn[data-like]');
@@ -862,12 +1210,14 @@ function bindFeedCard(cardEl, postId) {
       if (!isOpen) {
         loadComments(postId, section);
         section.dataset.open = '1';
-        toggleBtn.textContent = 'Ocultar comentarios';
+        toggleBtn.textContent = 'Ocultar notas';
         section.style.display = 'block';
       } else {
         section.dataset.open = '0';
-        toggleBtn.textContent = `💬 Comentar`;
         section.style.display = 'none';
+        // Restaurar el texto correcto con el conteo actual
+        const cnt = parseInt(cardEl.querySelector('.feed-comments-section')?.dataset.count || '0', 10);
+        toggleBtn.textContent = `📝 ${cnt > 0 ? cnt + ' notas' : 'Añadir nota'}`;
       }
     });
   }
@@ -875,7 +1225,7 @@ function bindFeedCard(cardEl, postId) {
   const sendBtn = cardEl.querySelector('.feed-comment-send');
   if (sendBtn) {
     sendBtn.addEventListener('click', () => {
-      const input = sendBtn.previousElementSibling;
+      const input = cardEl.querySelector('.feed-comment-input');
       enviarComentario(postId, input);
     });
   }
@@ -889,6 +1239,12 @@ function bindFeedCard(cardEl, postId) {
       }
     });
   }
+}
+
+function getVisibleColCount() {
+  if (window.innerWidth <= 600) return 1;
+  if (window.innerWidth <= 900) return 2;
+  return 3;
 }
 
 function getFeedCols(list) {
@@ -914,19 +1270,22 @@ function renderFeed(posts) {
   }
 
   const cols = getFeedCols(list);
+  const numCols = getVisibleColCount();
   const newIds = new Set(posts.map(p => p.id));
+
+  // Mostrar/ocultar columnas según tamaño de pantalla
+  cols.forEach((col, i) => { col.style.display = i < numCols ? '' : 'none'; });
 
   // Eliminar cards que ya no existen
   list.querySelectorAll('.feed-card[data-id]').forEach(el => {
     if (!newIds.has(el.dataset.id)) el.remove();
   });
 
-  // Distribuir: post 0→col0, 1→col1, 2→col2, 3→col0, ...
-  // Orden izquierda→derecha al leer fila a fila
   posts.forEach((p, idx) => {
-    const colIdx = idx % 3;
+    if (p._keepOnly) return; // legacy marker — card ya está en el DOM, no tocar
+    const colIdx = idx % numCols;
     const col = cols[colIdx];
-    const posInCol = Math.floor(idx / 3);
+    const posInCol = Math.floor(idx / numCols);
 
     let card = list.querySelector(`.feed-card[data-id="${p.id}"]`);
     if (!card) {
@@ -1032,18 +1391,19 @@ function openPinColorPopup(card, currentColor, currentShape) {
   const popup = document.createElement('div');
   popup.className = 'pin-color-popup';
 
-  // Shape toggle row
+// Shape toggle row
   const shapeRow = document.createElement('div');
   shapeRow.className = 'pin-shape-row';
+  const previewColor = currentColor || 'purple';
 
   ['flat','tilted'].forEach(sh => {
     const btn = document.createElement('div');
     btn.className = 'pin-shape-btn' + (sh === currentShape ? ' active' : '');
     btn.title = sh === 'flat' ? 'Clásico' : 'Inclinado';
     btn.innerHTML = sh === 'flat'
-      ? makePinSvg(currentColor, 'flat')
-      : makePinSvg(currentColor, 'tilted');
-    btn.querySelector('svg').style.cssText = 'width:18px;height:26px;pointer-events:none';
+      ? makePinSvg(previewColor, 'flat')
+      : makePinSvg(previewColor, 'tilted');
+    btn.querySelector('svg').style.cssText = 'width:24px;height:34px;pointer-events:none;display:block;margin:auto;';
     btn.addEventListener('click', async e => {
       e.stopPropagation();
       currentShape = sh;
@@ -1097,7 +1457,20 @@ function openPinColorPopup(card, currentColor, currentShape) {
   });
   popup.appendChild(dotsRow);
 
-  card.appendChild(popup);
+  // Posicionar el popup usando fixed relativo al pin SVG
+  document.body.appendChild(popup);
+  const pinEl2 = card.querySelector('.feed-pin');
+  if (pinEl2) {
+    const r = pinEl2.getBoundingClientRect();
+    const popupW = 168;
+    let left = r.left + r.width / 2 - popupW / 2;
+    // Evitar que se salga por los bordes
+    if (left < 8) left = 8;
+    if (left + popupW > window.innerWidth - 8) left = window.innerWidth - popupW - 8;
+    popup.style.top = (r.bottom + 8) + 'px';
+    popup.style.left = left + 'px';
+    popup.style.transformOrigin = 'top center';
+  }
 
   setTimeout(() => {
     document.addEventListener('click', function handler() {
@@ -1351,16 +1724,25 @@ function buildFeedCard(p) {
         `<img src="${escHtml(img)}" alt="" onclick="openLightboxFeed(this)" style="cursor:pointer;">`
       ).join('') + `</div>`;
     }
-  } else if (p.type === 'libro' && p.libroData) {
+} else if (p.type === 'libro' && p.libroData) {
+    // Nos aseguramos de usar los datos correctos de ESTA publicación (p)
+    const urlSegura = p.libroData.url ? escHtml(p.libroData.url) : '#';
+    const nombreSeguro = p.libroData.name ? escHtml(p.libroData.name) : 'Archivo sin nombre';
+    const colorClase = p.libroData.colorClass || 'book-default';
+    const extCorta = p.libroData.ext ? escHtml(p.libroData.ext.substring(0, 4)) : 'FILE';
+
     extraContentHtml = `
-      <div class="feed-libro-shared" onclick="window.open('${p.libroData.url}', '_blank')">
-        <div class="book-item ${p.libroData.colorClass}" style="transform: scale(0.65); transform-origin: left center; margin: -20px 0 -30px 0; pointer-events:none;">
-          <div class="book-ext-badge">${p.libroData.ext.substring(0, 4)}</div>
-          <div class="book-spine-title">${p.libroData.name}</div>
+      <div class="feed-libro-shared" onclick="window.open('${urlSegura}', '_blank')" style="cursor:pointer;">
+        <div style="width: 80px; height: 110px; border-radius: 4px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; box-shadow: 2px 4px 8px rgba(0,0,0,0.2); overflow: hidden;" class="${colorClase}">
+          <div style="font-size: 24px; margin-bottom: 4px;">📄</div>
+          <div style="background: rgba(0,0,0,0.4); color: white; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 800;">${extCorta}</div>
         </div>
-        <div class="feed-libro-info">
-          <h4>${escHtml(p.libroData.name)}</h4>
-          <span>📖 Abrir archivo</span>
+        <div class="feed-libro-info" style="flex:1;">
+          <h4 style="margin: 0 0 6px 0; line-height:1.2;">${nombreSeguro}</h4>
+          <span style="display:inline-flex; align-items:center; gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+            Abrir Archivo
+          </span>
         </div>
       </div>`;
   } else if (p.type === 'videotutorial' && p.dvdData) {
@@ -1435,6 +1817,8 @@ function loadComments(postId, sectionEl) {
   const list = sectionEl.querySelector('.feed-comments-list');
   if (sectionEl._commentsUnsub) sectionEl._commentsUnsub();
   sectionEl._commentsUnsub = onSnapshot(q, snap => {
+    // Guardar conteo para el botón de cerrar
+    sectionEl.dataset.count = String(snap.size);
     snap.docChanges().forEach(change => {
       if (change.type === 'added') {
         const c = { id: change.doc.id, ...change.doc.data() };
@@ -1501,6 +1885,9 @@ async function enviarComentario(postId, inputEl) {
   const text = inputEl.value.trim();
   if (!text) return;
 
+  const sendBtn = inputEl.nextElementSibling;
+  if(sendBtn) sendBtn.disabled = true;
+
   const { collection, addDoc, doc, updateDoc, increment, serverTimestamp } = lib();
   try {
     await addDoc(collection(db(), 'ec_comentarios'), {
@@ -1519,7 +1906,11 @@ async function enviarComentario(postId, inputEl) {
     });
 
     inputEl.value = '';
-  } catch (e) { console.error("Error al comentar:", e); }
+  } catch (e) { 
+      console.error("Error al comentar:", e); 
+  } finally {
+      if(sendBtn) sendBtn.disabled = false;
+  }
 }
 
 async function toggleFeedLike(postId, btn) {
@@ -1527,17 +1918,12 @@ async function toggleFeedLike(postId, btn) {
   const uid = currentUser.uid;
   const isLiked = btn.classList.contains('liked');
   
-  // Actualización visual inmediata (Optimista)
+  // Actualización visual inmediata sin romper el HTML
   btn.classList.toggle('liked');
-  const spanFoco = btn.querySelector('.foco-icon');
   const spanCount = btn.querySelector('.like-count');
   let currentLikes = parseInt(spanCount.textContent) || 0;
   
-  if (isLiked) {
-    spanCount.textContent = currentLikes - 1;
-  } else {
-    spanCount.textContent = currentLikes + 1;
-  }
+  spanCount.textContent = isLiked ? (currentLikes - 1) : (currentLikes + 1);
 
   try {
     await updateDoc(doc(db(), 'ec_feed', postId), {
@@ -1651,16 +2037,19 @@ $('composeSend').addEventListener('click', async () => {
       commentCount: 0,
       pinColor: window._composePinColor || 'purple',
       pinShape: window._composePinShape || 'flat',
+      tableroId: currentTableroId || '',
       createdAt: serverTimestamp()
     });
     $('composeInput').value = '';
     composeFiles = [];
     $('composePhoto').value = '';
     renderComposePreview();
-  } catch (e) { alert('Error al publicar: ' + e.message); }
-
-  btn.disabled = false;
-  btn.textContent = '➤';
+  } catch (e) {
+    alert('Error al publicar: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '➤';
+  }
 });
 
 $('composeInput').addEventListener('keydown', e => {
@@ -1901,7 +2290,7 @@ function cargarMuroFotos(uid, esPropio) {
   if (!grid) return;
   grid.innerHTML = '<div class="feed-loading" style="grid-column:1/-1">Cargando fotos…</div>';
 
-  onSnapshot(q, snap => {
+  muroFeedUnsub = onSnapshot(q, async snap => {
     const fotos = [];
     snap.forEach(d => fotos.push({ id: d.id, ...d.data() }));
     lightboxPhotos = fotos;
@@ -1914,16 +2303,71 @@ function cargarMuroFotos(uid, esPropio) {
       return;
     }
 
+    // Consultar en qué tableros ya está compartida cada foto
+    // Mapa: fotoId → Set de tableroIds donde ya existe
+    const compartidasMap = {};
+    if (prop && fotos.length) {
+      try {
+        const { collection, query, where, getDocs, orderBy } = lib();
+        // Traer nombres de tableros para mostrar etiqueta
+        const tablerosSnap = await getDocs(query(
+          collection(db(), 'ec_tableros'),
+          where('groupId', '==', currentGroupId)
+        ));
+        const tablerosNombres = { '': '🏠 Feed general' };
+        tablerosSnap.forEach(d => {
+          tablerosNombres[d.id] = `📌 ${d.data().nombre}`;
+        });
+
+        const feedSnap = await getDocs(query(
+          collection(db(), 'ec_feed'),
+          where('groupId', '==', currentGroupId),
+          where('type', '==', 'foto')
+        ));
+        feedSnap.forEach(d => {
+          const data = d.data();
+          if (!data.muroFotoId) return;
+          if (!compartidasMap[data.muroFotoId]) compartidasMap[data.muroFotoId] = [];
+          const tId = data.tableroId ?? '';
+          compartidasMap[data.muroFotoId].push(tablerosNombres[tId] || '📌 Tablero');
+        });
+      } catch (_) { /* si falla, renderizamos sin badges */ }
+    }
+
     grid.innerHTML = fotos.map((f, i) => {
-      // Si estamos en nuestro propio muro, SIEMPRE podemos eliminar nuestras fotos.
-      // Si es un muro ajeno, solo el admin puede eliminar.
-      const canDelFoto = prop || f.authorUid === currentUser.uid || isAdmin;
+      const canDelFoto = f.authorUid === currentUser.uid || isAdmin;
       const btnDelFoto = canDelFoto
         ? `<button class="muro-photo-del" onclick="event.stopPropagation(); eliminarFotoMuro('${f.id}')" title="Eliminar foto">🗑️</button>`
         : '';
+
+      const tablerosDonde = compartidasMap[f.id] || [];
+      const yaCompartida = tablerosDonde.length > 0;
+      const tooltipTexto = yaCompartida
+        ? `Compartida en: ${tablerosDonde.join(', ')}`
+        : 'Compartir en tablero';
+
+      const badge = yaCompartida
+        ? `<div class="muro-photo-compartido-badge" title="${escHtml(tooltipTexto)}">
+             ✅
+             <span class="muro-photo-compartido-lista">${escHtml(tablerosDonde.join(' · '))}</span>
+           </div>`
+        : '';
+
+      const btnPublicar = prop
+        ? `<button class="muro-photo-publish ${yaCompartida ? 'ya-pub' : ''}"
+              onclick="event.stopPropagation(); publicarFotoMuroAlFeed('${f.id}','${escHtml(f.url)}')"
+              title="${escHtml(tooltipTexto)}">
+             ${yaCompartida ? '📢 Volver a compartir' : '📢 Compartir al Tablero'}
+           </button>`
+        : '';
+
       return `<div class="muro-photo-thumb" onclick="openLightbox(${i})">
         <img src="${escHtml(f.url)}" loading="lazy" alt="">
         ${btnDelFoto}
+        ${badge}
+        <div class="muro-photo-overlay">
+          ${btnPublicar}
+        </div>
       </div>`;
     }).join('');
 
@@ -1945,7 +2389,51 @@ window.eliminarFotoMuro = async function (fotoId) {
   } catch (e) { alert('Error al eliminar: ' + e.message); }
 };
 
-// Subir foto al muro (solo muro propio)
+// Publicar foto del muro al feed del grupo (manual, a decisión del usuario)
+window.publicarFotoMuroAlFeed = async function(fotoId, url) {
+  const { collection, query, where, getDocs, addDoc, doc, updateDoc, serverTimestamp } = lib();
+
+  // Consultar en qué tableros ya existe esta foto
+  const existingSnap = await getDocs(query(
+    collection(db(), 'ec_feed'),
+    where('muroFotoId', '==', fotoId)
+  )).catch(() => null);
+
+  const yaEn = new Set();
+  existingSnap?.forEach(d => yaEn.add(d.data().tableroId ?? ''));
+
+  mostrarSelectorTablero(
+    '¿En qué tablero quieres compartir esta foto?',
+    async (tableroId, tableroNombre) => {
+      try {
+        const enEste = existingSnap?.docs.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
+        if (enEste) {
+          await updateDoc(doc(db(), 'ec_feed', enEste.id), { createdAt: serverTimestamp() });
+          alert(`📢 ¡Publicación subida al inicio de "${tableroNombre}"!`);
+        } else {
+          const texto = prompt('¿Quieres agregar un texto? (opcional, OK para dejar vacío)') ?? '';
+          await addDoc(collection(db(), 'ec_feed'), {
+            groupId: currentGroupId,
+            tableroId: tableroId || '',
+            type: 'foto',
+            muroFotoId: fotoId,
+            text: texto.trim(),
+            images: [url],
+            authorUid: currentUser.uid,
+            authorName: currentUser.name,
+            authorAvatar: currentUser.avatar,
+            likes: 0, likedBy: [], commentCount: 0,
+            createdAt: serverTimestamp()
+          });
+          alert(`¡Foto publicada en "${tableroNombre}"! 📢`);
+        }
+      } catch(e) { alert('Error al publicar: ' + e.message); }
+    },
+    yaEn
+  );
+};
+
+
 $('btnMuroSubir').addEventListener('click', () => {
   muroViendoUid = null; // asegurar que subimos a nuestro propio muro
   $('muroFileInput').click();
@@ -1959,8 +2447,8 @@ $('muroFileInput').addEventListener('change', async e => {
   for (const file of files) {
     const url = await uploadToCloudinary(file);
     if (url) {
-      // Guardar en ec_muro_fotos
-      const muroRef = await addDoc(collection(db(), 'ec_muro_fotos'), {
+      // Solo guardar en ec_muro_fotos — sin publicar automáticamente al feed
+      await addDoc(collection(db(), 'ec_muro_fotos'), {
         url,
         authorUid: currentUser.uid,
         authorName: currentUser.name,
@@ -1968,25 +2456,18 @@ $('muroFileInput').addEventListener('change', async e => {
         groupId: currentGroupId,
         createdAt: serverTimestamp()
       });
-      // Publicar en el feed del grupo con likes y comentarios
-      await addDoc(collection(db(), 'ec_feed'), {
-        groupId: currentGroupId,
-        type: 'foto',
-        muroFotoId: muroRef.id,   // referencia para poder eliminar del muro tb
-        text: '',
-        images: [url],
-        authorUid: currentUser.uid,
-        authorName: currentUser.name,
-        authorAvatar: currentUser.avatar,
-        likes: 0, likedBy: [], commentCount: 0,
-        createdAt: serverTimestamp()
-      });
     }
   }
   $('btnMuroSubir').disabled = false;
   $('btnMuroSubir').textContent = '+ Foto';
   $('muroFileInput').value = '';
-  initMuro();
+  // Cambiar a la pestaña de fotos para que las vea
+  qsa('.muro-tab').forEach(t => t.classList.remove('active'));
+  const tabFotos = document.querySelector('.muro-tab[data-tab="fotos"]');
+  if (tabFotos) tabFotos.classList.add('active');
+  const content = $('muroContent');
+  if (content) content.innerHTML = `<div class="muro-photos-grid" id="muroFotosGrid"></div>`;
+  cargarMuroFotos();
 });
 
 // Tabs del muro
@@ -2012,6 +2493,9 @@ function cargarMuroPublicaciones() {
     ? muroViendoUid : currentUser.uid;
   const esPropio = targetUid === currentUser.uid;
 
+  // Cancelar listener anterior para evitar acumulación de listeners duplicados
+  if (muroFeedUnsub) { muroFeedUnsub(); muroFeedUnsub = null; }
+
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_feed'),
@@ -2022,7 +2506,7 @@ function cargarMuroPublicaciones() {
   );
   const list = $('muroPostsList');
   if (!list) return;
-  onSnapshot(q, snap => {
+  muroFeedUnsub = onSnapshot(q, snap => {
     const posts = [];
     snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
     if (!posts.length) {
@@ -2031,17 +2515,21 @@ function cargarMuroPublicaciones() {
     }
 
     const cols = getFeedCols(list);
+    const numCols = getVisibleColCount();
     const newIds = new Set(posts.map(p => p.id));
+
+    // Mostrar/ocultar columnas según pantalla
+    cols.forEach((col, i) => { col.style.display = i < numCols ? '' : 'none'; });
 
     // Eliminar cards que ya no existen
     list.querySelectorAll('.feed-card[data-id]').forEach(el => {
       if (!newIds.has(el.dataset.id)) el.remove();
     });
 
-    // Distribuir en columnas masonry (mismo orden que el feed principal)
+    // Distribuir en columnas masonry (responsive)
     posts.forEach((p, idx) => {
-      const col = cols[idx % 3];
-      const posInCol = Math.floor(idx / 3);
+      const col = cols[idx % numCols];
+      const posInCol = Math.floor(idx / numCols);
 
       let card = list.querySelector(`.feed-card[data-id="${p.id}"]`);
       if (!card) {
@@ -2225,11 +2713,12 @@ async function enviarMensaje() {
   const text = input.value.trim();
   if (!text || !currentGroupId) return;
 
-  // 1. Limpiamos el input
+  const btn = $('chatSend');
+  btn.disabled = true; // Desactivar para evitar doble clic
+
+  // 1. Limpiamos el input visualmente
   input.value = '';
-  // 2. 🔥 Disparamos un evento 'input' simulado para que la caja regrese 
-  // a su tamaño normal suavemente usando su propia lógica.
-  input.dispatchEvent(new Event('input'));
+  input.dispatchEvent(new Event('input')); // Restaura tamaño
 
   const { collection, addDoc, serverTimestamp } = lib();
   try {
@@ -2241,9 +2730,15 @@ async function enviarMensaje() {
       authorAvatar: currentUser.avatar || '',
       createdAt: serverTimestamp()
     });
+    // Hacemos scroll abajo después de enviar
+    const msgBox = $('chatMessages');
+    if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
   } catch (e) {
     console.error("Error al enviar:", e);
     alert("No se pudo enviar el mensaje.");
+    input.value = text; // Restaurar texto si falla
+  } finally {
+    btn.disabled = false; // Rehabilitar siempre
   }
 }
 
@@ -2441,7 +2936,7 @@ $('chatImgInput').addEventListener('change', async e => {
 
   try {
     const url = await uploadToCloudinary(file);
-    if (!url) { alert('No se pudo subir la imagen.'); return; }
+    if (!url) { alert('No se pudo subir la imagen.'); throw new Error('upload_failed'); }
 
     const { collection, addDoc, serverTimestamp } = lib();
     await addDoc(collection(db(), 'ec_chat'), {
@@ -2454,8 +2949,10 @@ $('chatImgInput').addEventListener('change', async e => {
       createdAt: serverTimestamp()
     });
   } catch (err) {
-    console.error('Error enviando imagen al chat:', err);
-    alert('Error al enviar imagen.');
+    if (err.message !== 'upload_failed') {
+      console.error('Error enviando imagen al chat:', err);
+      alert('Error al enviar imagen.');
+    }
   } finally {
     btn.textContent = '📷';
     btn.disabled = false;
@@ -3497,7 +3994,7 @@ function cargarFotosGaleria() {
   );
   const grid = $('apuntesGrid');
   grid.innerHTML = '<div class="feed-loading">Cargando fotos…</div>';
-  onSnapshot(q, snap => {
+  muroFeedUnsub = onSnapshot(q, snap => {
     const fotos = [];
     snap.forEach(d => fotos.push({ id: d.id, ...d.data() }));
     // Ordenar descendente
@@ -3524,12 +4021,18 @@ function renderFotosGaleria(fotos) {
     const esAutor = currentUser && f.authorUid === currentUser.uid;
     const puedeActuar = esAutor || isAdmin;
 
+    // --- EL BOTÓN DEL COHETE QUE NECESITAS ---
+    const btnCompartirTablero = `<button class="foto-publish-btn" style="left: 75px; background: var(--accent);" title="Compartir en cualquier Tablero" 
+        onclick="event.stopPropagation(); compartirNotaAlTablero('${f.id}', '${escHtml(f.url)}')">🚀</button>`;
+
+    // Busca esta línea dentro de renderFotosGaleria en app.js y reemplázala:
     const btnPublicar = puedeActuar
-      ? `<button class="foto-publish-btn ${f.publishedToFeed ? 'published' : ''}"
-           title="${f.publishedToFeed ? 'Ya publicada en Novedades' : 'Publicar en Novedades'}"
-           onclick="event.stopPropagation(); publicarFotoEnFeed('${escHtml(f.id)}')">
-           ${f.publishedToFeed ? '✅' : '📢'}
-         </button>`
+      ? `<button class="foto-publish-btn ${f.publishedToFeed ? 'published' : ''}" 
+       style="right: 40px; top: 10px;" 
+       title="${f.publishedToFeed ? 'Ya publicada en Novedades' : 'Publicar en Novedades'}"
+       onclick="event.stopPropagation(); publicarFotoEnFeed('${escHtml(f.id)}')">
+       ${f.publishedToFeed ? '✅' : '📢'}
+     </button>`
       : (f.publishedToFeed ? `<span class="foto-published-badge" title="Publicada en Novedades">✅</span>` : '');
 
     const btnEliminar = puedeActuar
@@ -3548,18 +4051,17 @@ function renderFotosGaleria(fotos) {
       <img src="${escHtml(f.url)}" loading="lazy" alt="" onclick="openLightbox(${i})">
       <div class="photo-thumb-overlay" onclick="openLightbox(${i})">${autorLabel}</div>
       <div class="photo-actions-bar">
-        <button class="photo-action-btn ${isLiked ? 'liked' : ''}" onclick="event.stopPropagation(); toggleFotoLike('${f.id}', this)">
-          ${isLiked ? '❤️' : '🤍'} <span>${likeCount}</span>
+        <button class="photo-action-btn feed-action-btn ${isLiked ? 'liked' : ''}" onclick="event.stopPropagation(); toggleFotoLike('${f.id}', this)">
+          <span class="foco-icon" style="font-size: 16px;">💡</span> (<span class="like-count">${likeCount}</span>)
         </button>
         <button class="photo-action-btn" onclick="event.stopPropagation(); abrirNotasDeFoto('${f.url}', '${escHtml(f.caption || '')}')">
           💬 Notas
         </button>
       </div>
-      ${btnPublicar} ${btnEliminar} ${btnPortada} 
+      ${btnPublicar} ${btnEliminar} ${btnPortada} ${btnCompartirTablero} 
     </div>`;
   }).join('');
 }
-
 // Guardar portada sin salirte de la materia
 // Guardar portada sin salirte de la materia
 window.establecerPortadaMateria = async function (url) {
@@ -3592,13 +4094,12 @@ window.toggleFotoLike = async function (fotoId, btnEl) {
   if (!currentUser) return;
   const isLiked = btnEl.classList.contains('liked');
   btnEl.classList.toggle('liked');
-  const span = btnEl.querySelector('span');
+  
+  const span = btnEl.querySelector('span:last-child'); // El span que tiene el número
   let currentLikes = parseInt(span.textContent) || 0;
-  if (isLiked) {
-    btnEl.innerHTML = `🤍 <span>${currentLikes - 1}</span>`;
-  } else {
-    btnEl.innerHTML = `❤️ <span>${currentLikes + 1}</span>`;
-  }
+  
+  span.textContent = isLiked ? (currentLikes - 1) : (currentLikes + 1);
+
   const { doc, updateDoc, arrayUnion, arrayRemove, increment } = lib();
   try {
     await updateDoc(doc(db(), 'ec_fotos', fotoId), {
@@ -3606,7 +4107,7 @@ window.toggleFotoLike = async function (fotoId, btnEl) {
       likes: increment(isLiked ? -1 : 1)
     });
   } catch (e) { console.error('Error al dar like:', e); }
-};
+}
 
 window.abrirNotasDeFoto = function (fotoUrl, caption) {
   const fotoUnicaId = btoa(fotoUrl).replace(/\//g, '_');
@@ -3659,33 +4160,39 @@ function setupApunteUpload() {
   newBtnSend.addEventListener('click', async () => {
     if (!apunteFiles.length || !galeriaActual) return;
     const caption = $('apunteCaption').value.trim();
+    newBtnSend.disabled = true;
     $('apunteProgress').style.display = 'block';
     const { collection, addDoc, serverTimestamp } = lib();
     let done = 0;
-    for (const file of apunteFiles) {
-      const url = await uploadToCloudinary(file, galeriaActual.cloudinaryTag);
-      if (url) {
-        await addDoc(collection(db(), 'ec_fotos'), {
-          galeriaId: galeriaActual.id,
-          groupId: currentGroupId,
-          url, caption,
-          authorUid: currentUser.uid,
-          authorName: currentUser.name,
-          publishedToFeed: false,
-          createdAt: serverTimestamp()
-        });
+    try {
+      for (const file of apunteFiles) {
+        const url = await uploadToCloudinary(file, galeriaActual.cloudinaryTag);
+        if (url) {
+          await addDoc(collection(db(), 'ec_fotos'), {
+            galeriaId: galeriaActual.id,
+            groupId: currentGroupId,
+            url, caption,
+            authorUid: currentUser.uid,
+            authorName: currentUser.name,
+            publishedToFeed: false,
+            createdAt: serverTimestamp()
+          });
+        }
+        done++;
+        $('apunteProgressBar').style.width = `${Math.round(done / apunteFiles.length * 100)}%`;
       }
-      done++;
-      $('apunteProgressBar').style.width = `${Math.round(done / apunteFiles.length * 100)}%`;
+      apunteFiles = [];
+      $('apuntePreviewList').innerHTML = '';
+      $('apunteCaption').value = '';
+    } catch (e) {
+      alert('Error al subir apunte: ' + e.message);
+      newBtnSend.disabled = false;
+    } finally {
+      setTimeout(() => {
+        $('apunteProgress').style.display = 'none';
+        $('apunteProgressBar').style.width = '0%';
+      }, 800);
     }
-    apunteFiles = [];
-    $('apuntePreviewList').innerHTML = '';
-    $('apunteCaption').value = '';
-    newBtnSend.disabled = true;
-    setTimeout(() => {
-      $('apunteProgress').style.display = 'none';
-      $('apunteProgressBar').style.width = '0%';
-    }, 800);
   });
 }
 
@@ -3824,30 +4331,28 @@ window.publicarFotoEnFeed = async function (fotoId) {
 
   const {
     collection, query, where, getDocs, addDoc,
-    doc, updateDoc, arrayUnion, serverTimestamp, Timestamp
+    doc, updateDoc, arrayUnion, serverTimestamp
   } = lib();
 
   try {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const manana = new Date(hoy); manana.setDate(manana.getDate() + 1);
-
+    // Buscar si ya existe un post de esta galería en el feed (sin límite de fecha)
     const feedQ = query(
       collection(db(), 'ec_feed'),
       where('groupId', '==', currentGroupId),
       where('galeriaId', '==', galeriaActual.id),
-      where('type', '==', 'apunte'),
-      where('createdAt', '>=', Timestamp.fromDate(hoy)),
-      where('createdAt', '<', Timestamp.fromDate(manana))
+      where('type', '==', 'apunte')
     );
     const feedSnap = await getDocs(feedQ);
 
     if (!feedSnap.empty) {
+      // Ya existe — agregar la foto si no estaba y subirlo al inicio actualizando createdAt
       const feedDoc = feedSnap.docs[0];
       await updateDoc(doc(db(), 'ec_feed', feedDoc.id), {
-        images: arrayUnion(foto.url)
+        images: arrayUnion(foto.url),
+        createdAt: serverTimestamp()
       });
     } else {
+      // No existe — crear nueva publicación
       const gal = galeriaActual;
       const sem = semestres.find(s => s.id === gal.semestreId);
       const semNombre = sem ? sem.name : '';
@@ -5074,10 +5579,8 @@ function buildDvdCard(dvd, puedeBorrar) {
     ? `<button class="dvd-del-btn" data-id="${dvd.id}" title="Eliminar">✕</button>`
     : '';
 
-  // Lógica para mostrar u ocultar el botón de compartir
-  const btnCompartirHtml = dvd.compartidoEnTablero
-    ? `<div style="margin-top: 8px; padding: 6px 0; font-size:11px; color:var(--text3); border-top: 1px solid var(--border); text-align:center;">✅ Ya en el Tablero</div>`
-    : `<button onclick="event.stopPropagation(); compartirDvd('${dvd.id}')" style="margin-top: 8px; padding: 6px 0; font-size:12px; color:var(--accent); background:none; text-align: center; font-weight: 600; cursor:pointer; border:none; border-top: 1px solid var(--border); width: 100%;">📢 Compartir al Tablero</button>`;
+  // Botón compartir siempre activo
+  const avatarLetra = addedBy ? addedBy.trim().charAt(0).toUpperCase() : '?';
 
   return `
     <div class="dvd-item dvd-item-rect" data-id="${dvd.id}" data-cat="${escHtml(dvd.categoria || '')}" data-titulo="${titulo.toLowerCase()}">
@@ -5090,10 +5593,8 @@ function buildDvdCard(dvd, puedeBorrar) {
       <div class="dvd-rect-info">
         <div class="dvd-rect-title">${titulo}</div>
         ${desc ? `<div class="dvd-rect-desc">${desc}</div>` : ''}
-        <div class="dvd-rect-meta">
-          ${addedBy ? `<span>👤 ${addedBy}</span>` : ''}
-        </div>
-        ${btnCompartirHtml}
+        ${addedBy ? `<div class="dvd-rect-meta"><div class="dvd-rect-meta-avatar">${avatarLetra}</div><span>${addedBy}</span></div>` : ''}
+        <button class="dvd-share-btn" onclick="event.stopPropagation(); compartirDvd('${dvd.id}')">📢 Compartir al Tablero</button>
       </div>
     </div>`;
 }
@@ -5311,8 +5812,84 @@ if (btnConfirmarDvd) {
   });
 }
 
-/* ── LÓGICA DE LIBRO ABIERTO Y COMPARTIR ── */
-/* ── LÓGICA DE LIBRO ABIERTO Y COMPARTIR ── */
+/* ═══════════════════════════════════════════════════
+   SELECTOR DE TABLERO (compartir)
+═══════════════════════════════════════════════════ */
+
+// yaCompartidoEn: Set de tableroIds donde ya existe la publicación ('' = feed general)
+function mostrarSelectorTablero(desc, onSelect, yaCompartidoEn = new Set()) {
+  const lista = $('selectorTableroLista');
+  const descEl = $('selectorTableroDesc');
+  if (!lista) return;
+  if (descEl) descEl.textContent = desc || 'Elige el tablero donde quieres publicar.';
+
+  lista.innerHTML = '<div class="feed-loading" style="padding:20px 0">Cargando tableros…</div>';
+  openModal('modalSelectorTablero');
+
+  const { collection, query, where, getDocs } = lib();
+  getDocs(query(
+    collection(db(), 'ec_tableros'),
+    where('groupId', '==', currentGroupId)
+  )).then(snap => {
+    const tableros = [];
+    snap.forEach(d => tableros.push({ id: d.id, ...d.data() }));
+    tableros.sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0));
+
+    // Feed general
+    const generalYa = yaCompartidoEn.has('');
+    let html = `
+      <button class="selector-tablero-item general ${generalYa ? 'ya-compartido' : ''}" data-id="" data-nombre="Feed general">
+        <div class="selector-tablero-item-color" style="background:var(--accent2,#3b3b6b)">🏠</div>
+        <div class="selector-tablero-item-info">
+          <div class="selector-tablero-item-nombre">Feed general</div>
+          <div class="selector-tablero-item-meta">${generalYa ? '✅ Ya compartido aquí' : 'Publicaciones del grupo'}</div>
+        </div>
+        ${generalYa ? '<span class="selector-tablero-check">✅</span>' : ''}
+      </button>`;
+
+    tableros.forEach(t => {
+      const icono = t.icono || getTableroIcono(t.nombre);
+      const yaEsta = yaCompartidoEn.has(t.id);
+      html += `
+        <button class="selector-tablero-item ${yaEsta ? 'ya-compartido' : ''}"
+                data-id="${t.id}" data-nombre="${escHtml(t.nombre)}"
+                style="border-left: 4px solid ${t.color || '#1a237e'}">
+          <div class="selector-tablero-item-color" style="background:${t.color || '#1a237e'}">${icono}</div>
+          <div class="selector-tablero-item-info">
+            <div class="selector-tablero-item-nombre">${escHtml(t.nombre)}</div>
+            <div class="selector-tablero-item-meta">${yaEsta ? '✅ Ya compartido aquí' : 'Tablero temático'}</div>
+          </div>
+          ${yaEsta ? '<span class="selector-tablero-check">✅</span>' : ''}
+        </button>`;
+    });
+
+    lista.innerHTML = html;
+
+    lista.querySelectorAll('.selector-tablero-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id || null;
+        const nombre = btn.dataset.nombre || 'Feed general';
+        closeModal('modalSelectorTablero');
+        onSelect(id, nombre);
+      });
+    });
+  }).catch(() => {
+    const generalYa = yaCompartidoEn.has('');
+    lista.innerHTML = `
+      <button class="selector-tablero-item general ${generalYa ? 'ya-compartido' : ''}" data-id="" data-nombre="Feed general">
+        <div class="selector-tablero-item-color" style="background:var(--accent2,#3b3b6b)">🏠</div>
+        <div class="selector-tablero-item-info">
+          <div class="selector-tablero-item-nombre">Feed general</div>
+          <div class="selector-tablero-item-meta">${generalYa ? '✅ Ya compartido aquí' : 'Publicaciones del grupo'}</div>
+        </div>
+        ${generalYa ? '<span class="selector-tablero-check">✅</span>' : ''}
+      </button>`;
+    lista.querySelector('.selector-tablero-item')?.addEventListener('click', () => {
+      closeModal('modalSelectorTablero');
+      onSelect(null, 'Feed general');
+    });
+  });
+}
 let libroSeleccionado = null;
 
 window.abrirModalLibro = function(libroId) {
@@ -5332,12 +5909,10 @@ window.abrirModalLibro = function(libroId) {
     };
     $('libroModalLomo').style.background = colorClasses[libroSeleccionado.colorClass] || '#7c6af7';
     
-    // OCULTAR BOTÓN SI YA SE COMPARTIÓ
+    // El botón siempre estará visible con su estilo flex original
     const btnCompartir = $('btnCompartirLibro');
-    if(libroSeleccionado.compartidoEnTablero) {
-        btnCompartir.style.display = 'none';
-    } else {
-        btnCompartir.style.display = 'block';
+    if (btnCompartir) {
+        btnCompartir.style.display = 'flex'; 
     }
 
     openModal('modalLibroAbierto');
@@ -5350,59 +5925,142 @@ $('btnLeerLibro')?.addEventListener('click', () => {
 
 $('btnCompartirLibro')?.addEventListener('click', async () => {
   if(!libroSeleccionado || !currentGroupId) return;
-  const { collection, addDoc, doc, updateDoc, serverTimestamp } = lib();
-  try {
-    // 1. Crear el post en el Tablero con TIPO 'libro'
-    await addDoc(collection(db(), 'ec_feed'), {
-      groupId: currentGroupId,
-      type: 'libro', // TIPO ESPECIAL
-      libroData: {
-          name: libroSeleccionado.name,
-          ext: libroSeleccionado.ext,
-          colorClass: libroSeleccionado.colorClass,
-          url: libroSeleccionado.url
-      },
-      text: `📚 Te recomiendo este archivo de la biblioteca.`,
-      images: [], authorUid: currentUser.uid, authorName: currentUser.name,
-      authorAvatar: currentUser.avatar, likes: 0, likedBy: [], commentCount: 0,
-      createdAt: serverTimestamp()
-    });
-    
-    // 2. Marcar en la base de datos que ya se compartió para que no salga el botón de nuevo
-    await updateDoc(doc(db(), 'ec_biblioteca', libroSeleccionado.id), { compartidoEnTablero: true });
-    
-    alert("¡Libro compartido en el Tablero exitosamente!");
-    closeModal('modalLibroAbierto');
-  } catch (e) { alert("Error al compartir: " + e.message); }
+  closeModal('modalLibroAbierto');
+
+  // Consultar en qué tableros ya existe este libro
+  const { collection, addDoc, doc, updateDoc, serverTimestamp, query, where, getDocs } = lib();
+  const existingSnap = await getDocs(query(
+    collection(db(), 'ec_feed'),
+    where('groupId', '==', currentGroupId),
+    where('type', '==', 'libro'),
+    where('libroData.id', '==', libroSeleccionado.id)
+  )).catch(() => null);
+
+  const yaEn = new Set();
+  existingSnap?.forEach(d => yaEn.add(d.data().tableroId ?? ''));
+
+  mostrarSelectorTablero(
+    `¿En qué tablero compartir "${libroSeleccionado.name}"?`,
+    async (tableroId, tableroNombre) => {
+      try {
+        const feedRef = collection(db(), 'ec_feed');
+        // Buscar si ya existe en ESE tablero específico
+        const enEste = existingSnap?.docs.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
+
+        if (enEste) {
+          await updateDoc(doc(db(), 'ec_feed', enEste.id), {
+            createdAt: serverTimestamp(),
+            'libroData.colorClass': libroSeleccionado.colorClass,
+            'libroData.name': libroSeleccionado.name
+          });
+          alert(`🚀 ¡El archivo subió al inicio de "${tableroNombre}"!`);
+        } else {
+          await addDoc(feedRef, {
+            groupId: currentGroupId,
+            tableroId: tableroId || '',
+            type: 'libro',
+            libroData: {
+              id: libroSeleccionado.id,
+              name: libroSeleccionado.name,
+              ext: libroSeleccionado.ext,
+              colorClass: libroSeleccionado.colorClass,
+              url: libroSeleccionado.url
+            },
+            text: `📚 Te recomiendo este archivo de la biblioteca.`,
+            images: [], authorUid: currentUser.uid, authorName: currentUser.name,
+            authorAvatar: currentUser.avatar, likes: 0, likedBy: [], commentCount: 0,
+            createdAt: serverTimestamp()
+          });
+          await updateDoc(doc(db(), 'ec_biblioteca', libroSeleccionado.id), { compartidoEnTablero: true });
+          alert(`📢 ¡Libro compartido en "${tableroNombre}"!`);
+        }
+      } catch (e) { alert('Error al compartir: ' + e.message); }
+    },
+    yaEn
+  );
 });
 
 // Compartir VideoTutorial
 window.compartirDvd = async function(dvdId) {
-  const { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } = lib();
+  const { doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc, serverTimestamp } = lib();
   try {
     const snap = await getDoc(doc(db(), 'ec_videotutoriales', dvdId));
-    if(!snap.exists()) return;
+    if (!snap.exists()) return;
     const dvd = snap.data();
-    
-    // 1. Crear el post con TIPO 'videotutorial'
-    await addDoc(collection(db(), 'ec_feed'), {
-      groupId: currentGroupId,
-      type: 'videotutorial', // TIPO ESPECIAL
-      dvdData: {
-          titulo: dvd.titulo,
-          thumbnail: dvd.thumbnail,
-          url: dvd.url
-      },
-      text: `📀 Chequen este video tutorial que agregué a la colección.`,
-      images: [], authorUid: currentUser.uid, authorName: currentUser.name,
-      authorAvatar: currentUser.avatar, likes: 0, likedBy: [], commentCount: 0,
-      createdAt: serverTimestamp()
-    });
 
-    // 2. Marcar como compartido
-    await updateDoc(doc(db(), 'ec_videotutoriales', dvdId), { compartidoEnTablero: true });
-    alert("¡Video compartido en el Tablero!");
-  } catch (e) { alert("Error: " + e.message); }
+    // Consultar en qué tableros ya existe este video
+    const existingSnap = await getDocs(query(
+      collection(db(), 'ec_feed'),
+      where('groupId', '==', currentGroupId),
+      where('type', '==', 'videotutorial'),
+      where('dvdData.url', '==', dvd.url)
+    )).catch(() => null);
+
+    const yaEn = new Set();
+    existingSnap?.forEach(d => yaEn.add(d.data().tableroId ?? ''));
+
+    mostrarSelectorTablero(
+      `¿En qué tablero compartir "${dvd.titulo}"?`,
+      async (tableroId, tableroNombre) => {
+        try {
+          const enEste = existingSnap?.docs.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
+          if (enEste) {
+            await updateDoc(doc(db(), 'ec_feed', enEste.id), { createdAt: serverTimestamp() });
+            alert(`🚀 ¡Video subido al inicio de "${tableroNombre}"!`);
+          } else {
+            await addDoc(collection(db(), 'ec_feed'), {
+              groupId: currentGroupId,
+              tableroId: tableroId || '',
+              type: 'videotutorial',
+              dvdData: { titulo: dvd.titulo, thumbnail: dvd.thumbnail, url: dvd.url },
+              text: `📀 Chequen este video tutorial que agregué a la colección.`,
+              images: [], authorUid: currentUser.uid, authorName: currentUser.name,
+              authorAvatar: currentUser.avatar, likes: 0, likedBy: [], commentCount: 0,
+              createdAt: serverTimestamp()
+            });
+            alert(`📢 ¡Video compartido en "${tableroNombre}"!`);
+          }
+        } catch (e) { alert('Error: ' + e.message); }
+      },
+      yaEn
+    );
+  } catch (e) { alert('Error: ' + e.message); }
 };
 
 
+
+/* ── Responsive: re-renderizar feed al cambiar tamaño de ventana ── */
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    if (currentSection === 'feed') initFeed();
+  }, 250);
+});
+
+
+window.compartirNotaAlTablero = async function(fotoId, url) {
+  const materiaNombre = galeriaActual ? galeriaActual.name : 'Apuntes';
+  
+  mostrarSelectorTablero(
+    `¿En qué tablero quieres compartir esta nota de ${materiaNombre}?`,
+    async (tableroId, tableroNombre) => {
+      try {
+        const { collection, addDoc, serverTimestamp } = window._fbLib;
+        await addDoc(collection(window._db, 'ec_feed'), {
+          groupId: currentGroupId,
+          tableroId: tableroId || '',
+          type: 'foto',
+          text: `📖 Apuntes compartidos de la materia: ${materiaNombre}`,
+          images: [url],
+          authorUid: currentUser.uid,
+          authorName: currentUser.name,
+          authorAvatar: currentUser.avatar,
+          likes: 0, likedBy: [], commentCount: 0,
+          createdAt: serverTimestamp()
+        });
+        alert(`¡Nota compartida en ${tableroNombre}! 📢`);
+      } catch(e) { alert('Error al compartir: ' + e.message); }
+    }
+  );
+};

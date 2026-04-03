@@ -155,9 +155,31 @@
 
       <!-- ── SECCIÓN: FEED ── -->
       <section class="section" id="sectionFeed">
-        <div class="feed-compose">
-          <svg class="feed-pin compose-main-pin" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg"><ellipse cx="14" cy="41" rx="3" ry="1" fill="rgba(0,0,0,0.2)"/><polygon points="12,22 16,22 14,40" fill="#c0c0c0"/><polygon points="13,22 15,22 14,38" fill="#e8e8e8"/><rect x="11" y="15" width="6" height="9" rx="2" fill="#9ca3af"/><rect x="12" y="15" width="2" height="9" rx="1" fill="#d1d5db"/><ellipse cx="14" cy="10" rx="12" ry="7" fill="#6d28d9"/><ellipse cx="14" cy="8.5" rx="11" ry="6" fill="#8b5cf6"/><ellipse cx="10" cy="6" rx="4" ry="2.5" fill="rgba(255,255,255,0.35)" transform="rotate(-15 10 6)"/><ellipse cx="14" cy="15" rx="6" ry="2" fill="#6d28d9" opacity="0.5"/></svg>
-          
+
+        <!-- ── GALERÍA DE TABLEROS (vista principal) ── -->
+        <div id="vistaTableros">
+          <div class="tableros-galeria-header">
+            <h2 class="tableros-galeria-titulo">📌 Tableros del grupo</h2>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="tableros-btn-sort" id="btnSortTableros" onclick="toggleOrdenTableros()">📅 Fecha</button>
+              <button class="tableros-btn-nuevo" id="btnNuevoTableroGaleria" style="display:none"
+                onclick="abrirModalNuevoTablero()">＋ Nuevo tablero</button>
+            </div>
+          </div>
+          <div class="tableros-galeria" id="tablerosGaleria">
+            <div class="feed-loading">Cargando tableros…</div>
+          </div>
+        </div>
+
+        <!-- ── FEED DENTRO DE UN TABLERO (vista desplegada) ── -->
+        <div id="vistaFeedTablero" style="display:none">
+          <div class="tablero-feed-header" id="tableroFeedHeader">
+            <button class="tablero-back-btn" onclick="cerrarTablero()">← Tableros</button>
+            <div class="tablero-feed-titulo" id="tableroFeedTitulo"></div>
+            <button class="tablero-feed-del" id="tableroFeedDel" style="display:none"
+              onclick="eliminarTableroActivo()">🗑️</button>
+          </div>
+          <div class="feed-compose">
           <div class="compose-top-row">
             <img class="compose-avatar" id="composeAvatar" src="" alt="">
             <textarea class="compose-input" id="composeInput" placeholder="Comparte un apunte, aviso o material con tu grupo..." rows="2"></textarea>
@@ -192,9 +214,10 @@
             <button class="compose-send" id="composeSend">Publicar</button>
           </div>
         </div>
-        <div class="feed-list" id="feedList">
-          <div class="feed-loading">Cargando feed…</div>
-        </div>
+          <div class="feed-list" id="feedList">
+            <div class="feed-loading">Cargando feed…</div>
+          </div>
+          </div><!-- /vistaFeedTablero -->
       </section>
 
       <!-- ── SECCIÓN: MI MURO ── -->
@@ -634,31 +657,42 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="modalLibroAbierto">
-    <div class="modal-box" style="max-width: 580px; background: transparent; border: none; box-shadow: none; padding: 0;">
-      <button class="modal-close" data-close="modalLibroAbierto" style="color: var(--text2); background: var(--bg3); z-index: 10; border-radius: 50%; width: 32px; height: 32px; top: 10px; right: 10px; display: flex; align-items: center; justify-content: center;">✕</button>
-      
-      <div class="libro-abierto-ui">
-        <div class="libro-pagina libro-pagina-izq">
-          <div class="libro-lomo" id="libroModalLomo"></div>
-          <div class="libro-contenido-izq">
-            <div id="libroModalBadge" class="book-ext-badge" style="position:relative; top:0; left:0; display:inline-block; margin-bottom:12px;">PDF</div>
-            <h3 id="libroModalTitulo" style="font-family: var(--font-display); font-size: 18px; color: var(--text0); margin-bottom: 8px; line-height: 1.3;">Título</h3>
-            <p style="font-size: 11px; color: var(--text2);">Agregado por: <br><strong id="libroModalAutor" style="color: var(--text0);"></strong></p>
-          </div>
+<div class="modal-overlay" id="modalLibroAbierto">
+  <div class="modal-box libro-modal-box">
+    <button class="modal-close" data-close="modalLibroAbierto">✕</button>
+
+    <div class="libro-modal-layout">
+      <div class="libro-modal-cover" id="libroModalLomo">
+        <div class="libro-modal-icon">📄</div>
+        <div id="libroModalBadge" class="libro-ext-badge">PDF</div>
+      </div>
+
+      <div class="libro-modal-content">
+        <h3 id="libroModalTitulo" class="libro-modal-titulo">Título del Archivo</h3>
+        <p class="libro-modal-autor">Subido por <strong id="libroModalAutor">Autor</strong></p>
+
+        <div style="flex: 1;">
+          <div class="libro-modal-desc-label">Descripción</div>
+          <p id="libroModalDesc" class="libro-modal-desc">Sin descripción disponible para este archivo.</p>
         </div>
-        <div class="libro-pagina libro-pagina-der">
-          <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text2); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 12px;">Descripción</h4>
-          <p id="libroModalDesc" style="font-size: 13px; color: var(--text1); line-height: 1.6; flex: 1;"></p>
-          
-          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
-            <button id="btnLeerLibro" class="btn-primary" style="width: 100%; border-radius: 8px; padding: 12px;">📖 Abrir Archivo</button>
-            <button id="btnCompartirLibro" class="btn-sm" style="width: 100%; border-radius: 8px; padding: 10px; font-size: 13px;">📢 Compartir en el Tablero</button>
-          </div>
+
+        <div class="libro-modal-actions">
+          <button id="btnLeerLibro" class="btn-primary btn-abrir-archivo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+            Abrir Archivo
+          </button>
+          <button id="btnCompartirLibro" class="btn-sm btn-compartir-archivo">
+            📢 Compartir
+          </button>
         </div>
       </div>
     </div>
   </div>
+</div>
 
   <div class="modal-overlay" id="modalAgregarDvd">
     <div class="modal-box">
@@ -710,6 +744,91 @@
         <button class="btn-cancel" data-close="modalAgregarDvd">Cancelar</button>
         <button class="btn-primary" id="btnConfirmarDvd">💾 Guardar DVD</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalNuevoTablero">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalNuevoTablero">✕</button>
+      <h3 class="modal-title">📌 Nuevo Tablero Temático</h3>
+      <p class="modal-desc">Crea un espacio exclusivo para una materia o tema.</p>
+  
+      <label class="modal-label">Nombre del tablero</label>
+      <input type="text" id="nuevoTableroNombre" class="modal-input" placeholder="Ej: Matemáticas, Avisos..."
+        maxlength="25">
+
+      <label class="modal-label" style="margin-top:12px">Ícono del tablero</label>
+      <div id="tableroEmojiPicker" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+        <button class="tablero-emoji-opt selected" data-emoji="📌">📌</button>
+        <button class="tablero-emoji-opt" data-emoji="📐">📐</button>
+        <button class="tablero-emoji-opt" data-emoji="📖">📖</button>
+        <button class="tablero-emoji-opt" data-emoji="💻">💻</button>
+        <button class="tablero-emoji-opt" data-emoji="🧪">🧪</button>
+        <button class="tablero-emoji-opt" data-emoji="🔬">🔬</button>
+        <button class="tablero-emoji-opt" data-emoji="🌍">🌍</button>
+        <button class="tablero-emoji-opt" data-emoji="🎨">🎨</button>
+        <button class="tablero-emoji-opt" data-emoji="🎵">🎵</button>
+        <button class="tablero-emoji-opt" data-emoji="⚽">⚽</button>
+        <button class="tablero-emoji-opt" data-emoji="📢">📢</button>
+        <button class="tablero-emoji-opt" data-emoji="✅">✅</button>
+        <button class="tablero-emoji-opt" data-emoji="📝">📝</button>
+        <button class="tablero-emoji-opt" data-emoji="🏗️">🏗️</button>
+        <button class="tablero-emoji-opt" data-emoji="📚">📚</button>
+        <button class="tablero-emoji-opt" data-emoji="💡">💡</button>
+        <button class="tablero-emoji-opt" data-emoji="🔥">🔥</button>
+        <button class="tablero-emoji-opt" data-emoji="⭐">⭐</button>
+        <button class="tablero-emoji-opt" data-emoji="🚀">🚀</button>
+        <button class="tablero-emoji-opt" data-emoji="🎯">🎯</button>
+        <button class="tablero-emoji-opt" data-emoji="🧠">🧠</button>
+        <button class="tablero-emoji-opt" data-emoji="🔑">🔑</button>
+        <button class="tablero-emoji-opt" data-emoji="⚙️">⚙️</button>
+        <button class="tablero-emoji-opt" data-emoji="🗂️">🗂️</button>
+        <button class="tablero-emoji-opt" data-emoji="📊">📊</button>
+        <button class="tablero-emoji-opt" data-emoji="🤖">🤖</button>
+        <button class="tablero-emoji-opt" data-emoji="🌟">🌟</button>
+        <button class="tablero-emoji-opt" data-emoji="💎">💎</button>
+        <button class="tablero-emoji-opt" data-emoji="🎲">🎲</button>
+        <button class="tablero-emoji-opt" data-emoji="🧩">🧩</button>
+      </div>
+  
+      <label class="modal-label" style="margin-top:12px">Color del tablero</label>
+      <div class="dvd-color-picker" id="tableroColorPicker">
+        <button class="dvd-color-opt selected" data-color="#1a237e" style="background:#1a237e" title="Azul oscuro"></button>
+        <button class="dvd-color-opt" data-color="#283593" style="background:#283593" title="Índigo"></button>
+        <button class="dvd-color-opt" data-color="#0d47a1" style="background:#0d47a1" title="Azul rey"></button>
+        <button class="dvd-color-opt" data-color="#006064" style="background:#006064" title="Cian oscuro"></button>
+        <button class="dvd-color-opt" data-color="#004d40" style="background:#004d40" title="Verde teal"></button>
+        <button class="dvd-color-opt" data-color="#1b5e20" style="background:#1b5e20" title="Verde oscuro"></button>
+        <button class="dvd-color-opt" data-color="#33691e" style="background:#33691e" title="Verde lima"></button>
+        <button class="dvd-color-opt" data-color="#e65100" style="background:#e65100" title="Naranja"></button>
+        <button class="dvd-color-opt" data-color="#bf360c" style="background:#bf360c" title="Rojo naranja"></button>
+        <button class="dvd-color-opt" data-color="#b71c1c" style="background:#b71c1c" title="Rojo oscuro"></button>
+        <button class="dvd-color-opt" data-color="#880e4f" style="background:#880e4f" title="Rosa oscuro"></button>
+        <button class="dvd-color-opt" data-color="#4a148c" style="background:#4a148c" title="Morado oscuro"></button>
+        <button class="dvd-color-opt" data-color="#6a1b9a" style="background:#6a1b9a" title="Violeta"></button>
+        <button class="dvd-color-opt" data-color="#263238" style="background:#263238" title="Negro azulado"></button>
+        <button class="dvd-color-opt" data-color="#37474f" style="background:#37474f" title="Gris oscuro"></button>
+        <button class="dvd-color-opt" data-color="#4e342e" style="background:#4e342e" title="Café oscuro"></button>
+        <button class="dvd-color-opt" data-color="#f59e0b" style="background:#f59e0b" title="Amarillo dorado"></button>
+        <button class="dvd-color-opt" data-color="#0e7490" style="background:#0e7490" title="Teal"></button>
+        <button class="dvd-color-opt" data-color="#065f46" style="background:#065f46" title="Esmeralda"></button>
+        <button class="dvd-color-opt" data-color="#7c3aed" style="background:#7c3aed" title="Púrpura brillante"></button>
+      </div>
+  
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalNuevoTablero">Cancelar</button>
+        <button class="btn-primary" id="btnConfirmarTablero">Crear Tablero</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SELECTOR DE TABLERO (compartir) -->
+  <div class="modal-overlay" id="modalSelectorTablero">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalSelectorTablero">✕</button>
+      <h3 class="modal-title">📌 ¿En qué tablero compartir?</h3>
+      <p class="modal-desc" id="selectorTableroDesc">Elige el tablero donde quieres publicar.</p>
+      <div class="selector-tablero-lista" id="selectorTableroLista"></div>
     </div>
   </div>
 
