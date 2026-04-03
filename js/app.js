@@ -24,6 +24,7 @@ let apunteFiles = [];
 
 let feedUnsub = null;
 let chatUnsub = null;
+let currentChannelId = 'general'; // canal activo
 let tareasUnsub = null;
 let votacionUnsub = null;
 let gruposUnsub = null;
@@ -52,6 +53,7 @@ let sidebarOnlineUnsub = null;
 // ── TABLEROS TEMÁTICOS ──
 let tablerosUnsub = null;
 let currentTableroId = null;   // null = feed general
+let dentroDeTablero = false;
 let tableroFeedUnsub = null;   // listener del feed filtrado por tablero
 
 
@@ -469,6 +471,9 @@ async function activarGrupo(groupId) {
   currentTableroId = null;
   if (sidebarOnlineUnsub) { sidebarOnlineUnsub(); sidebarOnlineUnsub = null; }
   if (dvdUnsub) { dvdUnsub(); dvdUnsub = null; }
+  if (muroFeedUnsub) { muroFeedUnsub(); muroFeedUnsub = null; }
+  if (muroFotosUnsub) { muroFotosUnsub(); muroFotosUnsub = null; }
+  if (window._apuntesFotosUnsub) { window._apuntesFotosUnsub(); window._apuntesFotosUnsub = null; }
   if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
   if (_typingTimeout) { clearTimeout(_typingTimeout); _typingTimeout = null; }
   bibliotecaUiBound = false;
@@ -762,15 +767,18 @@ function activarSeccion(section) {
   }
 
   if (section === 'feed') {
-    // Asegurarse de que la galería sea visible y el feed expandido esté oculto
     const vistaGaleria = $('vistaTableros');
     const vistaFeed = $('vistaFeedTablero');
-    if (vistaGaleria) vistaGaleria.style.display = '';
-    if (vistaFeed) vistaFeed.style.display = 'none';
-    currentTableroId = null;
+    if (!dentroDeTablero) {
+      if (vistaGaleria) vistaGaleria.style.display = '';
+      if (vistaFeed) vistaFeed.style.display = 'none';
+    }
     initTableros();
+    initFeed();
   }
+
   if (section === 'chat') {
+    initChatCanales();
     if (!chatUnsub) initChat();
     else {
       initChatOnline();
@@ -959,6 +967,7 @@ function renderGaleriaTableros(tableros) {
 
 /* ── Abrir un tablero (desplegar feed) ── */
 window.abrirTablero = function(tableroId, nombre, color) {
+  dentroDeTablero = true;
   currentTableroId = tableroId;
 
   const vistaGaleria = $('vistaTableros');
@@ -975,7 +984,7 @@ window.abrirTablero = function(tableroId, nombre, color) {
     if (color && header) header.style.borderBottomColor = color;
     if (delBtn) delBtn.style.display = isAdmin ? 'block' : 'none';
   } else {
-    titulo.textContent = '🏠 Feed general';
+    titulo.textContent = '🏠 Tablero general';
     if (header) header.style.borderBottomColor = '';
     if (delBtn) delBtn.style.display = 'none';
   }
@@ -993,6 +1002,7 @@ window.abrirTablero = function(tableroId, nombre, color) {
 
 /* ── Cerrar tablero y volver a la galería ── */
 window.cerrarTablero = function () {
+  dentroDeTablero = false;
   currentTableroId = null;
   if (feedUnsub) { feedUnsub(); feedUnsub = null; }
 
@@ -1003,9 +1013,9 @@ window.cerrarTablero = function () {
   if (vistaFeed) vistaFeed.style.display = 'none';
 
   // Si venías de la galería de tableros, la volvemos a mostrar
-  if (currentSection === 'tableros' && vistaTableros) {
-    vistaTableros.style.display = '';
-  }
+if (currentSection === 'feed' && vistaTableros) {
+  vistaTableros.style.display = '';
+}
 
   const feedList = $('feedList');
   if (feedList) feedList.innerHTML = '';
@@ -1204,42 +1214,177 @@ function bindFeedCard(cardEl, postId) {
   const toggleBtn = cardEl.querySelector('.feed-comments-toggle');
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
-      const section = cardEl.querySelector('.feed-comments-section');
-      if (!section) return;
-      const isOpen = section.dataset.open === '1';
-      if (!isOpen) {
-        loadComments(postId, section);
-        section.dataset.open = '1';
-        toggleBtn.textContent = 'Ocultar notas';
-        section.style.display = 'block';
-      } else {
-        section.dataset.open = '0';
-        section.style.display = 'none';
-        // Restaurar el texto correcto con el conteo actual
-        const cnt = parseInt(cardEl.querySelector('.feed-comments-section')?.dataset.count || '0', 10);
-        toggleBtn.textContent = `📝 ${cnt > 0 ? cnt + ' notas' : 'Añadir nota'}`;
-      }
-    });
-  }
-
-  const sendBtn = cardEl.querySelector('.feed-comment-send');
-  if (sendBtn) {
-    sendBtn.addEventListener('click', () => {
-      const input = cardEl.querySelector('.feed-comment-input');
-      enviarComentario(postId, input);
-    });
-  }
-
-  const commentInput = cardEl.querySelector('.feed-comment-input');
-  if (commentInput) {
-    commentInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        enviarComentario(postId, commentInput);
-      }
+      abrirModalComentarios(postId, cardEl);
     });
   }
 }
+
+/* ── Modal de comentarios tipo ventana ── */
+function abrirModalComentarios(postId, cardEl) {
+  // Si ya existe el modal para este post, solo mostrarlo
+  let modal = document.getElementById('comments-modal-overlay');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'comments-modal-overlay';
+    modal.className = 'comments-modal-overlay';
+    modal.innerHTML = `
+      <div class="comments-modal-window" id="comments-modal-window">
+        <div class="comments-modal-header">
+          <span class="comments-modal-title" id="comments-modal-title">💬 Comentarios</span>
+          <button class="comments-modal-close" id="comments-modal-close">✕</button>
+        </div>
+        <div class="comments-modal-body">
+          <div class="comments-modal-list" id="comments-modal-list"></div>
+        </div>
+        <div class="comments-modal-footer">
+          <img class="feed-comment-avatar" id="comments-modal-avatar" src="${escHtml(currentUser.avatar || '')}" alt="" onerror="this.style.display='none'">
+          <input type="text" class="comments-modal-input" id="comments-modal-input" placeholder="Escribe un comentario…" maxlength="300">
+          <button class="comments-modal-send" id="comments-modal-send">➤</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+
+  // Limpiar lista y estado previo
+  const list = document.getElementById('comments-modal-list');
+  list.innerHTML = '';
+  if (modal._prevUnsub) { modal._prevUnsub(); modal._prevUnsub = null; }
+
+  // Título con nombre de autor de la publicación
+  const authorName = cardEl.querySelector('.feed-card-author')?.textContent || 'Publicación';
+  document.getElementById('comments-modal-title').textContent = `💬 ${authorName}`;
+
+  // Mostrar modal
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  // Sección oculta original (se sigue usando para el contador)
+  const section = cardEl.querySelector('.feed-comments-section');
+
+  // Construir unsub de Firestore directo sobre el modal list
+  const { collection, query, where, orderBy, onSnapshot, addDoc, doc, updateDoc, increment, deleteDoc, serverTimestamp } = lib();
+  const q = query(
+    collection(db(), 'ec_comentarios'),
+    where('postId', '==', postId),
+    orderBy('createdAt', 'asc')
+  );
+
+  const unsub = onSnapshot(q, snap => {
+    if (section) section.dataset.count = String(snap.size);
+    // Actualizar botón en la card
+    const toggleBtn = cardEl.querySelector('.feed-comments-toggle');
+    if (toggleBtn) {
+      const cnt = snap.size;
+      toggleBtn.textContent = `📝 ${cnt > 0 ? cnt + ' notas' : 'Añadir nota'}`;
+    }
+
+    snap.docChanges().forEach(change => {
+      if (change.type === 'added') {
+        const c = { id: change.doc.id, ...change.doc.data() };
+        if (list.querySelector(`[data-comment-id="${c.id}"]`)) return;
+        const esMio = c.authorUid === currentUser.uid;
+        const btnDel = (esMio || isAdmin)
+          ? `<button class="comment-del-btn" onclick="eliminarComentarioModal('${c.id}','${postId}')" title="Eliminar">🗑️</button>`
+          : '';
+        const items = list.querySelectorAll('.feed-comment-item');
+        const lastItem = items.length ? items[items.length - 1] : null;
+        const sameAuthor = lastItem?.dataset.authorUid === c.authorUid;
+
+        const el = document.createElement('div');
+        el.className = 'feed-comment-item' + (sameAuthor ? ' same-author' : '');
+        el.dataset.commentId = c.id;
+        el.dataset.authorUid = c.authorUid;
+        el.innerHTML = `
+          <img class="feed-comment-avatar" src="${escHtml(c.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
+          <div class="feed-comment-bubble">
+            <div class="feed-comment-author">${escHtml(c.authorName || 'Anónimo')}</div>
+            <div class="feed-comment-text">${escHtml(c.text)}</div>
+            <div class="feed-comment-time">${fmtTime(c.createdAt)} ${btnDel}</div>
+          </div>`;
+        const empty = list.querySelector('.comment-empty-msg');
+        if (empty) empty.remove();
+        list.appendChild(el);
+        list.scrollTop = list.scrollHeight;
+      }
+      if (change.type === 'removed') {
+        const el = list.querySelector(`[data-comment-id="${change.doc.id}"]`);
+        if (el) {
+          const next = el.nextElementSibling;
+          if (next?.classList.contains('same-author') && !el.classList.contains('same-author')) {
+            next.classList.remove('same-author');
+          }
+          el.remove();
+        }
+        if (!list.querySelector('.feed-comment-item')) {
+          list.innerHTML = '<div class="comment-empty-msg">Sé el primero en comentar. 👋</div>';
+        }
+      }
+    });
+    if (!list.querySelector('.feed-comment-item') && !list.querySelector('.comment-empty-msg')) {
+      list.innerHTML = '<div class="comment-empty-msg">Sé el primero en comentar. 👋</div>';
+    }
+  });
+  modal._prevUnsub = unsub;
+  modal._postId = postId;
+
+  // Enviar comentario
+  const sendBtn = document.getElementById('comments-modal-send');
+  const input = document.getElementById('comments-modal-input');
+
+  // Limpiar listeners previos clonando los botones
+  const newSend = sendBtn.cloneNode(true);
+  sendBtn.parentNode.replaceChild(newSend, sendBtn);
+  const newInput = input.cloneNode(true);
+  input.parentNode.replaceChild(newInput, input);
+
+  async function enviarDesdeModal() {
+    const text = newInput.value.trim();
+    if (!text) return;
+    newSend.disabled = true;
+    try {
+      await addDoc(collection(db(), 'ec_comentarios'), {
+        postId,
+        groupId: currentGroupId,
+        text,
+        authorUid: currentUser.uid,
+        authorName: getUserAlias(),
+        authorEmail: currentUser.email,
+        authorAvatar: currentUser.avatar || '',
+        createdAt: serverTimestamp()
+      });
+      await updateDoc(doc(db(), 'ec_feed', postId), { commentCount: increment(1) });
+      newInput.value = '';
+    } catch (e) { console.error('Error al comentar:', e); }
+    finally { newSend.disabled = false; }
+  }
+
+  newSend.addEventListener('click', enviarDesdeModal);
+  newInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarDesdeModal(); }
+  });
+  setTimeout(() => newInput.focus(), 100);
+
+  // Cerrar modal
+  function cerrarModal() {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+    if (modal._prevUnsub) { modal._prevUnsub(); modal._prevUnsub = null; }
+  }
+  const closeBtn = document.getElementById('comments-modal-close');
+  const newClose = closeBtn.cloneNode(true);
+  closeBtn.parentNode.replaceChild(newClose, closeBtn);
+  newClose.addEventListener('click', cerrarModal);
+  modal.addEventListener('click', e => { if (e.target === modal) cerrarModal(); }, { once: true });
+}
+
+window.eliminarComentarioModal = async function(comentarioId, postId) {
+  if (!confirm('¿Eliminar tu comentario?')) return;
+  const { doc, deleteDoc, updateDoc, increment } = lib();
+  try {
+    await deleteDoc(doc(db(), 'ec_comentarios', comentarioId));
+    await updateDoc(doc(db(), 'ec_feed', postId), { commentCount: increment(-1) });
+  } catch (e) { alert('Error: ' + e.message); }
+};
 
 function getVisibleColCount() {
   if (window.innerWidth <= 600) return 1;
@@ -2253,15 +2398,22 @@ function initMuro() {
     return;
   }
 
-  // Abrir en publicaciones por defecto
+  // Respetar la pestaña activa; si ninguna está activa, abrir en fotos
+  const tabActiva = document.querySelector('.muro-tab.active');
+  const tipoTab = tabActiva ? tabActiva.dataset.tab : 'fotos';
   qsa('.muro-tab').forEach(t => t.classList.remove('active'));
-  const tabPubs = document.querySelector('.muro-tab[data-tab="publicaciones"]');
-  if (tabPubs) tabPubs.classList.add('active');
+  const tabTarget = document.querySelector(`.muro-tab[data-tab="${tipoTab}"]`);
+  if (tabTarget) tabTarget.classList.add('active');
   const content = $('muroContent');
-  if (content) content.innerHTML = `<div class="feed-list" id="muroPostsList"><div class="feed-loading">Cargando…</div></div>`;
+  if (tipoTab === 'fotos') {
+    if (content) content.innerHTML = `<div class="muro-photos-grid" id="muroFotosGrid"></div>`;
+    cargarMuroFotos(uid, !esAjeno);
+  } else {
+    if (content) content.innerHTML = `<div class="feed-list" id="muroPostsList"><div class="feed-loading">Cargando…</div></div>`;
+    cargarMuroPublicaciones();
+  }
   // ---------------------------------------------------------------------
 
-  cargarMuroPublicaciones();
   cargarMuroStats(uid);
 }
 
@@ -2290,7 +2442,8 @@ function cargarMuroFotos(uid, esPropio) {
   if (!grid) return;
   grid.innerHTML = '<div class="feed-loading" style="grid-column:1/-1">Cargando fotos…</div>';
 
-  muroFeedUnsub = onSnapshot(q, async snap => {
+  if (muroFotosUnsub) { muroFotosUnsub(); muroFotosUnsub = null; }
+  muroFotosUnsub = onSnapshot(q, async snap => {
     const fotos = [];
     snap.forEach(d => fotos.push({ id: d.id, ...d.data() }));
     lightboxPhotos = fotos;
@@ -2616,26 +2769,40 @@ function initChat() {
 
   const startListener = (ordered) => {
     if (chatUnsub) { chatUnsub(); chatUnsub = null; }
+    const canal = currentChannelId || 'general';
+
+    // Para el canal general incluimos mensajes sin channelId (mensajes viejos)
+    // Para otros canales filtramos estrictamente por channelId
     const q = ordered
       ? query(
         collection(db(), 'ec_chat'),
         where('groupId', '==', currentGroupId),
+        where('channelId', '==', canal),
         orderBy('createdAt', 'desc'),
         limit(120)
       )
       : query(
         collection(db(), 'ec_chat'),
         where('groupId', '==', currentGroupId),
-        limit(120)
+        limit(200)
       );
 
     chatUnsub = onSnapshot(q, snap => {
       const loading = $('chatLoading');
       if (loading) loading.remove();
       const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 220;
-      const mensajes = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => getChatMsgMillis(a) - getChatMsgMillis(b));
+
+      let mensajes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // En el fallback (sin orderBy) filtramos por canal en el cliente
+      if (!ordered) {
+        mensajes = mensajes.filter(m => {
+          if (canal === 'general') return !m.channelId || m.channelId === 'general';
+          return m.channelId === canal;
+        });
+      }
+
+      mensajes = mensajes.sort((a, b) => getChatMsgMillis(a) - getChatMsgMillis(b));
 
       box.innerHTML = '';
       lastChatDateStr = '';
@@ -2650,14 +2817,19 @@ function initChat() {
     }, err => {
       console.error('Chat error:', err);
       if (ordered && err.code === 'failed-precondition') {
-        // Fallback para grupos viejos sin índice compuesto.
         usingOrdered = false;
         isFirst = true;
         startListener(false);
         return;
       }
-      if (err.code === 'failed-precondition' && !usingOrdered) {
+      // Si ya estamos en fallback y hay error de índice, usar fallback simple
+      if (!ordered && err.code === 'failed-precondition') {
         box.innerHTML = '<div class="feed-loading" style="color:var(--amber);">⚠️ Falta un índice en Firestore. Revisa la consola (F12).</div>';
+      } else if (ordered && err.code !== 'failed-precondition') {
+        // Para canal general, si falla el where+orderBy, usar fallback sin filtro de canal
+        usingOrdered = false;
+        isFirst = true;
+        startListener(false);
       } else {
         box.innerHTML = '<div class="feed-loading" style="color:var(--red);">⚠️ Error de conexión</div>';
       }
@@ -2724,6 +2896,7 @@ async function enviarMensaje() {
   try {
     await addDoc(collection(db(), 'ec_chat'), {
       groupId: currentGroupId,
+      channelId: currentChannelId || 'general',
       text,
       authorUid: currentUser.uid,
       authorName: getUserAlias(),
@@ -2941,6 +3114,7 @@ $('chatImgInput').addEventListener('change', async e => {
     const { collection, addDoc, serverTimestamp } = lib();
     await addDoc(collection(db(), 'ec_chat'), {
       groupId: currentGroupId,
+      channelId: currentChannelId || 'general',
       text: '',
       imageUrl: url,
       authorUid: currentUser.uid,
@@ -2958,6 +3132,103 @@ $('chatImgInput').addEventListener('change', async e => {
     btn.disabled = false;
     $('chatImgInput').value = '';
   }
+});
+
+/* ═══════════════════════════════════════════════════
+   CHAT — CANALES
+═══════════════════════════════════════════════════ */
+let chatCanalesUnsub = null;
+
+function initChatCanales() {
+  if (chatCanalesUnsub) { chatCanalesUnsub(); chatCanalesUnsub = null; }
+  if (!currentGroupId) return;
+
+  // Mostrar botón + solo para admin
+  const btnAdd = $('btnAddChannel');
+  if (btnAdd) btnAdd.style.display = isAdmin ? 'flex' : 'none';
+
+  const { collection, query, where, orderBy, onSnapshot } = lib();
+  const q = query(
+    collection(db(), 'ec_chat_canales'),
+    where('groupId', '==', currentGroupId),
+    orderBy('createdAt', 'asc')
+  );
+
+  chatCanalesUnsub = onSnapshot(q, snap => {
+    const lista = $('chatChannelsList');
+    if (!lista) return;
+
+    // Construir pestañas: siempre empieza con general
+    const canales = [{ id: 'general', nombre: 'general' }];
+    snap.docs.forEach(d => canales.push({ id: d.id, nombre: d.data().nombre }));
+
+    lista.innerHTML = canales.map(c => `
+      <button class="chat-channel-tab ${currentChannelId === c.id ? 'active' : ''}"
+              data-channel="${escHtml(c.id)}">
+        # ${escHtml(c.nombre)}
+        ${c.id !== 'general' && isAdmin ? `<span class="canal-del" data-id="${escHtml(c.id)}" title="Eliminar">✕</span>` : ''}
+      </button>`).join('');
+
+    // Listeners de pestañas
+    lista.querySelectorAll('.chat-channel-tab').forEach(btn => {
+      btn.addEventListener('click', e => {
+        // Si hicieron clic en la X de borrar, no cambiar de canal
+        if (e.target.classList.contains('canal-del')) return;
+        const id = btn.dataset.channel;
+        if (id === currentChannelId) return;
+        currentChannelId = id;
+        lista.querySelectorAll('.chat-channel-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        initChat();
+      });
+    });
+
+    // Listeners de borrar canal
+    lista.querySelectorAll('.canal-del').forEach(x => {
+      x.addEventListener('click', async e => {
+        e.stopPropagation();
+        const id = x.dataset.id;
+        if (!confirm('¿Eliminar este canal y todos sus mensajes?')) return;
+        try {
+          const { collection: col, query: q2, where: wh, getDocs, deleteDoc, doc } = lib();
+          // Borrar mensajes del canal
+          const msgs = await getDocs(q2(col(db(), 'ec_chat'), wh('groupId', '==', currentGroupId), wh('channelId', '==', id)));
+          await Promise.all(msgs.docs.map(d => deleteDoc(doc(db(), 'ec_chat', d.id))));
+          await deleteDoc(doc(db(), 'ec_chat_canales', id));
+          if (currentChannelId === id) {
+            currentChannelId = 'general';
+            initChat();
+          }
+        } catch (err) { alert('Error al eliminar: ' + err.message); }
+      });
+    });
+  }, () => {
+    // Si falla (índice no creado aún), solo mostrar el canal general
+    const lista = $('chatChannelsList');
+    if (lista) lista.innerHTML = `<button class="chat-channel-tab active" data-channel="general"># general</button>`;
+  });
+}
+
+// Botón ＋ nuevo canal
+$('btnAddChannel')?.addEventListener('click', () => openModal('modalNuevoCanal'));
+
+$('btnConfirmarCanal')?.addEventListener('click', async () => {
+  const input = $('canalNombre');
+  const nombre = (input?.value || '').trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  if (!nombre) { alert('Escribe un nombre válido para el canal.'); return; }
+  if (!currentGroupId) return;
+
+  try {
+    const { collection, addDoc, serverTimestamp } = lib();
+    await addDoc(collection(db(), 'ec_chat_canales'), {
+      groupId: currentGroupId,
+      nombre,
+      createdAt: serverTimestamp(),
+      createdBy: currentUser.uid
+    });
+    input.value = '';
+    closeModal('modalNuevoCanal');
+  } catch (e) { alert('Error al crear canal: ' + e.message); }
 });
 
 /* ═══════════════════════════════════════════════════
@@ -3987,6 +4258,7 @@ $('btnApuntesBack')?.addEventListener('click', () => {
 });
 
 function cargarFotosGaleria() {
+  if (window._apuntesFotosUnsub) { window._apuntesFotosUnsub(); window._apuntesFotosUnsub = null; }
   const { collection, query, where, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_fotos'),
@@ -3994,7 +4266,7 @@ function cargarFotosGaleria() {
   );
   const grid = $('apuntesGrid');
   grid.innerHTML = '<div class="feed-loading">Cargando fotos…</div>';
-  muroFeedUnsub = onSnapshot(q, snap => {
+  window._apuntesFotosUnsub = onSnapshot(q, snap => {
     const fotos = [];
     snap.forEach(d => fotos.push({ id: d.id, ...d.data() }));
     // Ordenar descendente

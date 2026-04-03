@@ -830,6 +830,17 @@ a {
   animation: cardIn 0.2s ease-out;
 }
 
+/* ── Vista interna del tablero abierto: fondo de puntitos ── */
+#vistaFeedTablero {
+  background-image: radial-gradient(var(--border-hover) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+  background-position: 0 0;
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin: -14px;
+  /* Compensa el padding del section para que no se vea desalineado */
+}
+
 .tablero-feed-header {
   display: flex;
   align-items: center;
@@ -1470,7 +1481,7 @@ a {
 }
 .feed-card-images-grid.count-3 img:first-child {
   grid-column: span 2;
-  height: 220px;
+  height: 240px;
 }
 .feed-card-images-grid.count-3 img:not(:first-child) {
   height: 150px;
@@ -1538,6 +1549,7 @@ a {
   gap: 4px;
   padding: 8px 12px 10px;
   border-top: 1px solid var(--border);
+  justify-content: space-between;
 }
 
 .feed-action-btn {
@@ -1582,7 +1594,7 @@ a {
 }
 
 .feed-comments-list {
-  max-height: 220px;
+  max-height: 240px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -2205,18 +2217,24 @@ a {
   padding: 10px 4px 12px 4px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  align-items: stretch; /* todas las tarjetas del mismo alto */
 }
 
 /* ── TARJETA DE MATERIA ── */
 .album-card-wrap {
-  flex: 0 0 170px;
+  flex: 0 0 200px;
+  width: 200px;
   /* Ancho fijo para el carrusel horizontal */
   scroll-snap-align: start;
   position: relative;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
 }
 
 .album-card {
-  height: 220px;
+  flex: 1;
+  min-height: 240px;
   background: var(--bg2);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
@@ -2384,7 +2402,7 @@ a {
 
 
 .group-card-top {
-  height: 120px;
+  height: 170px;
 }
 
 /* ── NOTAS — comentarios por usuario ── */
@@ -7494,3 +7512,74 @@ a {
 .muro-photo-publish.ya-pub:hover {
   background: rgba(22, 163, 74, 1);
 }
+
+/* ═══════════════════════════════════════════════════
+   CHAT — CANALES (pestañas)
+═══════════════════════════════════════════════════ */
+.chat-channels-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.chat-channels-bar::-webkit-scrollbar { display: none; }
+
+.chat-channels-list {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.chat-channel-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px 8px 0 0;
+  font-size: 13px;
+  color: var(--text2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  white-space: nowrap;
+  transition: var(--transition);
+  cursor: pointer;
+}
+.chat-channel-tab:hover { color: var(--text0); background: var(--bg3); }
+.chat-channel-tab.active {
+  color: var(--accent2);
+  background: var(--bg3);
+  border-color: var(--border);
+  font-weight: 600;
+}
+
+.canal-del {
+  font-size: 10px;
+  color: var(--text3);
+  margin-left: 2px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.canal-del:hover { color: var(--red); background: rgba(255,0,0,0.1); }
+
+.chat-channel-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 18px;
+  color: var(--text2);
+  background: transparent;
+  flex-shrink: 0;
+  transition: var(--transition);
+  cursor: pointer;
+}
+.chat-channel-add:hover { background: var(--bg3); color: var(--accent); }
