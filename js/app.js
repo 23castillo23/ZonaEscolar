@@ -3593,7 +3593,16 @@ $('chatInput').addEventListener('input', function () {
 });
 
 $('chatInput').addEventListener('focus', () => {
+  // En iOS el teclado tarda ~300ms en aparecer
   setTimeout(() => ajustarScrollChat(false), 300);
+  setTimeout(() => ajustarScrollChat(false), 600); // segundo intento para iOS
+});
+
+$('chatInput').addEventListener('blur', () => {
+  // Al cerrar teclado en iOS, restaurar scroll
+  setTimeout(() => {
+    window.scrollTo(0, 0); // evita que iOS deje la página desplazada
+  }, 150);
 });
 
 // ── ENVIAR IMAGEN EN CHAT ──
@@ -7038,6 +7047,63 @@ window.addEventListener('resize', () => {
     if (currentSection === 'feed') initFeed();
   }, 250);
 });
+
+/* ══════════════════════════════════════════════════════
+   iOS KEYBOARD FIX — visualViewport API
+   Cuando el teclado sube/baja en iPhone, reajustamos
+   el chat y los modales para que no queden tapados
+══════════════════════════════════════════════════════ */
+(function setupIOSKeyboardFix() {
+  if (!window.visualViewport) return;
+
+  let _lastVVHeight = window.visualViewport.height;
+
+  window.visualViewport.addEventListener('resize', () => {
+    const vvHeight = window.visualViewport.height;
+    const keyboardOpen = vvHeight < _lastVVHeight - 50;
+    const keyboardClosed = vvHeight > _lastVVHeight + 50;
+    _lastVVHeight = vvHeight;
+
+    // 1. Ajustar sección activa para que no quede tapada
+    const activeSection = document.querySelector('.section.active');
+    if (activeSection) {
+      if (keyboardOpen) {
+        // Teclado subió: reducir altura del contenedor
+        activeSection.style.maxHeight = vvHeight + 'px';
+      } else if (keyboardClosed) {
+        activeSection.style.maxHeight = '';
+      }
+    }
+
+    // 2. Scroll del chat al fondo cuando aparece el teclado
+    if (currentSection === 'chat' || currentSection === 'sectionChat') {
+      const box = $('chatMessages');
+      if (box) {
+        setTimeout(() => { box.scrollTop = box.scrollHeight; }, 100);
+      }
+    }
+
+    // 3. Scroll de modales abiertos al campo activo
+    const activeModal = document.querySelector('.modal-overlay.open, .modal-overlay[style*="flex"]');
+    if (activeModal && keyboardOpen) {
+      const focused = activeModal.querySelector('input:focus, textarea:focus');
+      if (focused) {
+        setTimeout(() => focused.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150);
+      }
+    }
+  });
+
+  // Ajustar posición cuando el viewport se desplaza (iOS scroll con teclado)
+  window.visualViewport.addEventListener('scroll', () => {
+    if (currentSection === 'chat' || currentSection === 'sectionChat') {
+      const chatCompose = document.querySelector('.chat-compose-wrapper');
+      if (chatCompose) {
+        const offsetY = window.visualViewport.offsetTop;
+        chatCompose.style.transform = offsetY ? `translateY(${offsetY}px)` : '';
+      }
+    }
+  });
+})();
 
 
 window.compartirNotaAlTablero = async function(fotoId, url) {
