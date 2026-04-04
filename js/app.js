@@ -7355,10 +7355,15 @@ window.compartirDvd = async function(dvdId) {
 
 /* ── Responsive: re-renderizar feed al cambiar tamaño de ventana ── */
 let _resizeTimer = null;
+let _lastInnerWidth = window.innerWidth;
+
 window.addEventListener('resize', () => {
   clearTimeout(_resizeTimer);
   _resizeTimer = setTimeout(() => {
-    if (currentSection === 'feed') initFeed();
+    if (currentSection === 'feed' && window.innerWidth !== _lastInnerWidth) {
+      _lastInnerWidth = window.innerWidth;
+      initFeed();
+    }
   }, 250);
 });
 
