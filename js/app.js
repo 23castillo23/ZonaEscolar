@@ -24,6 +24,14 @@ let apunteFiles = [];
 
 let feedUnsub = null;
 let chatUnsub = null;
+// — Paginación feed —
+let feedOldestDoc = null;
+let feedHayMas = true;
+let feedCargandoMas = false;
+// — Paginación chat —
+let chatOldestDoc = null;
+let chatHayMas = true;
+let chatCargandoMas = false;
 let currentSalaId = null;
 let salasUnsub = null;
 let salaChatColorSeleccionado = '#1a237e';
@@ -1139,7 +1147,7 @@ window.eliminarTablero = async function(tableroId, nombre) {
 function initFeed() {
   if (feedUnsub) { feedUnsub(); feedUnsub = null; }
 
-  const { collection, query, where, orderBy, limit, onSnapshot } = lib();
+  const { collection, query, where, orderBy, limit, onSnapshot, startAfter, getDocs } = lib();
 
   $('feedList').innerHTML = '<div class="feed-loading">Cargando…</div>';
 
@@ -1172,55 +1180,136 @@ function initFeed() {
     }, onErr);
 
   } else {
-    // ── Feed general: posts nuevos (tableroId='') + posts legacy (sin campo) ──
-    // Firestore no soporta OR en una sola query, así que hacemos dos getDocs
-    // y combinamos, luego un onSnapshot para tiempo real con tableroId=''
-    const { getDocs } = lib();
+    feedOldestDoc = null;
+    feedHayMas = true;
+    feedCargandoMas = false;
 
-    const qNew = query(
+    const { getDocs, startAfter } = lib();
+    const LIMIT = 30;
+
+    const qInicial = query(
+      collection(db(), 'ec_feed'),
+      where('groupId', '==', currentGroupId),
+      orderBy('createdAt', 'desc'),
+      limit(LIMIT)
+    );
+
+    getDocs(qInicial).then(snap => {
+      const posts = [];
+      snap.forEach(d => {
+        const data = d.data();
+        if (!data.tableroId) posts.push({ id: d.id, ...data });
+      });
+
+      if (snap.docs.length > 0) {
+        feedOldestDoc = snap.docs[snap.docs.length - 1];
+        feedHayMas = snap.docs.length === LIMIT;
+      } else {
+        feedHayMas = false;
+      }
+
+      renderFeed(posts);
+      _actualizarBotonMasFeed();
+    }).catch(onErr);
+
+    // Tiempo real solo para posts nuevos
+    feedUnsub = onSnapshot(query(
       collection(db(), 'ec_feed'),
       where('groupId', '==', currentGroupId),
       where('tableroId', '==', ''),
       orderBy('createdAt', 'desc'),
-      limit(40)
-    );
-    // Primera carga: incluir legacy posts (sin tableroId)
-    const qLegacy = query(
-      collection(db(), 'ec_feed'),
-      where('groupId', '==', currentGroupId),
-      orderBy('createdAt', 'desc'),
-      limit(60)
-    );
-
-    getDocs(qLegacy).then(legacySnap => {
-      const legacyPosts = [];
-      legacySnap.forEach(d => {
-        const data = d.data();
-        // Solo incluir posts sin tableroId asignado (general o legacy)
-        if (!data.tableroId) legacyPosts.push({ id: d.id, ...data });
-      });
-      if (legacyPosts.length) renderFeed(legacyPosts);
-    }).catch(() => {});
-
-    // Tiempo real con posts nuevos del feed general
-    feedUnsub = onSnapshot(qNew, { includeMetadataChanges: false }, snap => {
-      const posts = [];
-      snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
-      // Merge con legacy posts que ya estén en el DOM
-      const existingLegacy = [];
-      document.querySelectorAll('#feedList .feed-card[data-id]').forEach(el => {
-        // Si la card ya existía y no viene en este snapshot, es legacy — la dejamos
-        if (!posts.find(p => p.id === el.dataset.id)) {
-          // No la tocamos; renderFeed solo elimina las que no estén en newIds
-          // Así que las agregamos al array para que no se borren
-          existingLegacy.push({ id: el.dataset.id, _keepOnly: true });
+      limit(5)
+    ), { includeMetadataChanges: false }, snap => {
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const p = { id: change.doc.id, ...change.doc.data() };
+          const ya = document.querySelector(`#feedList .feed-card[data-id="${p.id}"]`);
+          if (!ya) {
+            const feedList = $('feedList');
+            const card = document.createElement('div');
+            card.innerHTML = buildFeedCard(p);
+            const cardEl = card.firstElementChild;
+            if (cardEl) {
+              feedList.prepend(cardEl);
+              bindFeedCard(cardEl, p.id);
+            }
+          }
         }
       });
-      renderFeed([...posts, ...existingLegacy]);
     }, onErr);
   }
 }
 
+function _actualizarBotonMasFeed() {
+  const feedList = $('feedList');
+  if (!feedList) return;
+  let btn = $('feedLoadMoreBtn');
+  if (feedHayMas && !btn) {
+    btn = document.createElement('div');
+    btn.id = 'feedLoadMoreBtn';
+    btn.className = 'feed-loading';
+    btn.style.cssText = 'cursor:pointer;color:var(--accent);padding:16px;text-align:center;';
+    btn.textContent = '↓ Ver publicaciones anteriores';
+    btn.onclick = cargarMasPostsFeed;
+    feedList.appendChild(btn);
+  } else if (!feedHayMas && btn) {
+    btn.remove();
+  }
+}
+
+async function cargarMasPostsFeed() {
+  if (feedCargandoMas || !feedHayMas || !feedOldestDoc) return;
+  feedCargandoMas = true;
+
+  const btn = $('feedLoadMoreBtn');
+  if (btn) btn.textContent = '⏳ Cargando…';
+
+  const { collection, query, where, orderBy, limit, startAfter, getDocs } = lib();
+  const LIMIT = 30;
+
+  try {
+    const q = query(
+      collection(db(), 'ec_feed'),
+      where('groupId', '==', currentGroupId),
+      orderBy('createdAt', 'desc'),
+      startAfter(feedOldestDoc),
+      limit(LIMIT)
+    );
+
+    const snap = await getDocs(q);
+    const posts = [];
+    snap.forEach(d => {
+      const data = d.data();
+      if (!data.tableroId) posts.push({ id: d.id, ...data });
+    });
+
+    if (snap.docs.length > 0) {
+      feedOldestDoc = snap.docs[snap.docs.length - 1];
+      feedHayMas = snap.docs.length === LIMIT;
+    } else {
+      feedHayMas = false;
+    }
+
+    const feedList = $('feedList');
+    const ancla = $('feedLoadMoreBtn');
+    posts.forEach(p => {
+      const card = document.createElement('div');
+      card.innerHTML = buildFeedCard(p);
+      const cardEl = card.firstElementChild;
+      if (cardEl) {
+        if (ancla) feedList.insertBefore(cardEl, ancla);
+        else feedList.appendChild(cardEl);
+        bindFeedCard(cardEl, p.id);
+      }
+    });
+
+  } catch (e) {
+    console.error('Error cargando más posts:', e);
+  } finally {
+    feedCargandoMas = false;
+    _actualizarBotonMasFeed();
+  }
+}
 
 function bindFeedCard(cardEl, postId) {
   const likeBtn = cardEl.querySelector('.feed-action-btn[data-like]');
@@ -1913,7 +2002,7 @@ function buildFeedCard(p) {
       </div>`;
   } else if (p.type === 'videotutorial' && p.dvdData) {
     extraContentHtml = `
-      <div class="feed-dvd-shared" onclick="window.open('${p.dvdData.url}', '_blank')">
+      <div class="feed-dvd-shared" data-url="${escHtml(p.dvdData.url)}"
         <div class="dvd-rect-thumb">
           <img src="${p.dvdData.thumbnail}" alt="" class="dvd-rect-img">
           <div class="dvd-rect-play-overlay" style="opacity: 1; background: rgba(0,0,0,0.45);">▶</div>
@@ -3280,138 +3369,170 @@ function initChat() {
   if (!currentGroupId) return;
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
 
+  // Resetear estado de paginación al entrar a una sala
+  chatOldestDoc = null;
+  chatHayMas = true;
+  chatCargandoMas = false;
+
   const box = $('chatMessages');
   if (!box) return;
   box.innerHTML = '<div class="feed-loading" id="chatLoading">Conectando…</div>';
   lastChatDateStr = '';
-  const { collection, query, where, orderBy, limit, onSnapshot } = lib();
-  let isFirst = true;
-  let usingOrdered = true;
 
-const startListener = (ordered) => {
-    if (chatUnsub) { chatUnsub(); chatUnsub = null; }
-    const q = ordered
-      ? query(
-        collection(db(), 'ec_chat'),
-        where('groupId', '==', currentGroupId),
-        where('salaId', '==', currentSalaId || 'general'),
-        orderBy('createdAt', 'desc'),
-        limit(120)
-      )
-      : query(
-        collection(db(), 'ec_chat'),
-        where('groupId', '==', currentGroupId),
-        where('salaId', '==', currentSalaId || 'general'),
-        limit(120)
-      );
+  const { collection, query, where, orderBy, limit, startAfter, getDocs, onSnapshot } = lib();
+  const LIMIT = 50;
 
-    chatUnsub = onSnapshot(q, snap => {
-      const loading = $('chatLoading');
-      if (loading) loading.remove();
-      const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 220;
+  // ── 1. Carga inicial: los últimos 50 mensajes ──
+  const qInicial = query(
+    collection(db(), 'ec_chat'),
+    where('groupId', '==', currentGroupId),
+    where('salaId', '==', currentSalaId || 'general'),
+    orderBy('createdAt', 'desc'),
+    limit(LIMIT)
+  );
+
+  getDocs(qInicial).then(snap => {
+    const loading = $('chatLoading');
+    if (loading) loading.remove();
+
+    if (snap.empty) {
+      chatHayMas = false;
+    } else {
+      chatOldestDoc = snap.docs[snap.docs.length - 1]; // el más antiguo de los 50
+      chatHayMas = snap.docs.length === LIMIT;
+
       const mensajes = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => getChatMsgMillis(a) - getChatMsgMillis(b));
+        .reverse(); // más antiguo primero
 
-      box.innerHTML = '';
       lastChatDateStr = '';
       mensajes.forEach(m => appendChatMessageObj(m, box));
+    }
 
-      if (isFirst) {
-        requestAnimationFrame(() => scrollChatToMyLastMessage());
-      } else if (wasNearBottom) {
-        requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
-      }
-      isFirst = false;
+    // Mostrar botón "cargar mensajes anteriores" si hay más
+    _actualizarBotonMasChat();
+
+    // Scroll al final en la carga inicial
+    requestAnimationFrame(() => scrollChatToMyLastMessage());
+
+    // ── 2. Listener en tiempo real solo para mensajes NUEVOS ──
+    // Usamos el timestamp del mensaje más reciente como punto de partida
+    const tsInicio = snap.empty ? new Date() : (snap.docs[0].data().createdAt?.toDate?.() || new Date());
+    const { Timestamp } = lib();
+
+    const qNuevos = query(
+      collection(db(), 'ec_chat'),
+      where('groupId', '==', currentGroupId),
+      where('salaId', '==', currentSalaId || 'general'),
+      orderBy('createdAt', 'asc'),
+      where('createdAt', '>', tsInicio)
+    );
+
+    chatUnsub = onSnapshot(qNuevos, snap => {
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const m = { id: change.doc.id, ...change.doc.data() };
+          // Evitar duplicar si ya está en el DOM
+          if (!box.querySelector(`[data-id="${m.id}"]`)) {
+            appendChatMessageObj(m, box);
+            const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 220;
+            if (wasNearBottom) {
+              requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+            }
+          }
+        }
+      });
     }, err => {
-      console.error('Chat error:', err);
-      if (ordered && err.code === 'failed-precondition') {
-        // Fallback para grupos viejos sin índice compuesto.
-        usingOrdered = false;
-        isFirst = true;
-        startListener(false);
-        return;
-      }
-      if (err.code === 'failed-precondition' && !usingOrdered) {
-        box.innerHTML = '<div class="feed-loading" style="color:var(--amber);">⚠️ Falta un índice en Firestore. Revisa la consola (F12).</div>';
-      } else {
-        box.innerHTML = '<div class="feed-loading" style="color:var(--red);">⚠️ Error de conexión</div>';
-      }
+      console.error('Chat realtime error:', err);
     });
-  };
 
-  startListener(true);
+  }).catch(err => {
+    console.error('Chat carga inicial error:', err);
+    const loading = $('chatLoading');
+    if (loading) loading.innerHTML = '⚠️ Error al cargar mensajes';
+  });
 
   initChatOnline();
   markChatAsRead();
 }
 
-function appendChatMessageObj(m, box) {
-  const mine = m.authorUid === currentUser?.uid;
-
-  // Soporta varios formatos históricos de fecha sin romper el render.
-  const rawDate = getChatMsgDate(m) || new Date();
-  const msgDate = fmtDateChat(rawDate);
-
-  if (msgDate && msgDate !== lastChatDateStr) {
-    const divider = document.createElement('div');
-    divider.className = 'chat-date-divider';
-    divider.innerHTML = `<span>${escHtml(msgDate)}</span>`;
-    box.appendChild(divider);
-    lastChatDateStr = msgDate;
+// Agrega o quita el botón "Ver mensajes anteriores" en el chat
+function _actualizarBotonMasChat() {
+  const box = $('chatMessages');
+  if (!box) return;
+  let btn = $('chatLoadMoreBtn');
+  if (chatHayMas && !btn) {
+    btn = document.createElement('div');
+    btn.id = 'chatLoadMoreBtn';
+    btn.className = 'feed-loading';
+    btn.style.cssText = 'cursor:pointer;color:var(--accent);padding:8px;';
+    btn.textContent = '↑ Ver mensajes anteriores';
+    btn.onclick = cargarMasMensajesChat;
+    box.prepend(btn); // va arriba del todo
+  } else if (!chatHayMas && btn) {
+    btn.remove();
   }
-
-  let bubbleContent = m.imageUrl
-    ? `<img src="${escHtml(m.imageUrl)}" class="chat-msg-img" onclick="openChatImgLightbox('${escHtml(m.imageUrl)}')" style="cursor:pointer;max-width:220px;border-radius:10px;display:block;margin-top:4px;">`
-    : escHtml(m.text);
-
-  const msgEl = document.createElement('div');
-  msgEl.className = `chat-msg ${mine ? 'mine' : ''}`;
-  msgEl.dataset.id = m.id;
-  msgEl.innerHTML = `
-    <img class="chat-msg-avatar" src="${escHtml(m.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
-    <div class="chat-msg-wrap">
-      <div class="chat-msg-author" style="${mine ? 'text-align:right;color:var(--accent2);' : ''}">${escHtml(m.authorName || 'Compañero')}</div>
-      <div class="chat-msg-bubble">${bubbleContent}</div>
-      <div class="chat-msg-time">
-        ${fmtTimeChat(getChatMsgDate(m) || m.createdAt)}
-        ${mine ? `<button class="chat-del-btn" onclick="eliminarMensaje('${m.id}')" title="Eliminar">🗑️</button>` : ''}
-      </div>
-    </div>`;
-  box.appendChild(msgEl);
 }
 
-/* ── ENVÍO DE MENSAJES ── */
-async function enviarMensaje() {
-  const input = $('chatInput');
-  const text = input.value.trim();
-  if (!text || !currentGroupId) return;
+async function cargarMasMensajesChat() {
+  if (chatCargandoMas || !chatHayMas || !chatOldestDoc) return;
+  chatCargandoMas = true;
 
-  const btn = $('chatSend');
-  btn.disabled = true;
+  const btn = $('chatLoadMoreBtn');
+  if (btn) btn.textContent = '⏳ Cargando…';
 
-  input.value = '';
-  input.dispatchEvent(new Event('input'));
+  const { collection, query, where, orderBy, limit, startAfter, getDocs } = lib();
+  const box = $('chatMessages');
+  const LIMIT = 50;
 
-  const { collection, addDoc, serverTimestamp } = lib();
   try {
-    await addDoc(collection(db(), 'ec_chat'), {
-      groupId: currentGroupId,
-      salaId: currentSalaId || 'general',
-      text,
-      authorUid: currentUser.uid,
-      authorName: getUserAlias(),
-      authorAvatar: currentUser.avatar || '',
-      createdAt: serverTimestamp()
-    });
-    const msgBox = $('chatMessages');
-    if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+    const q = query(
+      collection(db(), 'ec_chat'),
+      where('groupId', '==', currentGroupId),
+      where('salaId', '==', currentSalaId || 'general'),
+      orderBy('createdAt', 'desc'),
+      startAfter(chatOldestDoc),
+      limit(LIMIT)
+    );
+
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      chatHayMas = false;
+    } else {
+      chatOldestDoc = snap.docs[snap.docs.length - 1];
+      chatHayMas = snap.docs.length === LIMIT;
+
+      // Guardar posición del scroll antes de insertar
+      const alturaAntes = box.scrollHeight;
+
+      const mensajes = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .reverse();
+
+      // Insertar antes del botón (o al principio)
+      const ancla = $('chatLoadMoreBtn');
+      const tempDiv = document.createElement('div');
+      const lastDateStr = lastChatDateStr;
+      lastChatDateStr = ''; // reset para reconstruir separadores
+      mensajes.forEach(m => appendChatMessageObj(m, tempDiv));
+      lastChatDateStr = lastDateStr;
+
+      if (ancla) {
+        // insertBefore mantiene el orden correcto
+        while (tempDiv.firstChild) {
+          box.insertBefore(tempDiv.firstChild, ancla);
+        }
+      }
+
+      // Mantener la posición de scroll (no saltar al top)
+      box.scrollTop = box.scrollHeight - alturaAntes;
+    }
   } catch (e) {
-    console.error("Error al enviar:", e);
-    alert("No se pudo enviar el mensaje.");
-    input.value = text;
+    console.error('Error cargando más mensajes:', e);
   } finally {
-    btn.disabled = false;
+    chatCargandoMas = false;
+    _actualizarBotonMasChat();
   }
 }
 
@@ -3524,6 +3645,107 @@ window.openChatImgLightbox = function (url) {
   $('lightboxPrev').style.display = 'none';
   $('lightboxNext').style.display = 'none';
 };
+
+function appendChatMessageObj(m, box) {
+  const mine = m.authorUid === currentUser?.uid;
+
+  const rawDate = getChatMsgDate(m) || new Date();
+  const msgDate = fmtDateChat(rawDate);
+
+  if (msgDate && msgDate !== lastChatDateStr) {
+    const divider = document.createElement('div');
+    divider.className = 'chat-date-divider';
+    divider.innerHTML = `<span>${escHtml(msgDate)}</span>`;
+    box.appendChild(divider);
+    lastChatDateStr = msgDate;
+  }
+
+  let bubbleContent = m.imageUrl
+    ? `<img src="${escHtml(m.imageUrl)}" class="chat-msg-img" onclick="openChatImgLightbox('${escHtml(m.imageUrl)}')" style="cursor:pointer;max-width:220px;border-radius:10px;display:block;margin-top:4px;">`
+    : escHtml(m.text);
+
+  // ✔ enviado / ✔✔ visto
+  let statusHtml = '';
+  if (mine) {
+    const seenByOthers = m.seenBy && Object.keys(m.seenBy).some(uid => uid !== currentUser.uid);
+    statusHtml = seenByOthers
+      ? `<span class="chat-seen" style="color:var(--accent2);">✔✔</span>`
+      : `<span class="chat-seen">✔</span>`;
+    // Marcar como visto si es ajeno
+  } else {
+    marcarMensajeVisto(m.id);
+  }
+
+  const msgEl = document.createElement('div');
+  msgEl.className = `chat-msg ${mine ? 'mine' : ''}`;
+  msgEl.dataset.id = m.id;
+  msgEl.innerHTML = `
+    <img class="chat-msg-avatar" src="${escHtml(m.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
+    <div class="chat-msg-wrap">
+      <div class="chat-msg-author" style="${mine ? 'text-align:right;color:var(--accent2);' : ''}">${escHtml(m.authorName || 'Compañero')}</div>
+      <div class="chat-msg-bubble">${bubbleContent}</div>
+      <div class="chat-msg-time">
+        ${fmtTimeChat(getChatMsgDate(m) || m.createdAt)}
+        ${mine ? statusHtml : ''}
+        ${mine ? `<button class="chat-del-btn" onclick="eliminarMensaje('${m.id}')" title="Eliminar">🗑️</button>` : ''}
+      </div>
+    </div>`;
+  box.appendChild(msgEl);
+}
+
+async function enviarMensaje() {
+  const input = $('chatInput');
+  const text = input?.value.trim();
+  if (!text || !currentGroupId) return;
+
+  const btn = $('chatSend');
+  if (btn) btn.disabled = true;
+
+  input.value = '';
+  input.dispatchEvent(new Event('input'));
+
+  // ── Append optimista: mostrar el mensaje al instante ──
+  const msgBox = $('chatMessages');
+  const tempId = 'optimist-' + Date.now();
+  const mensajeOptimista = {
+    id: tempId,
+    text,
+    authorUid: currentUser.uid,
+    authorName: getUserAlias(),
+    authorAvatar: currentUser.avatar || '',
+    createdAt: { toDate: () => new Date() }
+  };
+  if (msgBox) {
+    appendChatMessageObj(mensajeOptimista, msgBox);
+    msgBox.scrollTop = msgBox.scrollHeight;
+  }
+
+  const { collection, addDoc, serverTimestamp } = lib();
+  try {
+    const docRef = await addDoc(collection(db(), 'ec_chat'), {
+      groupId: currentGroupId,
+      salaId: currentSalaId || 'general',
+      text,
+      authorUid: currentUser.uid,
+      authorName: getUserAlias(),
+      authorAvatar: currentUser.avatar || '',
+      createdAt: serverTimestamp()
+    });
+
+    // Reemplazar el elemento optimista con el id real para evitar duplicados
+    const optimEl = msgBox?.querySelector(`[data-id="${tempId}"]`);
+    if (optimEl) optimEl.dataset.id = docRef.id;
+
+  } catch (e) {
+    console.error('Error al enviar:', e);
+    alert('No se pudo enviar el mensaje.');
+    // Quitar el mensaje optimista si falló
+    msgBox?.querySelector(`[data-id="${tempId}"]`)?.remove();
+    if (input) input.value = text;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
 
 /* ── LISTENERS CHAT (solo si existe el DOM; evita errores en vistas parciales) ── */
 const _chatSend = $('chatSend');
@@ -5155,16 +5377,21 @@ document.addEventListener('click', async e => {
 ═══════════════════════════════════════════════════ */
 // REEMPLAZAR: uploadToCloudinary
 async function uploadToCloudinary(file, tag = '') {
+  if (file.size > 10 * 1024 * 1024) {
+    alert('El archivo es muy pesado. Máximo 10 MB.');
+    return null;
+  }
+
   const fd = new FormData();
   fd.append('file', file);
   fd.append('upload_preset', CLOUDINARY_PRESET);
 
   if (tag) {
     fd.append('tags', tag);
-    // NUEVO: Organizar en carpetas dentro de Cloudinary
     fd.append('folder', `ZonaEscolar/${tag}`);
     fd.append('asset_folder', `ZonaEscolar/${tag}`);
   }
+  
 
   try {
     const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
