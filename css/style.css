@@ -1727,9 +1727,7 @@ a {
 }
 .comments-modal-send:hover { background: var(--accent2); }
 .comments-modal-send:disabled { opacity: 0.5; }
-@media (max-width: 520px) {
-  .comments-modal-window { max-height: 92vh; border-radius: 14px; }
-}
+
 
 /* Comentarios en feed */
 .feed-comments-section {
@@ -3896,14 +3894,19 @@ a {
   }
 }
 
+
 .modal-close {
   position: absolute;
   top: 16px;
   right: 16px;
+  width: 28px;
+  height: 28px;
   color: var(--text2);
+  background: rgba(0,0,0,0.45);
+  color: #fff;
   font-size: 16px;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: 50%;
   transition: var(--transition);
 }
 
@@ -7580,6 +7583,22 @@ a {
   .libro-contenido-izq { padding-left: 0; padding-top: 8px; }
 }
 
+/* Mobile */
+@media (max-width: 540px) {
+  .dvd-detalle-modal {
+    max-height: 92dvh;
+    /* Centrado: NO align-self:flex-end, el overlay ya centra con align-items:center */
+  }
+  /* El overlay ya tiene align-items:center y padding:16px por defecto — no sobreescribir */
+  .dvd-detalle-comments-list {
+    max-height: 180px;
+  }
+}
+
+@media (max-width: 520px) {
+  .comments-modal-window { max-height: 92vh; border-radius: 14px; }
+}
+
 /* En celulares, ponemos 4 columnas para que no sean tan chiquitos */
 @media (max-width: 480px) {
   .biblio-color-picker {
@@ -8449,18 +8468,4 @@ a {
   flex-shrink: 0;
 }
 
-/* Mobile */
-@media (max-width: 540px) {
-  .dvd-detalle-modal {
-    max-height: 92dvh;
-    border-radius: 20px 20px 0 0;
-    align-self: flex-end;
-  }
-  .modal-overlay#modalDetalleDvd {
-    align-items: flex-end;
-    padding: 0;
-  }
-  .dvd-detalle-comments-list {
-    max-height: 160px;
-  }
-}
+

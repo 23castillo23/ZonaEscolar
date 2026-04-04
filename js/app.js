@@ -6320,12 +6320,114 @@ function hookBurbujaEnGrupo() {
 initTheme();
 waitForFirebase(() => initAuth());
 
-// PWA Service Worker
+// ══════════════════════════════════════════════════════════════════
+//  PWA — Service Worker + Banner "Nueva versión" + Indicador offline
+// ══════════════════════════════════════════════════════════════════
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => { });
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.js');
+
+      // Si hay un SW esperando desde antes (recarga sin aceptar), mostramos banner
+      if (reg.waiting) mostrarBannerUpdate(reg.waiting);
+
+      // Cuando termina de instalar un SW nuevo queda en "waiting"
+      reg.addEventListener('updatefound', () => {
+        const nuevoSW = reg.installing;
+        nuevoSW.addEventListener('statechange', () => {
+          if (nuevoSW.state === 'installed' && navigator.serviceWorker.controller) {
+            mostrarBannerUpdate(nuevoSW);
+          }
+        });
+      });
+
+      // Cuando el SW hace skipWaiting, el controlador cambia → recargamos
+      let recargando = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!recargando) { recargando = true; window.location.reload(); }
+      });
+
+    } catch (e) { /* registro fallido, no critico */ }
   });
 }
+
+function mostrarBannerUpdate(swEsperando) {
+  if (document.getElementById('sw-update-banner')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'sw-update-banner';
+  banner.innerHTML = `
+    <span>🚀 Nueva versión disponible</span>
+    <button id="sw-update-btn">Actualizar ahora</button>
+    <button id="sw-update-dismiss">✕</button>`;
+  banner.style.cssText = [
+    'position:fixed', 'bottom:72px', 'left:50%', 'transform:translateX(-50%)',
+    'background:var(--accent)', 'color:#fff', 'border-radius:12px',
+    'padding:10px 16px', 'display:flex', 'align-items:center', 'gap:12px',
+    'box-shadow:0 4px 20px rgba(0,0,0,0.35)', 'z-index:99999',
+    'font-size:14px', 'font-weight:600', 'white-space:nowrap',
+    'animation:slideUpBanner 0.3s cubic-bezier(0.34,1.56,0.64,1)'
+  ].join(';');
+
+  if (!document.getElementById('sw-banner-style')) {
+    const st = document.createElement('style');
+    st.id = 'sw-banner-style';
+    st.textContent = `
+      @keyframes slideUpBanner {
+        from { opacity:0; transform:translateX(-50%) translateY(20px); }
+        to   { opacity:1; transform:translateX(-50%) translateY(0); }
+      }
+      #sw-update-btn {
+        background:rgba(255,255,255,0.25); border:1px solid rgba(255,255,255,0.5);
+        color:#fff; border-radius:8px; padding:5px 14px;
+        font-size:13px; font-weight:700; cursor:pointer;
+      }
+      #sw-update-btn:hover { background:rgba(255,255,255,0.4); }
+      #sw-update-dismiss {
+        background:none; border:none; color:rgba(255,255,255,0.8);
+        font-size:16px; cursor:pointer; padding:0 2px; line-height:1;
+      }`;
+    document.head.appendChild(st);
+  }
+
+  document.body.appendChild(banner);
+
+  document.getElementById('sw-update-btn').addEventListener('click', () => {
+    swEsperando.postMessage({ type: 'SKIP_WAITING' });
+    banner.remove();
+  });
+  document.getElementById('sw-update-dismiss').addEventListener('click', () => {
+    banner.remove();
+  });
+}
+
+// ── Indicador online / offline ────────────────────────────────────────────────
+(function setupOfflineIndicator() {
+  let toastEl = null;
+
+  function mostrarToast(msg, color, duracion) {
+    if (toastEl) toastEl.remove();
+    toastEl = document.createElement('div');
+    toastEl.textContent = msg;
+    toastEl.style.cssText = [
+      'position:fixed', 'bottom:72px', 'left:50%', 'transform:translateX(-50%)',
+      `background:${color}`, 'color:#fff', 'border-radius:10px',
+      'padding:8px 20px', 'font-size:13px', 'font-weight:600',
+      'z-index:99998', 'box-shadow:0 3px 14px rgba(0,0,0,0.3)',
+      'animation:slideUpBanner 0.3s cubic-bezier(0.34,1.56,0.64,1)'
+    ].join(';');
+    document.body.appendChild(toastEl);
+    if (duracion) setTimeout(() => { toastEl?.remove(); toastEl = null; }, duracion);
+  }
+
+  window.addEventListener('offline', () => {
+    mostrarToast('📵 Sin conexión — modo offline', '#e53935', 0);
+  });
+  window.addEventListener('online', () => {
+    toastEl?.remove(); toastEl = null;
+    mostrarToast('✅ Conexión restaurada', '#43a047', 3000);
+  });
+}());
 
 // --- ELIMINAR GRUPO ---
 const btnDeleteGroup = $('btnDeleteGroup');

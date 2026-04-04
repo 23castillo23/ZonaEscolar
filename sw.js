@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zonaescolar-shell-v7';
+const CACHE_NAME = 'zonaescolar-shell-v8';
 const APP_SHELL = [
   './',
   './index.html',
@@ -8,25 +8,36 @@ const APP_SHELL = [
   './image/icon-512.png'
 ];
 
+// ── INSTALL: cachea el app shell ──────────────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
   );
-  self.skipWaiting();
+  // NO llamamos skipWaiting() aquí — esperamos a que el usuario confirme
+  // la actualización desde el banner, así evitamos romper sesiones activas.
 });
 
+// ── ACTIVATE: limpia caches viejos y toma control de las pestañas ────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
+// ── MESSAGE: el cliente pide "skipWaiting" cuando el usuario acepta actualizar
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// ── FETCH: Network-first para assets propios, cache-first para el resto ───────
 self.addEventListener('fetch', event => {
   const { request } = event;
   if (request.method !== 'GET') return;
+
   const url = new URL(request.url);
   const isSameOrigin = url.origin === self.location.origin;
   const isNavigation = request.mode === 'navigate';
@@ -37,6 +48,7 @@ self.addEventListener('fetch', event => {
     url.pathname.endsWith('.webmanifest')
   );
 
+  // Assets propios y navegación: Network-first → fallback a cache
   if (isNavigation || isAppAsset) {
     event.respondWith(
       fetch(request)
@@ -46,11 +58,14 @@ self.addEventListener('fetch', event => {
           }
           return response;
         })
-        .catch(() => caches.match(request).then(c => c || caches.match('./index.html')))
+        .catch(() =>
+          caches.match(request).then(c => c || caches.match('./index.html'))
+        )
     );
     return;
   }
 
+  // Resto (imágenes externas, etc.): Cache-first → fallback a network
   event.respondWith(
     caches.match(request).then(cached => {
       const networkFetch = fetch(request).then(response => {
