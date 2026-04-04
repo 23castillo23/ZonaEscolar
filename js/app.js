@@ -1276,7 +1276,7 @@ function abrirModalComentarios(postId, cardEl) {
 
   // Mostrar modal
   modal.classList.add('active');
-  document.body.style.overflow = 'hidden';
+  _lockBodyScroll();
 
   // Sección oculta original (se sigue usando para el contador)
   const section = cardEl.querySelector('.feed-comments-section');
@@ -1387,7 +1387,9 @@ function abrirModalComentarios(postId, cardEl) {
   // Cerrar modal
   function cerrarModal() {
     modal.classList.remove('active');
-    document.body.style.overflow = '';
+    if (!document.querySelector('.modal-overlay.open, .comments-modal-overlay.active')) {
+      _unlockBodyScroll();
+    }
     if (modal._prevUnsub) { modal._prevUnsub(); modal._prevUnsub = null; }
   }
   const closeBtn = document.getElementById('comments-modal-close');
@@ -5670,13 +5672,36 @@ window.cambiarPuntos = function (nombre, delta) {
 /* ═══════════════════════════════════════════════════
    MODALES — utilidades
 ═══════════════════════════════════════════════════ */
-function openModal(id) { $(id)?.classList.add('open'); }
+// ── Helpers para bloquear/restaurar scroll (fix iOS Safari) ──────────────────
+function _lockBodyScroll() {
+  if (document.body.dataset.scrollLocked) return; // ya bloqueado
+  const scrollY = window.scrollY;
+  document.body.dataset.scrollY = scrollY;
+  document.body.dataset.scrollLocked = '1';
+  document.body.style.cssText = `overflow:hidden; position:fixed; top:-${scrollY}px; left:0; right:0;`;
+}
+function _unlockBodyScroll() {
+  if (!document.body.dataset.scrollLocked) return;
+  const scrollY = parseInt(document.body.dataset.scrollY || '0');
+  delete document.body.dataset.scrollLocked;
+  document.body.style.cssText = '';
+  window.scrollTo(0, scrollY);
+}
+
+function openModal(id) {
+  $(id)?.classList.add('open');
+  _lockBodyScroll();
+}
 
 function closeModal(id) {
   $(id)?.classList.remove('open');
   if (id === 'modalDetalleDvd' && dvdDetalleUnsub) {
     dvdDetalleUnsub();
     dvdDetalleUnsub = null;
+  }
+  // Solo desbloquear si no queda ningún modal abierto
+  if (!document.querySelector('.modal-overlay.open, .comments-modal-overlay.active')) {
+    _unlockBodyScroll();
   }
 }
 
@@ -5685,7 +5710,12 @@ document.addEventListener('click', e => {
   if (closeBtn) closeModal(closeBtn.dataset.close);
   const cancelBtn = e.target.closest('.btn-cancel[data-close]');
   if (cancelBtn) closeModal(cancelBtn.dataset.close);
-  if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('open');
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('open');
+    if (!document.querySelector('.modal-overlay.open, .comments-modal-overlay.active')) {
+      _unlockBodyScroll();
+    }
+  }
 });
 
 

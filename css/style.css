@@ -486,6 +486,8 @@ a {
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
   z-index: 199;
+  touch-action: none; /* Bug 3: evita que los gestos pasen al fondo en iOS */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ── TOPBAR ── */
@@ -1676,6 +1678,8 @@ a {
   padding: 14px 16px 8px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  overscroll-behavior: contain; /* Bug 4: evita que el scroll se escape al fondo */
+  -webkit-overflow-scrolling: touch; /* momentum en iOS */
 }
 .comments-modal-body::-webkit-scrollbar { width: 3px; }
 .comments-modal-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -3939,6 +3943,8 @@ a {
   padding: 16px 0 4px;
   display: flex;
   flex-direction: column;
+  overscroll-behavior: contain; /* Bug 4: evita que el scroll se escape al fondo */
+  -webkit-overflow-scrolling: touch;
   gap: 14px;
 }
 
@@ -7318,11 +7324,45 @@ a {
   }
 }
 
-/* ═══════════════════════════════════════════════════════
-   RESPONSIVE — Tablets y Móviles (768px)
-═══════════════════════════════════════════════════════ */
-/* ── RESPONSIVE APUNTES ── */
+
+/* ═══════════════════════════════════════════════════
+   FIXES MÓVIL — iOS / Safari
+   ─────────────────────────────────────────────────
+   1. Evita zoom automático al enfocar inputs (iOS
+      hace zoom si font-size < 16px)
+   2. overscroll en overlays para no mover el fondo
+═══════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+  /* Bug 5: Evita zoom automático en iOS al tocar inputs */
+  .modal-input,
+  .modal-textarea,
+  .modal-select,
+  .comments-modal-input,
+  .chat-input,
+  .album-modal-input,
+  .task-input,
+  input[type="text"],
+  input[type="email"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Bug 4: el overlay completo no debe propagar el scroll */
+  .modal-overlay,
+  .comments-modal-overlay {
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  /* El contenido interno sí puede hacer scroll */
+  .modal-box,
+  .comments-modal-window {
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+  }
+
   #apuntesGroupsContainer {
     /* 2 columnas forzadas en tablets/móviles grandes */
     grid-template-columns: 1fr 1fr;
