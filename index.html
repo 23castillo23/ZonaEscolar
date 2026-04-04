@@ -11,8 +11,8 @@
   <meta name="apple-mobile-web-app-title" content="ZonaEscolar">
   <title>ZonaEscolar · Tu espacio escolar privado</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icons/icon.png" type="image/png">
-  <link rel="apple-touch-icon" href="icons/icon.png">
+  <link rel="icon" href="image/icon/icon-512.png" type="image/png">
+  <link rel="apple-touch-icon" href="image/icon/icon-512.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Sora:wght@400;600;700&display=swap"
@@ -108,6 +108,8 @@
           <button class="btn-sm" id="btnCreateGroup">+ Crear grupo</button>
           <button class="btn-sm btn-sm-danger" id="btnDeleteGroup" style="display:none;"
             title="Eliminar Grupo Actual">🗑️ Grupo</button>
+            <button class="btn-sm btn-sm-danger" id="btnLeaveGroup" style="display:none;"
+            title="Salir del grupo">🚪 Salir</button>
           <button class="btn-sm btn-sm-danger" id="btnLogout">Salir</button>
         </div>
       </div>
@@ -180,44 +182,57 @@
               onclick="eliminarTableroActivo()">🗑️</button>
           </div>
           <div class="feed-compose">
-          <div class="compose-top-row">
-            <img class="compose-avatar" id="composeAvatar" src="" alt="">
-            <textarea class="compose-input" id="composeInput" placeholder="Comparte un apunte, aviso o material con tu grupo..." rows="2"></textarea>
-          </div>
+            <div class="compose-top-row">
+              <img class="compose-avatar" id="composeAvatar" src="" alt="">
+              <textarea class="compose-input" id="composeInput"
+                placeholder="Comparte un apunte, aviso o material con tu grupo..." rows="2"></textarea>
+            </div>
 
-          <div id="composePreview" class="compose-preview"></div>
+            <div id="composePreview" class="compose-preview"></div>
 
-          <div class="compose-bottom-row">
-            <div class="compose-tools">
-              <label class="compose-tool-btn" for="composePhoto" title="Subir foto">
-                <span class="tool-icon">📷</span>
-                <span class="tool-text">Foto</span>
-              </label>
-              <input type="file" id="composePhoto" accept="image/*" multiple style="display:none">
-              
-              <div class="compose-pin-picker compose-tool-btn" id="composePinPicker" title="Color del pin">
-                <svg class="compose-pin-svg tool-icon" id="composePinPreview" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg"><ellipse cx="14" cy="41" rx="3" ry="1" fill="rgba(0,0,0,0.2)"/><polygon points="12,22 16,22 14,40" fill="#c0c0c0"/><polygon points="13,22 15,22 14,38" fill="#e8e8e8"/><rect x="11" y="15" width="6" height="9" rx="2" fill="#9ca3af"/><rect x="12" y="15" width="2" height="9" rx="1" fill="#d1d5db"/><ellipse cx="14" cy="10" rx="12" ry="7" fill="#6d28d9"/><ellipse cx="14" cy="8.5" rx="11" ry="6" fill="#8b5cf6"/><ellipse cx="10" cy="6" rx="4" ry="2.5" fill="rgba(255,255,255,0.35)" transform="rotate(-15 10 6)"/><ellipse cx="14" cy="15" rx="6" ry="2" fill="#6d28d9" opacity="0.5"/></svg>
-                <span class="tool-text">Pin</span>
-                <div class="compose-pin-dropdown" id="composePinDropdown">
-                  <div class="compose-pin-option" data-color="red"    style="background:#ef4444"></div>
-                  <div class="compose-pin-option" data-color="yellow" style="background:#f59e0b"></div>
-                  <div class="compose-pin-option" data-color="green"  style="background:#10b981"></div>
-                  <div class="compose-pin-option" data-color="blue"   style="background:#3b82f6"></div>
-                  <div class="compose-pin-option" data-color="purple" style="background:#8b5cf6"></div>
-                  <div class="compose-pin-option" data-color="pink"   style="background:#ec4899"></div>
-                  <div class="compose-pin-option" data-color="orange" style="background:#f97316"></div>
-                  <div class="compose-pin-option" data-color="cyan"   style="background:#06b6d4"></div>
+            <div class="compose-bottom-row">
+              <div class="compose-tools">
+                <label class="compose-tool-btn" for="composePhoto" title="Subir foto">
+                  <span class="tool-icon">📷</span>
+                  <span class="tool-text">Foto</span>
+                </label>
+                <input type="file" id="composePhoto" accept="image/*" multiple style="display:none">
+
+                <div class="compose-pin-picker compose-tool-btn" id="composePinPicker" title="Color del pin">
+                  <svg class="compose-pin-svg tool-icon" id="composePinPreview" viewBox="0 0 28 42"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="14" cy="41" rx="3" ry="1" fill="rgba(0,0,0,0.2)" />
+                    <polygon points="12,22 16,22 14,40" fill="#c0c0c0" />
+                    <polygon points="13,22 15,22 14,38" fill="#e8e8e8" />
+                    <rect x="11" y="15" width="6" height="9" rx="2" fill="#9ca3af" />
+                    <rect x="12" y="15" width="2" height="9" rx="1" fill="#d1d5db" />
+                    <ellipse cx="14" cy="10" rx="12" ry="7" fill="#6d28d9" />
+                    <ellipse cx="14" cy="8.5" rx="11" ry="6" fill="#8b5cf6" />
+                    <ellipse cx="10" cy="6" rx="4" ry="2.5" fill="rgba(255,255,255,0.35)"
+                      transform="rotate(-15 10 6)" />
+                    <ellipse cx="14" cy="15" rx="6" ry="2" fill="#6d28d9" opacity="0.5" />
+                  </svg>
+                  <span class="tool-text">Pin</span>
+                  <div class="compose-pin-dropdown" id="composePinDropdown">
+                    <div class="compose-pin-option" data-color="red" style="background:#ef4444"></div>
+                    <div class="compose-pin-option" data-color="yellow" style="background:#f59e0b"></div>
+                    <div class="compose-pin-option" data-color="green" style="background:#10b981"></div>
+                    <div class="compose-pin-option" data-color="blue" style="background:#3b82f6"></div>
+                    <div class="compose-pin-option" data-color="purple" style="background:#8b5cf6"></div>
+                    <div class="compose-pin-option" data-color="pink" style="background:#ec4899"></div>
+                    <div class="compose-pin-option" data-color="orange" style="background:#f97316"></div>
+                    <div class="compose-pin-option" data-color="cyan" style="background:#06b6d4"></div>
+                  </div>
                 </div>
               </div>
+
+              <button class="compose-send" id="composeSend">Publicar</button>
             </div>
-            
-            <button class="compose-send" id="composeSend">Publicar</button>
           </div>
-        </div>
           <div class="feed-list" id="feedList">
             <div class="feed-loading">Cargando feed…</div>
           </div>
-          </div><!-- /vistaFeedTablero -->
+        </div><!-- /vistaFeedTablero -->
       </section>
 
       <!-- ── SECCIÓN: MI MURO ── -->
@@ -238,14 +253,71 @@
           <button class="btn-sm" id="btnMuroSubir">+ Foto</button>
         </div>
         <div class="muro-tabs">
-          <button class="muro-tab active" data-tab="publicaciones">⚡ Publicaciones</button>
-          <button class="muro-tab" data-tab="fotos">📷 Fotos</button>
+          <button class="muro-tab active" data-tab="publicaciones">📍 Mi Tablero</button>
+          <button class="muro-tab" data-tab="fotos">🗂️ Álbumes</button>
         </div>
         <input type="file" id="muroFileInput" accept="image/*" multiple style="display:none">
         <div id="muroContent">
           <div class="muro-photos-grid" id="muroFotosGrid"></div>
         </div>
       </section>
+
+      <!-- MODAL: NUEVO ÁLBUM -->
+      <div class="modal-overlay" id="modalNuevoAlbum">
+        <div class="album-modal-box">
+          <!-- Header -->
+          <div class="album-modal-header">
+            <div class="album-modal-icon-title">
+              <span class="album-modal-folder-icon">📁</span>
+              <div>
+                <div class="album-modal-title">Nuevo álbum</div>
+                <div class="album-modal-subtitle">Organiza tus fotos</div>
+              </div>
+            </div>
+            <button class="album-modal-x" onclick="closeModal('modalNuevoAlbum')" title="Cerrar">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <!-- Body -->
+          <div class="album-modal-body">
+            <!-- Nombre -->
+            <div class="album-modal-field">
+              <label class="album-modal-label">Nombre del álbum</label>
+              <input id="albumNombreInput" class="album-modal-input" placeholder="ej: Parcial 1, Cálculo, Química..." maxlength="50">
+            </div>
+            <!-- Emoji picker -->
+            <div class="album-modal-field">
+              <div class="album-modal-label-row">
+                <label class="album-modal-label">Ícono</label>
+                <span id="albumEmojiSeleccionado" class="album-emoji-selected-badge">📁</span>
+              </div>
+              <div id="albumEmojiPicker" class="album-emoji-grid"></div>
+            </div>
+          </div>
+          <!-- Footer -->
+          <div class="album-modal-footer">
+            <button class="album-btn-cancel" onclick="closeModal('modalNuevoAlbum')">Cancelar</button>
+            <button class="album-btn-create" id="btnCrearAlbum" onclick="crearAlbumMuro()">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+              Crear álbum
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: ELEGIR ÁLBUM AL SUBIR FOTO -->
+      <div class="modal-overlay" id="modalElegirAlbum">
+        <div class="modal-box" style="max-width:360px">
+          <div class="modal-header">
+            <h3 class="modal-title">📸 ¿A qué álbum?</h3>
+            <button class="modal-close" onclick="closeModal('modalElegirAlbum')">✕</button>
+          </div>
+          <div class="modal-body">
+            <p style="font-size:13px;opacity:.7;margin-bottom:12px">Elige el álbum donde guardar las fotos:</p>
+            <div id="listaAlbumsElegir" style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
 
       <!-- ── SECCIÓN: APUNTES ── -->
       <section class="section" id="sectionApuntes">
@@ -326,41 +398,73 @@
           <div class="apuntes-photos-grid" id="apuntesGrid"></div>
         </div>
       </section>
-
-      <!-- ── SECCIÓN: CHAT ── -->
       <section class="section" id="sectionChat">
-        <!-- Barra de usuarios online -->
-        <div class="chat-online-bar" id="chatOnlineBar">
-          <div class="chat-online-list" id="chatOnlineList" style="display:none"></div>
-        </div>
-        <!-- Mensajes -->
-        <div class="chat-messages" id="chatMessages">
-          <div class="feed-loading">Conectando al chat…</div>
-        </div>
-        <!-- Typing indicator -->
-        <div class="chat-typing-indicator" id="chatTypingIndicator" style="display:none"></div>
-        <!-- Compose -->
-        <div class="chat-compose-wrapper">
-          <div class="chat-compose">
-            <button class="chat-img-btn" id="chatImgBtn" title="Enviar imagen">📷</button>
-            <input type="file" id="chatImgInput" accept="image/*" style="display:none">
-            <div class="chat-input-wrap">
-              <textarea class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" rows="1"
-                maxlength="500"></textarea>
+
+        <!-- ── GALERÍA DE SALAS DE CHAT ── -->
+        <div id="vistaSalasChat">
+          <div class="tableros-galeria-header">
+            <h2 class="tableros-galeria-titulo">💬 Salas de Chat</h2>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="tableros-btn-sort" id="btnSortSalas" onclick="toggleOrdenSalas()">📅 Fecha</button>
+              <button class="tableros-btn-nuevo" id="btnNuevaSalaChat" style="display:none"
+                onclick="abrirModalNuevaSala()">＋ Nueva sala</button>
             </div>
-            <button class="chat-send" id="chatSend">➤</button>
           </div>
-          <div class="chat-quick-emojis">
-            <span class="q-emoji">👍</span>
-            <span class="q-emoji">😂</span>
-            <span class="q-emoji">❤️</span>
-            <span class="q-emoji">🙏</span>
-            <span class="q-emoji">😮</span>
-            <span class="q-emoji">👀</span>
-            <span class="q-emoji">🔥</span>
-            <span class="q-emoji">🎉</span>
+          <div class="tableros-galeria" id="salasGaleria">
+            <div class="feed-loading">Cargando salas…</div>
           </div>
         </div>
+
+        <!-- ── CHAT DENTRO DE UNA SALA ── -->
+        <div id="vistaChatSala" style="display:none">
+          <div class="tablero-feed-header" id="salaFeedHeader">
+            <button class="tablero-back-btn" onclick="cerrarSalaChat()">← Salas</button>
+            <div class="tablero-feed-titulo" id="salaFeedTitulo"></div>
+            <button class="tablero-feed-del" id="salaFeedDel" style="display:none"
+              onclick="eliminarSalaActiva()">🗑️</button>
+          </div>
+          <!-- Barra de usuarios online -->
+          <div class="chat-online-bar" id="chatOnlineBar">
+            <div class="chat-online-list" id="chatOnlineList" style="display:none"></div>
+          </div>
+          <!-- Mensajes -->
+          <div class="chat-messages" id="chatMessages">
+            <div class="feed-loading">Conectando al chat…</div>
+          </div>
+          <!-- Typing indicator -->
+          <div class="chat-typing-indicator" id="chatTypingIndicator" style="display:none"></div>
+          <!-- Compose -->
+          <div class="chat-compose-wrapper">
+            <div class="chat-compose">
+              <button class="chat-img-btn" id="chatImgBtn" title="Enviar imagen">📷</button>
+              <input type="file" id="chatImgInput" accept="image/*" style="display:none">
+              <div class="chat-input-wrap">
+                <textarea class="chat-input" id="chatInput" placeholder="Escribe un mensaje…" rows="1"
+                  maxlength="500"></textarea>
+              </div>
+              <button class="chat-send" id="chatSend">➤</button>
+            </div>
+            <div class="chat-quick-emojis">
+              <span class="q-emoji">👍</span>
+              <span class="q-emoji">😂</span>
+              <span class="q-emoji">❤️</span>
+              <span class="q-emoji">🙏</span>
+              <span class="q-emoji">😮</span>
+              <span class="q-emoji">👀</span>
+              <span class="q-emoji">🔥</span>
+              <span class="q-emoji">🎉</span>
+              <span class="q-emoji">😭</span>
+              <span class="q-emoji">💀</span>
+              <span class="q-emoji">🤣</span>
+              <span class="q-emoji">😎</span>
+              <span class="q-emoji">🤔</span>
+              <span class="q-emoji">💯</span>
+              <span class="q-emoji">✅</span>
+              <span class="q-emoji">⚡</span>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       <!-- ── SECCIÓN: TAREAS ── -->
@@ -470,10 +574,10 @@
     <!-- BOTTOM NAV (solo móvil) -->
     <nav class="bottom-nav" id="bottomNav">
       <button class="bottom-nav-item active" data-section="feed">
-        <span class="bnav-icon">📍</span>Feed
+        <span class="bnav-icon">📍</span>Tablero
       </button>
       <button class="bottom-nav-item" data-section="muro">
-        <span class="bnav-icon">📂</span>Muro
+        <span class="bnav-icon">📂</span>Aporte
       </button>
       <button class="bottom-nav-item" data-section="apuntes">
         <span class="bnav-icon">📸</span>Apuntes
@@ -557,7 +661,11 @@
       <label class="modal-label" style="margin-top:10px">Ícono</label>
       <div class="emoji-picker" id="semestreEmojiPicker"></div>
       <label class="modal-label" style="margin-top:12px">Color del semestre</label>
-      <div id="semestreColorPreview" class="sem-color-preview"></div>
+      <div class="sem-slider-wrap">
+        <span class="sem-slider-label">☀️</span>
+        <input type="range" id="semestreColorSlider" class="sem-color-slider" min="0" max="100" value="50">
+        <span class="sem-slider-label">🌑</span>
+      </div>
       <div class="color-picker-grid" id="semestreColorPicker"></div>
       <div class="modal-actions">
         <button class="btn-cancel" data-close="modalNuevoSemestre">Cancelar</button>
@@ -591,10 +699,12 @@
       <input type="text" id="tareaTitulo" class="modal-input" placeholder="Título de la tarea" maxlength="80">
       <textarea id="tareaDesc" class="modal-input modal-textarea" placeholder="Descripción (opcional)"></textarea>
 
-      <div style="margin-top:15px; margin-bottom:10px; background:var(--bg3); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+      <div
+        style="margin-top:15px; margin-bottom:10px; background:var(--bg3); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label class="modal-label" style="margin:0;">Dividir temas (Opcional)</label>
-            <button type="button" class="btn-sm" id="btnAddSubtarea" style="padding:4px 8px; font-size:10px;">+ Agregar tema</button>
+          <label class="modal-label" style="margin:0;">Dividir temas (Opcional)</label>
+          <button type="button" class="btn-sm" id="btnAddSubtarea" style="padding:4px 8px; font-size:10px;">+ Agregar
+            tema</button>
         </div>
         <div id="subtareasList" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;"></div>
       </div>
@@ -627,10 +737,11 @@
       <input type="url" id="biblioUrl" class="modal-input" placeholder="https://...">
 
       <label class="modal-label" style="margin-top: 12px;">Descripción (De qué trata)</label>
-      <textarea id="biblioDesc" class="modal-input modal-textarea" placeholder="Ej: Notas de la unidad 1..." rows="2"></textarea>
+      <textarea id="biblioDesc" class="modal-input modal-textarea" placeholder="Ej: Notas de la unidad 1..."
+        rows="2"></textarea>
 
       <label class="modal-label" style="margin-top: 15px;">Color del libro</label>
-      <div class="biblio-color-picker" id="biblioColorPicker">        
+      <div class="biblio-color-picker" id="biblioColorPicker">
         <button class="book-color-opt book-doc" data-color="book-doc" title="Azul"></button>
         <button class="book-color-opt book-xls" data-color="book-xls" title="Verde"></button>
         <button class="book-color-opt book-cyan" data-color="book-cyan" title="Cian"></button>
@@ -657,42 +768,149 @@
     </div>
   </div>
 
-<div class="modal-overlay" id="modalLibroAbierto">
-  <div class="modal-box libro-modal-box">
-    <button class="modal-close" data-close="modalLibroAbierto">✕</button>
+  <div class="modal-overlay" id="modalLibroAbierto">
+    <div class="modal-box libro-modal-box">
+      <button class="modal-close" data-close="modalLibroAbierto">✕</button>
 
-    <div class="libro-modal-layout">
-      <div class="libro-modal-cover" id="libroModalLomo">
-        <div class="libro-modal-icon">📄</div>
-        <div id="libroModalBadge" class="libro-ext-badge">PDF</div>
-      </div>
-
-      <div class="libro-modal-content" id="libroModalContent">
-        <h3 id="libroModalTitulo" class="libro-modal-titulo">Título del Archivo</h3>
-        <p class="libro-modal-autor">Subido por <strong id="libroModalAutor">Autor</strong></p>
-
-        <div style="flex: 1;">
-          <div class="libro-modal-desc-label">Descripción</div>
-          <p id="libroModalDesc" class="libro-modal-desc">Sin descripción disponible para este archivo.</p>
+      <div class="libro-modal-layout">
+        <div class="libro-modal-cover" id="libroModalLomo">
+          <div class="libro-modal-icon">📄</div>
+          <div id="libroModalBadge" class="libro-ext-badge">PDF</div>
         </div>
 
-        <div class="libro-modal-actions">
-          <button id="btnLeerLibro" class="btn-primary btn-abrir-archivo">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-            </svg>
-            Abrir Archivo
-          </button>
-          <button id="btnCompartirLibro" class="btn-sm btn-compartir-archivo">
-            📢 Compartir
-          </button>
+        <div class="libro-modal-content" id="libroModalContent">
+          <h3 id="libroModalTitulo" class="libro-modal-titulo">Título del Archivo</h3>
+          <p class="libro-modal-autor">Subido por <strong id="libroModalAutor">Autor</strong></p>
+
+          <div style="flex: 1;">
+            <div class="libro-modal-desc-label">Descripción</div>
+            <p id="libroModalDesc" class="libro-modal-desc">Sin descripción disponible para este archivo.</p>
+          </div>
+
+          <div class="libro-modal-actions">
+            <button id="btnLeerLibro" class="btn-primary btn-abrir-archivo">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+              </svg>
+              Abrir Archivo
+            </button>
+            <button id="btnCompartirLibro" class="btn-sm btn-compartir-archivo">
+              📌 Compartir
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
+
+  <!-- Modal Detalle DVD -->
+  <div class="modal-overlay" id="modalDetalleDvd">
+    <div class="modal-box" style="max-width:520px;max-height:90vh;overflow-y:auto">
+      <button class="modal-close" data-close="modalDetalleDvd">✕</button>
+      <div id="dvdDetalleThumbWrap"
+        style="border-radius:10px;overflow:hidden;margin-bottom:14px;aspect-ratio:16/9;background:#000">
+        <img id="dvdDetalleThumb" src="" alt="" style="width:100%;height:100%;object-fit:cover">
+      </div>
+      <h3 id="dvdDetalleTitulo" style="margin:0 0 4px;font-size:18px"></h3>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <span id="dvdDetalleCat"
+          style="font-size:12px;padding:2px 10px;border-radius:20px;color:#fff;font-weight:600"></span>
+        <a id="dvdDetalleLink" href="#" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent)">▶ Ver
+          en YouTube</a>
+      </div>
+      <div id="dvdDetalleDesc"
+        style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.5;white-space:pre-wrap"></div>
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text1)">💬 Comentarios del grupo</div>
+        <div id="dvdDetalleCommentsList"
+          style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+          <div class="comment-empty-msg" style="font-size:12px;color:var(--text3)">Sé el primero en comentar.</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="dvdDetalleCommentInput" class="modal-input" placeholder="Escribe un comentario…"
+            style="flex:1;margin:0" maxlength="300">
+          <button class="btn-primary" id="dvdDetalleCommentSend" style="padding:0 16px">Enviar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Nueva Sala de Chat -->
+<!-- Modal Nueva Sala de Chat -->
+  <div class="modal-overlay" id="modalNuevaSalaChat">
+    <div class="modal-box">
+      <button class="modal-close" data-close="modalNuevaSalaChat">✕</button>
+      <h3 class="modal-title">💬 Nueva Sala de Chat</h3>
+
+      <label class="modal-label">Nombre de la sala</label>
+      <input type="text" id="salaChatNombre" class="modal-input" placeholder="Ej: Matemáticas, Proyecto Final…" maxlength="40">
+
+      <label class="modal-label" style="margin-top:12px">Ícono</label>
+      <div class="tablero-emoji-grid" id="salaChatEmojiPicker">
+        <button class="tablero-emoji-opt selected" data-emoji="💬">💬</button>
+        <button class="tablero-emoji-opt" data-emoji="📚">📚</button>
+        <button class="tablero-emoji-opt" data-emoji="📖">📖</button>
+        <button class="tablero-emoji-opt" data-emoji="✏️">✏️</button>
+        <button class="tablero-emoji-opt" data-emoji="🔬">🔬</button>
+        <button class="tablero-emoji-opt" data-emoji="🧪">🧪</button>
+        <button class="tablero-emoji-opt" data-emoji="🧮">🧮</button>
+        <button class="tablero-emoji-opt" data-emoji="📐">📐</button>
+        <button class="tablero-emoji-opt" data-emoji="💻">💻</button>
+        <button class="tablero-emoji-opt" data-emoji="🖥️">🖥️</button>
+        <button class="tablero-emoji-opt" data-emoji="🎨">🎨</button>
+        <button class="tablero-emoji-opt" data-emoji="🎭">🎭</button>
+        <button class="tablero-emoji-opt" data-emoji="🎵">🎵</button>
+        <button class="tablero-emoji-opt" data-emoji="⚽">⚽</button>
+        <button class="tablero-emoji-opt" data-emoji="🏆">🏆</button>
+        <button class="tablero-emoji-opt" data-emoji="🌍">🌍</button>
+        <button class="tablero-emoji-opt" data-emoji="🔭">🔭</button>
+        <button class="tablero-emoji-opt" data-emoji="⚡">⚡</button>
+        <button class="tablero-emoji-opt" data-emoji="🤖">🤖</button>
+        <button class="tablero-emoji-opt" data-emoji="🧠">🧠</button>
+        <button class="tablero-emoji-opt" data-emoji="📊">📊</button>
+        <button class="tablero-emoji-opt" data-emoji="📝">📝</button>
+        <button class="tablero-emoji-opt" data-emoji="🗂️">🗂️</button>
+        <button class="tablero-emoji-opt" data-emoji="📌">📌</button>
+        <button class="tablero-emoji-opt" data-emoji="🔑">🔑</button>
+        <button class="tablero-emoji-opt" data-emoji="💡">💡</button>
+        <button class="tablero-emoji-opt" data-emoji="🚀">🚀</button>
+        <button class="tablero-emoji-opt" data-emoji="🎯">🎯</button>
+        <button class="tablero-emoji-opt" data-emoji="🌟">🌟</button>
+        <button class="tablero-emoji-opt" data-emoji="🔥">🔥</button>
+      </div>
+
+      <label class="modal-label" style="margin-top:12px">Color</label>
+      <div class="dvd-color-picker" id="salaChatColorPicker">
+        <button class="dvd-color-opt selected" data-color="#1a237e" style="background:#1a237e" title="Azul oscuro"></button>
+        <button class="dvd-color-opt" data-color="#1565c0" style="background:#1565c0" title="Azul"></button>
+        <button class="dvd-color-opt" data-color="#0097a7" style="background:#0097a7" title="Cian"></button>
+        <button class="dvd-color-opt" data-color="#00796b" style="background:#00796b" title="Teal"></button>
+        <button class="dvd-color-opt" data-color="#1b5e20" style="background:#1b5e20" title="Verde oscuro"></button>
+        <button class="dvd-color-opt" data-color="#33691e" style="background:#33691e" title="Verde lima"></button>
+        <button class="dvd-color-opt" data-color="#f57f17" style="background:#f57f17" title="Amarillo"></button>
+        <button class="dvd-color-opt" data-color="#e65100" style="background:#e65100" title="Naranja"></button>
+        <button class="dvd-color-opt" data-color="#b71c1c" style="background:#b71c1c" title="Rojo"></button>
+        <button class="dvd-color-opt" data-color="#880e4f" style="background:#880e4f" title="Rosa oscuro"></button>
+        <button class="dvd-color-opt" data-color="#e91e63" style="background:#e91e63" title="Rosa"></button>
+        <button class="dvd-color-opt" data-color="#4a148c" style="background:#4a148c" title="Morado oscuro"></button>
+        <button class="dvd-color-opt" data-color="#7b1fa2" style="background:#7b1fa2" title="Morado"></button>
+        <button class="dvd-color-opt" data-color="#6d4c41" style="background:#6d4c41" title="Café"></button>
+        <button class="dvd-color-opt" data-color="#004d40" style="background:#004d40" title="Verde azulado"></button>
+        <button class="dvd-color-opt" data-color="#263238" style="background:#263238" title="Gris azulado"></button>
+        <button class="dvd-color-opt" data-color="#37474f" style="background:#37474f" title="Gris"></button>
+        <button class="dvd-color-opt" data-color="#212121" style="background:#212121" title="Negro"></button>
+        <button class="dvd-color-opt" data-color="#bf360c" style="background:#bf360c" title="Terracota"></button>
+        <button class="dvd-color-opt" data-color="#0d47a1" style="background:#0d47a1" title="Marino"></button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalNuevaSalaChat">Cancelar</button>
+        <button class="btn-primary" id="btnConfirmarSalaChat">💬 Crear sala</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="modalAgregarDvd">
     <div class="modal-box">
@@ -701,7 +919,8 @@
 
       <label class="modal-label">Enlace de YouTube</label>
       <div style="display:flex;gap:8px">
-        <input type="url" id="dvdYoutubeUrl" class="modal-input" placeholder="https://www.youtube.com/watch?v=..." style="flex:1;margin:0">
+        <input type="url" id="dvdYoutubeUrl" class="modal-input" placeholder="https://www.youtube.com/watch?v=..."
+          style="flex:1;margin:0">
         <button class="btn-sm" id="btnDvdPreview">Previa</button>
       </div>
 
@@ -722,15 +941,19 @@
 
       <label class="modal-label">Categoría</label>
       <div style="display:flex;gap:8px">
-        <input type="text" id="dvdCategoria" class="modal-input" placeholder="Ej: Programación, Matemáticas…" style="flex:1;margin:0" maxlength="30">
+        <input type="text" id="dvdCategoria" class="modal-input" placeholder="Ej: Programación, Matemáticas…"
+          style="flex:1;margin:0" maxlength="30">
       </div>
 
       <label class="modal-label" style="margin-top:12px">Descripción (opcional)</label>
-      <textarea id="dvdDesc" class="modal-input modal-textarea" placeholder="¿De qué trata este tutorial? ¿Para qué sirve?" rows="2" style="resize:vertical;margin-top:4px"></textarea>
+      <textarea id="dvdDesc" class="modal-input modal-textarea"
+        placeholder="¿De qué trata este tutorial? ¿Para qué sirve?" rows="2"
+        style="resize:vertical;margin-top:4px"></textarea>
 
       <label class="modal-label" style="margin-top:12px">Color de la caja</label>
       <div class="dvd-color-picker" id="dvdColorPicker">
-        <button class="dvd-color-opt selected" data-color="#1a237e" style="background:#1a237e" title="Azul oscuro"></button>
+        <button class="dvd-color-opt selected" data-color="#1a237e" style="background:#1a237e"
+          title="Azul oscuro"></button>
         <button class="dvd-color-opt" data-color="#4a148c" style="background:#4a148c" title="Morado"></button>
         <button class="dvd-color-opt" data-color="#b71c1c" style="background:#b71c1c" title="Rojo"></button>
         <button class="dvd-color-opt" data-color="#1b5e20" style="background:#1b5e20" title="Verde"></button>
@@ -752,7 +975,7 @@
       <button class="modal-close" data-close="modalNuevoTablero">✕</button>
       <h3 class="modal-title">📌 Nuevo Tablero Temático</h3>
       <p class="modal-desc">Crea un espacio exclusivo para una materia o tema.</p>
-  
+
       <label class="modal-label">Nombre del tablero</label>
       <input type="text" id="nuevoTableroNombre" class="modal-input" placeholder="Ej: Matemáticas, Avisos..."
         maxlength="25">
@@ -790,10 +1013,11 @@
         <button class="tablero-emoji-opt" data-emoji="🎲">🎲</button>
         <button class="tablero-emoji-opt" data-emoji="🧩">🧩</button>
       </div>
-  
+
       <label class="modal-label" style="margin-top:12px">Color del tablero</label>
       <div class="dvd-color-picker" id="tableroColorPicker">
-        <button class="dvd-color-opt selected" data-color="#1a237e" style="background:#1a237e" title="Azul oscuro"></button>
+        <button class="dvd-color-opt selected" data-color="#1a237e" style="background:#1a237e"
+          title="Azul oscuro"></button>
         <button class="dvd-color-opt" data-color="#283593" style="background:#283593" title="Índigo"></button>
         <button class="dvd-color-opt" data-color="#0d47a1" style="background:#0d47a1" title="Azul rey"></button>
         <button class="dvd-color-opt" data-color="#006064" style="background:#006064" title="Cian oscuro"></button>
@@ -812,9 +1036,10 @@
         <button class="dvd-color-opt" data-color="#f59e0b" style="background:#f59e0b" title="Amarillo dorado"></button>
         <button class="dvd-color-opt" data-color="#0e7490" style="background:#0e7490" title="Teal"></button>
         <button class="dvd-color-opt" data-color="#065f46" style="background:#065f46" title="Esmeralda"></button>
-        <button class="dvd-color-opt" data-color="#7c3aed" style="background:#7c3aed" title="Púrpura brillante"></button>
+        <button class="dvd-color-opt" data-color="#7c3aed" style="background:#7c3aed"
+          title="Púrpura brillante"></button>
       </div>
-  
+
       <div class="modal-actions">
         <button class="btn-cancel" data-close="modalNuevoTablero">Cancelar</button>
         <button class="btn-primary" id="btnConfirmarTablero">Crear Tablero</button>
@@ -1011,7 +1236,9 @@
     <div class="chat-burbuja-header">
       <div class="chat-burbuja-header-info">
         <span class="chat-burbuja-header-icon">💬</span>
-        <span class="chat-burbuja-header-title">Chat del grupo</span>
+        <select class="chat-burbuja-sala-select" id="chatBurbujaSelect">
+          <option value="general">💬 General</option>
+        </select>
       </div>
       <button class="chat-burbuja-close" id="chatBurbujaClose">✕</button>
     </div>

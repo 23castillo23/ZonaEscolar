@@ -114,6 +114,11 @@ service cloud.firestore {
       allow delete: if isAuth();
     }
 
+    match /ec_muro_albums/{docId} {
+      allow get, list, create: if isAuth();
+      allow update, delete: if isAuth();
+    }
+
     match /ec_comentarios/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth();
@@ -165,8 +170,8 @@ service cloud.firestore {
 | Módulo | Descripción |
 |---|---|
 | 🔐 **Auth** | Google Login sin contraseñas vía Firebase Authentication |
-| ⚡ **Feed** | Publicaciones de texto y fotos con likes y comentarios en tiempo real |
-| 🙋 **Mi Muro** | Perfil personal con fotos propias y publicaciones del usuario |
+| 📍 **Tablero** | Publicaciones de texto y fotos con likes y comentarios en tiempo real |
+| 🙋 **Mis Aportes** | Perfil personal con fotos propias y publicaciones del usuario |
 | 📸 **Apuntes** | Fotos del pizarrón organizadas por semestre y materia (sube a Cloudinary) |
 | 💬 **Chat** | Mensajes en tiempo real con entrega optimista (aparecen al instante) |
 | ✅ **Tareas** | Tareas con responsable, fecha límite, materia y filtros |
@@ -191,6 +196,7 @@ service cloud.firestore {
 | `ec_galerias` | Materias/galerías dentro de un semestre |
 | `ec_fotos` | Fotos de apuntes subidas a una galería |
 | `ec_muro_fotos` | Fotos del muro personal de cada usuario |
+| `ec_muro_albums` | Álbumes del muro personal de cada usuario |
 | `ec_votaciones` | Votaciones activas e historial |
 
 ---
@@ -217,6 +223,14 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 ---
 
 ## Changelog
+
+### v1.5.0
+- **Álbumes en Mis Aportes:** la pestaña "Fotos" ahora muestra una vista de álbumes. Cada integrante puede crear sus propios álbumes con nombre e ícono emoji para organizar sus fotos ordenadamente.
+- **Subir foto a álbum:** al usar el botón "+ Foto", aparece un selector para elegir en qué álbum guardar las imágenes. Si estás dentro de un álbum abierto, las fotos van directo a ese álbum sin preguntar.
+- **Álbum "Sin álbum":** las fotos subidas antes de esta versión (y las que se suban sin elegir álbum) aparecen automáticamente en una tarjeta especial "📷 Sin álbum".
+- **Eliminar álbum:** el admin y el dueño pueden eliminar álbumes; las fotos dentro quedan en "Sin álbum" en lugar de borrarse.
+- **Vista de álbum ajeno:** al ver el muro de un compañero también se ven sus álbumes (sin el botón de crear/eliminar).
+- **Firestore:** nueva colección `ec_muro_albums`. Agregar su regla al panel de Firestore (ver sección Reglas).
 
 ### v1.4.0
 - **Chat — Imágenes:** botón 📷 en el chat para enviar fotos directamente en la conversación (se suben a Cloudinary). Preview miniatura antes de enviar con opción de cancelar.
