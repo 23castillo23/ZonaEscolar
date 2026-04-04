@@ -31,9 +31,7 @@ let salaChatEmojiSeleccionado = '💬';
 let tareasUnsub = null;
 let votacionUnsub = null;
 let gruposUnsub = null;
-let chatTypingUnsub = null;
 let chatOnlineUnsub = null;
-let _typingTimeout = null;
 let _onlineHeartbeatTimer = null;
 let chatLastReadMs = 0;
 
@@ -74,6 +72,11 @@ let bibliotecaUiBound = false;
 let calDiaSeleccionado = null;
 
 const EMOJIS_SEMESTRE = [
+  // Tecnología y Sistemas
+  '💻', '🖥️', '📱', '⌨️', '🖱️', '🖨️', '💾', '💿', '🔌', '🛜',
+  '🤖', '👾', '🕹️', '📡', '🔧', '⚙️', '🛠️', '🔩', '🖧', '📟',
+  // Humanidades y Sociales
+  '🌍', '🗺️', '📜', '🏛️', '🗽', '⚖️', '🏦', '📰', '🎭', '🗣️',
   '📅', '📚', '🎓', '🌱', '☀️', '🍂', '❄️', '📖', '🏫', '✏️',
   '🗓️', '🌸', '🌻', '🍃', '🌊', '⭐', '🔖', '🎒', '🖊️', '📋',
   '🏆', '🌙', '🎯', '🧩', '🌈', '🎪', '🚀', '💫', '🎀', '🌟'
@@ -99,7 +102,12 @@ const EMOJIS_MATERIA = [
   // General Escolar
   '🏫', '🎒', '📏', '📌', '📍', '🗂️', '🗃️', '📂', '🗒️', '⏰'
 ];
-const EMOJIS_GRUPO = ['👥', '🚀', '⭐', '🔥', '💎', '🌙', '🎯', '🏆', '🌈', '🎪'];
+const EMOJIS_GRUPO = [
+'💻', '🖥️', '📱', '⌨️', '🖱️', '🖨️', '💾', '💿', '🔌', '🛜',
+'🤖', '👾', '🕹️', '📡', '🔧', '⚙️', '🛠️', '🔩', '🖧', '📟',
+'🌍', '🗺️', '📜', '🏛️', '🗽', '⚖️', '🏦', '📰', '🎭', '🗣️',
+'👥', '🚀', '⭐', '🔥', '💎', '🌙', '🎯', '🏆', '🌈', '🎪'
+];
 
 /* ═══════════════════════════════════════════════════
    UTILIDADES
@@ -462,17 +470,18 @@ async function activarGrupo(groupId) {
 
   if (feedUnsub) { feedUnsub(); feedUnsub = null; }
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
+  if (salasUnsub) { salasUnsub(); salasUnsub = null; }
   if (bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
   if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
   if (votacionUnsub) { votacionUnsub(); votacionUnsub = null; }
   if (semestresUnsub) { semestresUnsub(); semestresUnsub = null; }
   if (galeriasUnsub) { galeriasUnsub(); galeriasUnsub = null; }
-  if (chatTypingUnsub) { chatTypingUnsub(); chatTypingUnsub = null; }
   if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
   if (tablerosUnsub) { tablerosUnsub(); tablerosUnsub = null; }
   if (tableroFeedUnsub) { tableroFeedUnsub(); tableroFeedUnsub = null; }
   currentTableroId = null;
   if (sidebarOnlineUnsub) { sidebarOnlineUnsub(); sidebarOnlineUnsub = null; }
+  if (catBiblioUnsub) { catBiblioUnsub(); catBiblioUnsub = null; }
   if (dvdUnsub) { dvdUnsub(); dvdUnsub = null; }
   if (muroFeedUnsub) { muroFeedUnsub(); muroFeedUnsub = null; }
   if (muroFotosUnsub) { muroFotosUnsub(); muroFotosUnsub = null; }
@@ -481,7 +490,6 @@ async function activarGrupo(groupId) {
   muroAlbumsCache = [];
   if (window._apuntesFotosUnsub) { window._apuntesFotosUnsub(); window._apuntesFotosUnsub = null; }
   if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
-  if (_typingTimeout) { clearTimeout(_typingTimeout); _typingTimeout = null; }
   bibliotecaUiBound = false;
 
   renderGroupSelector();
@@ -727,7 +735,11 @@ function activarSeccion(section) {
   // --- 1. CERRAR BURBUJA SIEMPRE AL CAMBIAR DE SECCIÓN ---
   if (panelBurbuja && panelBurbuja.classList.contains('open')) {
     panelBurbuja.classList.remove('open');
-    if (fab) fab.classList.remove('active');
+    if (fab) {
+      fab.classList.remove('active');
+      fab.setAttribute('aria-expanded', 'false');
+      fab.title = 'Abrir chat del grupo';
+    }
     chatBurbujaAbierta = false;
 
     // Detenemos la escucha de mensajes de la burbuja para ahorrar recursos
@@ -752,12 +764,9 @@ function activarSeccion(section) {
     markChatAsRead();
   }
 
-  // --- LIMPIAR TYPING/ONLINE AL SALIR DEL CHAT (el heartbeat de presencia sigue activo en todo el grupo) ---
+  // --- LIMPIAR ONLINE AL SALIR DEL CHAT (el heartbeat de presencia sigue activo en todo el grupo) ---
   if (section !== 'chat') {
-    if (chatTypingUnsub) { chatTypingUnsub(); chatTypingUnsub = null; }
     if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
-    const indicator = $('chatTypingIndicator');
-    if (indicator) { indicator.style.display = 'none'; indicator.textContent = ''; }
     const onlineList = $('chatOnlineList');
     if (onlineList) onlineList.style.display = 'none';
   }
@@ -797,11 +806,16 @@ function activarSeccion(section) {
       localStorage.removeItem('ze_last_sala');
     }
   }
-    const scrollToMine = () => scrollChatToMyLastMessage();
+    const scrollToMine = () => {
+      const v = $('vistaChatSala');
+      if (v && v.style.display === 'none') return;
+      scrollChatToMyLastMessage();
+    };
     requestAnimationFrame(() => {
       scrollToMine();
       setTimeout(scrollToMine, 0);
     });
+    setTimeout(() => window.__zeChatKbTick?.(), 200);
   }
 
   if (section === 'tareas') initTareas();
@@ -3186,6 +3200,7 @@ window.abrirSalaChat = function(salaId, nombre, color) {
   // Reiniciar chat con la sala seleccionada
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
   initChat();
+  setTimeout(() => window.__zeChatKbTick?.(), 60);
 };
 
 function cerrarSalaChat() {
@@ -3197,6 +3212,7 @@ function cerrarSalaChat() {
   const vistaChat = $('vistaChatSala');
   if (vistaGaleria) vistaGaleria.style.display = '';
   if (vistaChat) vistaChat.style.display = 'none';
+  window.__zeChatKbTick?.();
 }
 
 window.eliminarSalaActiva = function() {
@@ -3282,6 +3298,7 @@ function initChat() {
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
 
   const box = $('chatMessages');
+  if (!box) return;
   box.innerHTML = '<div class="feed-loading" id="chatLoading">Conectando…</div>';
   lastChatDateStr = '';
   const { collection, query, where, orderBy, limit, onSnapshot } = lib();
@@ -3342,9 +3359,7 @@ const startListener = (ordered) => {
 
   startListener(true);
 
-  // Iniciar presencia online y escucha de typing
   initChatOnline();
-  initChatTypingListener();
   markChatAsRead();
 }
 
@@ -3386,11 +3401,12 @@ function appendChatMessageObj(m, box) {
 /* ── ENVÍO DE MENSAJES ── */
 async function enviarMensaje() {
   const input = $('chatInput');
+  if (!input) return;
   const text = input.value.trim();
   if (!text || !currentGroupId) return;
 
   const btn = $('chatSend');
-  btn.disabled = true;
+  if (btn) btn.disabled = true;
 
   input.value = '';
   input.dispatchEvent(new Event('input'));
@@ -3407,13 +3423,20 @@ async function enviarMensaje() {
       createdAt: serverTimestamp()
     });
     const msgBox = $('chatMessages');
-    if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+    const wrap = qs('.chat-compose-wrapper', $('vistaChatSala') || document);
+    requestAnimationFrame(() => {
+      if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+      wrap?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+    });
+    setTimeout(() => {
+      if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+    }, 80);
   } catch (e) {
     console.error("Error al enviar:", e);
     alert("No se pudo enviar el mensaje.");
     input.value = text;
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -3430,52 +3453,6 @@ async function marcarMensajeVisto(msgId) {
       [`seenBy.${currentUser.uid}`]: true
     });
   } catch (_) { /* silencioso — no bloquear el chat */ }
-}
-
-/* ── Typing indicator: escuchar quién está escribiendo ── */
-function initChatTypingListener() {
-  if (chatTypingUnsub) { chatTypingUnsub(); chatTypingUnsub = null; }
-  if (!currentGroupId) return;
-
-  const { collection, query, where, onSnapshot } = lib();
-  const q = query(
-    collection(db(), 'ec_typing'),
-    where('groupId', '==', currentGroupId)
-  );
-
-  chatTypingUnsub = onSnapshot(q, snap => {
-    const indicator = $('chatTypingIndicator');
-    if (!indicator) return;
-    const now = Date.now();
-    const typing = [];
-    snap.docs.forEach(d => {
-      const data = d.data();
-      if (data.uid === currentUser.uid) return; // ignorar el propio
-      const ts = data.updatedAt?.toMillis ? data.updatedAt.toMillis() : (data.updatedAt || 0);
-      if (now - ts < 3000) typing.push(data.name || 'Compañero');
-    });
-    if (typing.length === 0) {
-      indicator.style.display = 'none';
-      indicator.textContent = '';
-    } else {
-      const names = typing.slice(0, 2).join(', ');
-      indicator.textContent = `${names} ${typing.length === 1 ? 'está escribiendo…' : 'están escribiendo…'}`;
-      indicator.style.display = 'block';
-    }
-  });
-}
-
-async function enviarTypingSignal() {
-  if (!currentGroupId || !currentUser) return;
-  try {
-    const { doc, setDoc, serverTimestamp } = lib();
-    await setDoc(doc(db(), 'ec_typing', `${currentGroupId}_${currentUser.uid}`), {
-      groupId: currentGroupId,
-      uid: currentUser.uid,
-      name: getUserAlias(),
-      updatedAt: serverTimestamp()
-    });
-  } catch (_) { /* silencioso */ }
 }
 
 /* ── Online presence: quién está conectado ahora ── */
@@ -3573,50 +3550,48 @@ window.openChatImgLightbox = function (url) {
   $('lightboxNext').style.display = 'none';
 };
 
-/* ── LISTENERS ── */
-$('chatSend').addEventListener('click', enviarMensaje);
+/* ── LISTENERS CHAT (solo si existe el DOM; evita errores en vistas parciales) ── */
+const _chatSend = $('chatSend');
+const _chatInput = $('chatInput');
+if (_chatSend) _chatSend.addEventListener('click', enviarMensaje);
 
-$('chatInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    enviarMensaje();
-  }
-});
+if (_chatInput) {
+  _chatInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      enviarMensaje();
+    }
+  });
 
-// Crecer al escribir
-$('chatInput').addEventListener('input', function () {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 100) + 'px';
-  // Typing signal con throttle — solo si hay texto
-  if (this.value.trim()) {
-    if (_typingTimeout) clearTimeout(_typingTimeout);
-    _typingTimeout = setTimeout(() => enviarTypingSignal(), 400);
-  }
-});
+  _chatInput.addEventListener('input', function () {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+  });
 
-$('chatInput').addEventListener('focus', () => {
-  // En iOS el teclado tarda ~300ms en aparecer
-  setTimeout(() => ajustarScrollChat(false), 300);
-  setTimeout(() => ajustarScrollChat(false), 600); // segundo intento para iOS
-});
+  _chatInput.addEventListener('focus', () => {
+    setTimeout(() => window.__zeChatKbTick?.(), 50);
+    setTimeout(() => ajustarScrollChat(false), 300);
+    setTimeout(() => ajustarScrollChat(false), 600);
+  });
 
-$('chatInput').addEventListener('blur', () => {
-  // Al cerrar teclado en iOS, restaurar scroll
-  setTimeout(() => {
-    window.scrollTo(0, 0); // evita que iOS deje la página desplazada
-  }, 150);
-});
+  /* No usar window.scrollTo aquí: en móvil oculta la barra de escribir detrás del teclado/nav */
+}
 
-// ── ENVIAR IMAGEN EN CHAT ──
-$('chatImgBtn').addEventListener('click', () => $('chatImgInput').click());
+const _chatImgBtn = $('chatImgBtn');
+const _chatImgInput = $('chatImgInput');
+if (_chatImgBtn && _chatImgInput) {
+  _chatImgBtn.addEventListener('click', () => _chatImgInput.click());
+}
 
-$('chatImgInput').addEventListener('change', async e => {
+if (_chatImgInput) _chatImgInput.addEventListener('change', async e => {
   const file = e.target.files[0];
   if (!file || !currentGroupId) return;
 
-  const btn = $('chatImgBtn');
-  btn.textContent = '⏳';
-  btn.disabled = true;
+  const btn = _chatImgBtn || $('chatImgBtn');
+  if (btn) {
+    btn.textContent = '⏳';
+    btn.disabled = true;
+  }
 
   try {
     const url = await uploadToCloudinary(file);
@@ -3639,9 +3614,11 @@ $('chatImgInput').addEventListener('change', async e => {
       alert('Error al enviar imagen.');
     }
   } finally {
-    btn.textContent = '📷';
-    btn.disabled = false;
-    $('chatImgInput').value = '';
+    if (btn) {
+      btn.textContent = '📷';
+      btn.disabled = false;
+    }
+    _chatImgInput.value = '';
   }
 });
 
@@ -3927,7 +3904,7 @@ $('btnAgregarArchivoBiblioMain')?.addEventListener('click', () => {
 }
 
 function loadBiblioCategorias() {
-  if (catBiblioUnsub) catBiblioUnsub();
+  if (catBiblioUnsub) { catBiblioUnsub(); catBiblioUnsub = null; }
   const { collection, query, where, onSnapshot } = lib();
   const q = query(collection(db(), 'ec_biblio_categorias'), where('groupId', '==', currentGroupId));
 
@@ -3948,7 +3925,7 @@ function renderBiblioteca() {
   const container = $('biblioList');
   if (!container) return;
 
-  if (bibliotecaUnsub) bibliotecaUnsub();
+  if (bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
   const { collection, query, where, onSnapshot } = lib();
   const q = query(collection(db(), 'ec_biblioteca'), where('groupId', '==', currentGroupId));
 
@@ -4729,6 +4706,9 @@ window.abrirGaleria = function (galeriaId) {
   $('btnUploadApunte').style.display = 'inline-flex';
 
   cargarFotosGaleria();
+  /* El scroll real está en #sectionApuntes (.section), no en window */
+  const apSec = $('sectionApuntes');
+  if (apSec) apSec.scrollTop = 0;
   window.scrollTo(0, 0);
 };
 
@@ -6077,6 +6057,8 @@ function initChatBurbuja() {
     chatBurbujaAbierta = !chatBurbujaAbierta;
     panel.classList.toggle('open', chatBurbujaAbierta);
     fab.classList.toggle('active', chatBurbujaAbierta);
+    fab.setAttribute('aria-expanded', chatBurbujaAbierta ? 'true' : 'false');
+    fab.title = chatBurbujaAbierta ? 'Minimizar chat' : 'Abrir chat del grupo';
     if (chatBurbujaAbierta) {
       resetBurbujaUnread();
       cargarSalasBurbuja();
@@ -6091,6 +6073,8 @@ function initChatBurbuja() {
     chatBurbujaAbierta = false;
     panel.classList.remove('open');
     fab.classList.remove('active');
+    fab.setAttribute('aria-expanded', 'false');
+    fab.title = 'Abrir chat del grupo';
     desconectarChatBurbuja();
   });
 
@@ -6257,6 +6241,50 @@ async function markChatAsRead() {
 let globalNotifUnsub = null;
 let _lastNotifMsgId = null;
 
+function nombreSalaChatParaNotif(salaId) {
+  if (!salaId || salaId === 'general') return 'Sala General';
+  try {
+    const j = JSON.parse(localStorage.getItem('ze_last_sala') || '{}');
+    if (j.salaId === salaId && j.nombre) return j.nombre;
+  } catch (_) { /* ignore */ }
+  return 'Sala';
+}
+
+function showZeChatToast(lineaGrupo, autor, texto, imageUrl) {
+  const host = $('zeChatToastHost');
+  if (!host) return;
+  const preview = imageUrl
+    ? '📷 Te envió una imagen'
+    : (texto || '').trim().slice(0, 140) || 'Mensaje nuevo';
+  const el = document.createElement('div');
+  el.className = 'ze-chat-toast';
+  el.setAttribute('role', 'status');
+  el.innerHTML = `
+    <div class="ze-chat-toast-inner">
+      <div class="ze-chat-toast-kicker">Nuevo mensaje</div>
+      <div class="ze-chat-toast-line">${escHtml(lineaGrupo)}</div>
+      <div class="ze-chat-toast-author">${escHtml(autor || 'Compañero')}</div>
+      <div class="ze-chat-toast-msg">${escHtml(preview)}</div>
+      <div class="ze-chat-toast-hint">Toca para abrir el chat</div>
+    </div>`;
+  host.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('ze-chat-toast--show'));
+  const dismiss = () => {
+    el.classList.remove('ze-chat-toast--show');
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 320);
+  };
+  let t = setTimeout(dismiss, 5200);
+  el.addEventListener('click', () => {
+    clearTimeout(t);
+    currentSection = 'chat';
+    localStorage.setItem('ze_last_section', 'chat');
+    setActiveNav('chat');
+    activarSeccion('chat');
+    closeSidebar();
+    dismiss();
+  });
+}
+
 function hookBurbujaEnGrupo() {
   if (globalNotifUnsub) { globalNotifUnsub(); globalNotifUnsub = null; }
   _lastNotifMsgId = null;
@@ -6328,12 +6356,21 @@ function hookBurbujaEnGrupo() {
       const esMio = data.authorUid === currentUser?.uid;
 
       if (!panelAbierto && !seccionChatActiva && !esMio) {
-        if (document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          new Notification(`💬 ${data.authorName || 'Compañero'}`, {
-            body: data.imageUrl ? '📷 Imagen' : (data.text || ''),
-            icon: './image/icon-512.png',
-            tag: 'ze-chat-msg'
+        const groupIcon = currentGroupData?.icon || '👥';
+        const groupName = currentGroupData?.name || 'Tu grupo';
+        const salaNm = nombreSalaChatParaNotif(data.salaId);
+        const lineaGrupo = `${groupIcon} ${groupName} · ${salaNm}`;
+        const bodyPreview = data.imageUrl ? '📷 Imagen' : (data.text || '').trim().slice(0, 200);
+
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+          new Notification(`ZonaEscolar · ${groupName}`, {
+            body: `${salaNm}\n${data.authorName || 'Alguien'}: ${bodyPreview || 'Mensaje'}`,
+            icon: './image/icon/icon-512.png',
+            badge: './image/icon/icon-512.png',
+            tag: `ze-chat-${currentGroupId}_${data.salaId || 'general'}_${latest.id}`
           });
+        } else if (!document.hidden) {
+          showZeChatToast(lineaGrupo, data.authorName || 'Compañero', data.text, data.imageUrl);
         }
       }
     }, err => {
@@ -6347,6 +6384,28 @@ function hookBurbujaEnGrupo() {
 
   startNotifListener(true);
 }
+
+(function zeChatKeyboardGap() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const tick = () => {
+    const sec = $('sectionChat');
+    const vista = $('vistaChatSala');
+    const chatOn = sec?.classList.contains('active');
+    const salaAbierta = Boolean(vista && vista.style.display !== 'none');
+    if (!chatOn || !salaAbierta) {
+      document.documentElement.style.setProperty('--chat-keyboard-gap', '0px');
+      return;
+    }
+    const gap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    document.documentElement.style.setProperty('--chat-keyboard-gap', `${gap}px`);
+  };
+  window.__zeChatKbTick = tick;
+  vv.addEventListener('resize', tick, { passive: true });
+  vv.addEventListener('scroll', tick, { passive: true });
+  window.addEventListener('orientationchange', () => setTimeout(tick, 400));
+})();
+
 initTheme();
 waitForFirebase(() => initAuth());
 

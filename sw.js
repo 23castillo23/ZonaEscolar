@@ -1,17 +1,18 @@
-const CACHE_NAME = 'zonaescolar-shell-v8';
+const CACHE_NAME = 'zonaescolar-shell-v9';
 const APP_SHELL = [
   './',
   './index.html',
   './css/style.css',
   './js/app.js',
-  './manifest.webmanifest',
-  './image/icon-512.png'
+  './manifest.webmanifest'
 ];
 
 // ── INSTALL: cachea el app shell ──────────────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.allSettled(APP_SHELL.map(u => cache.add(u).catch(() => null)))
+    )
   );
   // NO llamamos skipWaiting() aquí — esperamos a que el usuario confirme
   // la actualización desde el banner, así evitamos romper sesiones activas.
