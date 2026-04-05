@@ -230,7 +230,7 @@
             </div>
           </div>
           <div class="feed-list" id="feedList">
-            <div class="feed-loading">Cargando feed…</div>
+            <div class="feed-loading">Cargando tablero…</div>
           </div>
         </div><!-- /vistaFeedTablero -->
       </section>
@@ -539,32 +539,98 @@
 
       <!-- ── SECCIÓN: DINÁMICAS ── -->
       <section class="section" id="sectionDinamicas">
-        <div class="dinamicas-grid">
-          <div class="dinamica-card" id="cardRuleta">
-            <div class="dinamica-icon">🎰</div>
-            <h3>Ruleta</h3>
-            <p>Elige al azar quién expone o responde</p>
-            <button class="btn-dinamica" data-open="modalRuleta">Abrir</button>
-          </div>
-          <div class="dinamica-card" id="cardVotacion">
-            <div class="dinamica-icon">🗳️</div>
-            <h3>Votación</h3>
-            <p>Encuestas rápidas para el grupo</p>
-            <button class="btn-dinamica" data-open="modalVotacion">Abrir</button>
-          </div>
-          <div class="dinamica-card" id="cardTrivia">
-            <div class="dinamica-icon">🧠</div>
-            <h3>Trivia</h3>
-            <p>Preguntas de repaso para el grupo</p>
-            <button class="btn-dinamica" data-open="modalTrivia">Abrir</button>
-          </div>
-          <div class="dinamica-card" id="cardPuntos">
-            <div class="dinamica-icon">🏆</div>
-            <h3>Puntos</h3>
-            <p>Marcador de puntos entre compañeros</p>
-            <button class="btn-dinamica" data-open="modalPuntos">Abrir</button>
+        <!-- Vista principal: tarjetas -->
+        <div id="dinamicasHome">
+          <div class="dinamicas-grid">
+            <div class="dinamica-card" id="cardRuleta">
+              <div class="dinamica-icon">🎰</div>
+              <h3>Ruleta</h3>
+              <p>Elige al azar quién expone o responde</p>
+              <button class="btn-dinamica" data-open="modalRuleta">Abrir</button>
+            </div>
+            <div class="dinamica-card" id="cardVotacion">
+              <div class="dinamica-icon">🗳️</div>
+              <h3>Votación</h3>
+              <p>Encuestas rápidas para el grupo</p>
+              <button class="btn-dinamica" onclick="abrirVistaVotacion()">Abrir</button>
+            </div>
+            <div class="dinamica-card" id="cardTrivia">
+              <div class="dinamica-icon">🧠</div>
+              <h3>Trivia</h3>
+              <p>Preguntas de repaso para el grupo</p>
+              <button class="btn-dinamica" onclick="abrirVistaTrivia()">Abrir</button>
+            </div>
+            <div class="dinamica-card" id="cardPuntos">
+              <div class="dinamica-icon">🏆</div>
+              <h3>Puntos</h3>
+              <p>Marcador de puntos entre compañeros</p>
+              <button class="btn-dinamica" data-open="modalPuntos">Abrir</button>
+            </div>
           </div>
         </div>
+
+        <!-- Vista inline: Votaciones -->
+        <div id="dinamicasVistaVotacion" style="display:none">
+          <div class="din-vista-header">
+            <button class="din-back-btn" onclick="cerrarVistaDinamica()">← Dinámicas</button>
+            <h2 class="din-vista-titulo">🗳️ Votaciones</h2>
+            <button class="btn-primary din-nueva-btn" onclick="abrirFormNuevaVotacion()">➕ Nueva votación</button>
+          </div>
+          <!-- El formulario ahora vive en el modal #modalNuevaVotacion -->
+          <!-- Lista de votaciones -->
+          <div id="votacionesListaInline">
+            <div style="text-align:center;padding:30px;color:var(--text2);font-size:13px">Cargando…</div>
+          </div>
+        </div>
+
+        <!-- Vista inline: Trivias guardadas -->
+        <div id="dinamicasVistaTrivia" style="display:none">
+          <div class="din-vista-header">
+            <button class="din-back-btn" onclick="cerrarVistaDinamica()">← Dinámicas</button>
+            <h2 class="din-vista-titulo">🧠 Trivia</h2>
+            <button class="btn-primary din-nueva-btn" onclick="abrirFormNuevaTrivia()">➕ Nueva trivia</button>
+          </div>
+          <!-- Form colapsable para crear trivia -->
+          <div id="triviaFormPanel" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px">
+            <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--accent)">➕ Nueva trivia</h4>
+            <input type="text" id="triviaNombreInput" class="modal-input" placeholder="Nombre de la trivia (ej: Parcial 1)" style="margin-bottom:8px">
+            <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
+            <p style="font-size:12px;color:var(--text2);margin-bottom:8px">Agrega las preguntas:</p>
+            <input type="text" id="triviaPreguntaInput" class="modal-input" placeholder="Pregunta">
+            <div id="triviaRespuestasInputs">
+              <input type="text" class="modal-input trivia-resp-input" placeholder="Respuesta correcta (primera)">
+              <input type="text" class="modal-input trivia-resp-input" placeholder="Opción incorrecta 2">
+              <input type="text" class="modal-input trivia-resp-input" placeholder="Opción incorrecta 3">
+            </div>
+            <div style="display:flex;gap:8px;margin:10px 0">
+              <button class="btn-sm" id="btnAgregarPregunta">+ Guardar pregunta</button>
+            </div>
+            <div class="trivia-banco" id="triviaBanco"></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn-primary" id="btnIniciarTrivia" style="flex:1">💾 Guardar trivia</button>
+              <button class="btn-sm" onclick="cerrarFormNuevaTrivia()">Cancelar</button>
+            </div>
+          </div>
+          <!-- Lista de trivias guardadas -->
+          <div id="triviasListaInline">
+            <div style="text-align:center;padding:30px;color:var(--text2);font-size:13px">Cargando…</div>
+          </div>
+        </div>
+
+        <!-- Panel de juego de trivia (dentro de la vista) -->
+        <div id="dinamicasJuegoTrivia" style="display:none">
+          <div class="din-vista-header">
+            <button class="din-back-btn" onclick="volverAListaTrivias()">← Trivias</button>
+            <h2 class="din-vista-titulo" id="triviaJuegoTitulo">🧠 Trivia</h2>
+          </div>
+          <div id="triviaJuego">
+            <div class="trivia-progreso" id="triviaProgreso"></div>
+            <div class="trivia-pregunta" id="triviaPreguntaText"></div>
+            <div class="trivia-opciones" id="triviaOpciones"></div>
+            <div class="trivia-feedback" id="triviaFeedback"></div>
+          </div>
+        </div>
+
       </section>
 
     </div><!-- /main-content -->
@@ -1076,56 +1142,48 @@
   </div>
 
   <!-- MODAL: VOTACIÓN -->
-  <div class="modal-overlay" id="modalVotacion">
-    <div class="modal-box">
-      <button class="modal-close" data-close="modalVotacion">✕</button>
-      <h3 class="modal-title">🗳️ Votación rápida</h3>
-      <div id="votacionActiva" style="display:none">
-        <div class="votacion-pregunta" id="votacionPreguntaText"></div>
-        <div class="votacion-opciones" id="votacionOpciones"></div>
-        <p id="votacionAyuda" style="font-size:12px;color:var(--accent);margin:4px 0 8px;min-height:16px"></p>
-        <div class="votacion-resultados" id="votacionResultados"></div>
-        <button class="btn-sm btn-sm-danger" id="btnCerrarVotacion" style="margin-top:10px">Cerrar votación</button>
+  <!-- MODAL: NUEVA VOTACIÓN -->
+  <div class="modal-overlay" id="modalNuevaVotacion">
+    <div class="modal-box" style="max-width:460px">
+      <button class="modal-close" data-close="modalNuevaVotacion">✕</button>
+      <h3 class="modal-title">🗳️ Nueva votación</h3>
+
+      <label class="modal-label">Pregunta</label>
+      <input type="text" id="votacionPregunta" class="modal-input" placeholder="¿Qué quieres preguntarle al grupo?" style="margin-bottom:12px">
+
+      <label class="modal-label">Opciones de respuesta</label>
+      <div id="votacionOpcionesInputs" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+        <input type="text" class="modal-input opcion-input" placeholder="Opción 1">
+        <input type="text" class="modal-input opcion-input" placeholder="Opción 2">
       </div>
-      <div id="votacionCrear">
-        <input type="text" id="votacionPregunta" class="modal-input" placeholder="¿Pregunta de la votación?">
-        <div id="votacionOpcionesInputs">
-          <input type="text" class="modal-input opcion-input" placeholder="Opción 1">
-          <input type="text" class="modal-input opcion-input" placeholder="Opción 2">
-        </div>
-        <button class="btn-sm" id="btnAgregarOpcion">+ Opción</button>
-        <div class="modal-actions">
-          <button class="btn-primary" id="btnLanzarVotacion">Lanzar votación</button>
-        </div>
+      <button class="btn-sm" id="btnAgregarOpcion" style="margin-bottom:16px">+ Agregar opción</button>
+
+      <label class="modal-label">⏰ Fecha y hora de cierre <span style="opacity:.6;font-weight:400">(opcional)</span></label>
+      <input type="datetime-local" id="votacionFechaCierre" class="modal-input" style="margin-bottom:20px">
+
+      <div class="modal-actions">
+        <button class="btn-cancel" data-close="modalNuevaVotacion">Cancelar</button>
+        <button class="btn-primary" id="btnLanzarVotacion">Crear votación</button>
       </div>
     </div>
   </div>
 
+  <div class="modal-overlay" id="modalVotacion">
+    <div class="modal-box" style="max-width:480px;max-height:85vh;overflow-y:auto">
+      <button class="modal-close" data-close="modalVotacion">✕</button>
+      <h3 class="modal-title">🗳️ Votaciones</h3>
+      <div id="votacionPanel">
+        <div style="text-align:center;padding:30px;color:var(--text2);font-size:13px">Cargando…</div>
+      </div>
+    </div>
+  </div>
+
+  
   <!-- MODAL: TRIVIA -->
-  <div class="modal-overlay" id="modalTrivia">
+  <div class="modal-overlay" id="modalTrivia" style="display:none!important">
     <div class="modal-box">
       <button class="modal-close" data-close="modalTrivia">✕</button>
       <h3 class="modal-title">🧠 Trivia escolar</h3>
-      <div id="triviaJuego" style="display:none">
-        <div class="trivia-progreso" id="triviaProgreso"></div>
-        <div class="trivia-pregunta" id="triviaPreguntaText"></div>
-        <div class="trivia-opciones" id="triviaOpciones"></div>
-        <div class="trivia-feedback" id="triviaFeedback"></div>
-      </div>
-      <div id="triviaCrear">
-        <p class="modal-desc">Crea preguntas de repaso para tu grupo.</p>
-        <input type="text" id="triviaPreguntaInput" class="modal-input" placeholder="Pregunta">
-        <div id="triviaRespuestasInputs">
-          <input type="text" class="modal-input trivia-resp-input" placeholder="Respuesta correcta (primera)">
-          <input type="text" class="modal-input trivia-resp-input" placeholder="Opción incorrecta 2">
-          <input type="text" class="modal-input trivia-resp-input" placeholder="Opción incorrecta 3">
-        </div>
-        <div class="modal-actions">
-          <button class="btn-sm" id="btnAgregarPregunta">Guardar pregunta</button>
-          <button class="btn-primary" id="btnIniciarTrivia">Iniciar trivia</button>
-        </div>
-        <div class="trivia-banco" id="triviaBanco"></div>
-      </div>
     </div>
   </div>
 
@@ -1315,8 +1373,50 @@
     window._firebaseReady = true;
     window.dispatchEvent(new Event('firebase-ready'));
   </script>
+  
+  <!-- Modal de texto para compartir foto del muro -->
+  <div class="modal-overlay" id="modalTextoFoto">
+    <div class="modal-box" style="max-width:380px">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ Agregar texto</h3>
+        <button class="modal-close" onclick="closeModal('modalTextoFoto')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Opcional: escribe algo para acompañar la foto.</p>
+        <textarea id="modalTextoFotoInput" class="input-field" rows="3"
+          style="width:100%;resize:none;font-family:inherit;font-size:14px;padding:10px 12px;border-radius:10px;background:var(--bg3);color:var(--text0);border:1.5px solid var(--border);outline:none;box-sizing:border-box;"
+          placeholder="Escribe un comentario… (opcional)"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('modalTextoFoto')">Cancelar</button>
+        <button class="btn-primary" id="modalTextoFotoOk">Publicar foto 📌</button>
+      </div>
+    </div>
+  </div>
 
-  <script src="js/app.js?v=7"></script>
+  <div class="modal-overlay" id="modalConfirmDestructivo">
+    <div class="modal-box" style="max-width:360px">
+      <div id="confirmIconWrap" style="text-align:center;margin-bottom:12px;font-size:36px">⚠️</div>
+      <h3 class="modal-title" id="confirmTitle" style="text-align:center;margin-bottom:8px"></h3>
+      <p class="modal-desc" id="confirmMessage" style="text-align:center;margin-bottom:0"></p>
+      <div class="modal-actions" style="justify-content:center;gap:12px;margin-top:20px">
+        <button class="btn-cancel" id="confirmBtnCancel">Cancelar</button>
+        <button class="confirm-btn-ok danger" id="confirmBtnOk">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/core.js?v=1"></script>
+  <script src="js/grupos.js?v=1"></script>
+  <script src="js/tableros.js?v=1"></script>
+  <script src="js/muro.js?v=1"></script>
+  <script src="js/chat.js?v=1"></script>
+  <script src="js/tareas.js?v=1"></script>
+  <script src="js/biblioteca.js?v=1"></script>
+  <script src="js/apuntes.js?v=1"></script>
+  <script src="js/dinamicas.js?v=1"></script>
+  <script src="js/videotutoriales.js?v=1"></script>
+  <script src="js/utils-extra.js?v=1"></script>
 </body>
 
 </html>

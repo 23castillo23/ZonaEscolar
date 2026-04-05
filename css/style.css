@@ -856,11 +856,13 @@ a {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 0 14px;
+  padding-top: 20px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 14px;
+  margin-top: -20px;
   position: sticky;
-  top: 0;
+  top: -20px;
   z-index: 10;
   background: var(--bg0);
 }
@@ -1597,7 +1599,6 @@ a {
   filter: grayscale(0) opacity(1); /* Prendido */
   text-shadow: 0 0 12px #fbbf24; /* Brillo amarillo */
 }
-
 .feed-action-btn.liked { color: #fbbf24 !important; } /* Texto amarillo */
 
 .feed-action-btn span {
@@ -5641,10 +5642,12 @@ a {
 /* ── Galería: header con botón retroceso bien visible ── */
 .galeria-header {
   position: sticky;
-  top: 0;
+  top: -20px;
+  margin-top: -20px;
+  padding-top: 20px;
   z-index: 10;
   background: var(--bg1);
-  padding: 10px 0 12px;
+  padding-bottom: 12px;
   margin-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
@@ -6237,8 +6240,10 @@ a {
 }
 
 .feed-votacion-opcion.votacion-opcion-seleccionada {
-  border-color: var(--accent2);
-  background: rgba(124, 106, 247, 0.2);
+  border-color: var(--green, #22c55e);
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--text0);
+  font-weight: 600;
 }
 
 /* Circulito tipo radio-button para que se entienda que es para elegir */
@@ -6252,10 +6257,18 @@ a {
   margin-right: 12px;
   transition: all 0.3s ease;
   flex-shrink: 0;
+  background: transparent;
 }
 
 .feed-votacion-opcion:hover::before {
   border-color: var(--accent);
+}
+
+/* Círculo relleno verde cuando está seleccionado */
+.feed-votacion-opcion.votacion-opcion-seleccionada::before {
+  border-color: var(--green, #22c55e);
+  background: var(--green, #22c55e);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
 }
 
 /* ── Barra de acciones de cada foto (Like y Comentar) ── */
@@ -7134,19 +7147,6 @@ a {
 
 .dvd-item-rect:hover .dvd-del-btn { display: flex; }
 
-
-/* ── 2. EL FOCO APAGADO / PRENDIDO ── */
-.foco-icon {
-  filter: grayscale(1) opacity(0.5); /* Apagado por defecto */
-  transition: all 0.3s ease;
-  font-size: 16px;
-}
-.feed-action-btn.liked .foco-icon {
-  filter: grayscale(0) opacity(1); /* Prendido */
-  text-shadow: 0 0 12px #fbbf24; /* Brillo amarillo */
-}
-.feed-action-btn.liked { color: #fbbf24 !important; } /* Texto amarillo */
-
 /* =========================================
    NUEVO DISEÑO: MODAL DE ARCHIVO/LIBRO
    ========================================= */
@@ -7496,7 +7496,16 @@ a {
   }
 
   .galeria-header {
-    padding: 8px 0 10px;
+    top: -12px;
+    margin-top: -12px;
+    padding-top: 12px;
+    padding-bottom: 10px;
+  }
+  
+  .tablero-feed-header {
+    top: -12px;
+    margin-top: -12px;
+    padding-top: 12px;
   }
 
   .btn-back-galeria {
@@ -7729,18 +7738,6 @@ a {
   transition: all 0.3s ease;
   font-size: 16px;
 }
-
-.feed-action-btn.liked .foco-icon,
-
-/* El texto "Útil" se pinta amarillo */
-.feed-action-btn.liked, 
-
-
-
-
-
-
-
 
 /* ═══════════════════════════════════════════════════════
    RESPONSIVE — iPhone 13 mini y similares (375px)
@@ -8511,4 +8508,124 @@ a {
   flex-shrink: 0;
 }
 
+
+
+/* ═══════════════════════════════════════════════════
+   MODAL DE CONFIRMACIÓN DESTRUCTIVA
+═══════════════════════════════════════════════════ */
+.confirm-btn-ok {
+  background: var(--accent, #7c6af7);
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  min-width: 110px;
+}
+.confirm-btn-ok:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+.confirm-btn-ok.danger {
+  background: var(--red, #dc2626);
+}
+.confirm-btn-ok:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+#modalConfirmDestructivo .modal-box {
+  animation: modalIn 0.18s ease;
+}
+
+/* ═══════════════════════════════════════════════════
+   DINÁMICAS — VISTAS INLINE (Votación y Trivia)
+═══════════════════════════════════════════════════ */
+
+/* Header de cada vista inline */
+.din-vista-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.din-back-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text1);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.din-back-btn:hover {
+  background: var(--bg4);
+  color: var(--text0);
+}
+
+.din-vista-titulo {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text0);
+  flex: 1;
+  margin: 0;
+}
+
+.din-nueva-btn {
+  white-space: nowrap;
+  font-size: 13px;
+  padding: 8px 16px;
+}
+
+/* Estado vacío */
+.din-empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text2);
+}
+
+/* Tarjeta de votación */
+.din-tarjeta-votacion {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  transition: var(--transition);
+}
+.din-tarjeta-votacion:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(124,106,247,0.10);
+}
+
+/* Tarjeta de trivia */
+.din-tarjeta-trivia {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  transition: var(--transition);
+}
+.din-tarjeta-trivia:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(124,106,247,0.10);
+}
+
+.din-trivia-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
 
