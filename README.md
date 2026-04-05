@@ -51,12 +51,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- FUNCIONES DE APOYO ---
     function isAuth() {
       return request.auth != null;
     }
-
-    // --- REGLAS POR COLECCIÓN (ORDEN SOLICITADO) ---
 
     match /ec_users/{uid} {
       allow get, list, write: if isAuth();
@@ -68,11 +65,27 @@ service cloud.firestore {
       allow update: if isAuth();
     }
 
-    match /ec_chat/{docId} {
-      // ESTA LÍNEA ES LA QUE PERMITE QUE ENTRES Y VEAS LOS MENSAJES SIN ERRORES
+    match /ec_biblio_categorias/{docId} {
+      allow get, list, create: if isAuth();
+      allow delete: if isAuth() &&
+        get(/databases/$(database)/documents/ec_grupos/$(resource.data.groupId)).data.adminUid == request.auth.uid;
+    }
+
+    match /ec_biblioteca/{docId} {
       allow get, list, create, update: if isAuth();
-      
-      // La validación pesada de Admin solo ocurre al borrar, no al leer
+      allow delete: if isAuth() && (
+        request.auth.uid == resource.data.authorUid ||
+        get(/databases/$(database)/documents/ec_grupos/$(resource.data.groupId)).data.adminUid == request.auth.uid
+      );
+    }
+
+    match /ec_videotutoriales/{docId} {
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
+    }
+
+    match /ec_chat/{docId} {
+      allow get, list, create, update: if isAuth();
       allow delete: if isAuth() && (
         request.auth.uid == resource.data.authorUid ||
         get(/databases/$(database)/documents/ec_grupos/$(resource.data.groupId)).data.adminUid == request.auth.uid
@@ -114,19 +127,13 @@ service cloud.firestore {
       allow delete: if isAuth();
     }
 
-    match /ec_muro_albums/{docId} {
-      allow get, list, create: if isAuth();
-      allow update, delete: if isAuth();
-    }
-
     match /ec_comentarios/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth();
     }
-    
+
     match /ec_notas/{docId} {
-      allow get, list, create: if isAuth();
-      allow update, delete: if isAuth();
+      allow get, list, create, update, delete: if isAuth();
     }
 
     match /ec_typing/{docId} {
@@ -136,19 +143,32 @@ service cloud.firestore {
     match /ec_online/{docId} {
       allow get, list, write: if isAuth();
     }
-
-    match /ec_chat_reads/{docId} {
-      allow get, list, write: if isAuth();
-    }
-
-    match /ec_videotutoriales/{docId} {
-      allow get, list, create, update: if isAuth();
+    
+    match /ec_chat_canales/{docId} {
+      allow get, list, create: if isAuth();
       allow delete: if isAuth();
     }
-
-    match /ec_biblio_categorias/{docId} {
+    
+    match /ec_salas_chat/{docId} {
+      allow get, list, create: if isAuth();
+      allow delete: if isAuth() && request.auth.uid == resource.data.adminUid;
+      allow update: if isAuth();
+    }
+    
+    match /ec_muro_albums/{docId} {
       allow get, list, create: if isAuth();
       allow update, delete: if isAuth();
+    }
+    
+    match /ec_muro_albums/{docId} {
+      allow get, list, create: if isAuth();
+      allow update, delete: if isAuth();
+    }
+
+    match /ec_tableros/{docId} {
+      allow get, list, create: if isAuth();
+      allow delete: if isAuth() && request.auth.uid == resource.data.createdBy;
+      allow update: if isAuth();
     }
   }
 }

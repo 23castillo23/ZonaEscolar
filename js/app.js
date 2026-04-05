@@ -1322,12 +1322,186 @@ function bindFeedCard(cardEl, postId) {
   const toggleBtn = cardEl.querySelector('.feed-comments-toggle');
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
-      abrirModalComentarios(postId, cardEl);
+      const dvdId = toggleBtn.dataset.dvdId;
+      const dvdUrl = toggleBtn.dataset.dvdUrl;
+      if (dvdId || dvdUrl) {
+        // Videotutorial: abrir modal con los comentarios del DVD
+        abrirModalComentariosDvd(dvdId, dvdUrl, postId, cardEl, toggleBtn);
+      } else {
+        abrirModalComentarios(postId, cardEl);
+      }
     });
   }
 }
 
-/* ── Modal de comentarios tipo ventana ── */
+/* ── Modal comentarios para videotutorial compartido en feed ── */
+async function abrirModalComentariosDvd(dvdId, dvdUrl, feedPostId, cardEl, toggleBtn) {
+  const { collection, query, where, getDocs, doc, getDoc } = lib();
+  let resolvedDvdId = dvdId;
+
+  // Si no tenemos dvdId, buscar por URL
+  if (!resolvedDvdId && dvdUrl) {
+    try {
+      const snap = await getDocs(query(collection(db(), 'ec_videotutoriales'), where('url', '==', dvdUrl)));
+      if (!snap.empty) resolvedDvdId = snap.docs[0].id;
+    } catch(e) { console.error(e); }
+  }
+
+  if (!resolvedDvdId) {
+    // Fallback: abrir el modal normal del feed
+    abrirModalComentarios(feedPostId, cardEl);
+    return;
+  }
+
+  // Guardar dvdId en el botón para futuras veces
+  if (toggleBtn) toggleBtn.dataset.dvdId = resolvedDvdId;
+
+  // Abrir el modal de comentarios usando el dvdId como postId
+  // pero sin actualizar commentCount del feed (los DVDs no tienen ese campo en feed)
+  abrirModalComentariosConId(resolvedDvdId, cardEl, feedPostId, toggleBtn);
+}
+
+/* ── Modal comentarios genérico con postId explícito ── */
+function abrirModalComentariosConId(commentPostId, cardEl, feedPostId, toggleBtn) {
+  let modal = document.getElementById('comments-modal-overlay');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'comments-modal-overlay';
+    modal.className = 'comments-modal-overlay';
+    modal.innerHTML = `
+      <div class="comments-modal-window" id="comments-modal-window">
+        <div class="comments-modal-header">
+          <span class="comments-modal-title" id="comments-modal-title">💬 Comentarios</span>
+          <button class="comments-modal-close" id="comments-modal-close">✕</button>
+        </div>
+        <div class="comments-modal-body">
+          <div class="comments-modal-list" id="comments-modal-list"></div>
+        </div>
+        <div class="comments-modal-footer">
+          <img class="feed-comment-avatar" id="comments-modal-avatar" src="${escHtml(currentUser.avatar || '')}" alt="" onerror="this.style.display='none'">
+          <input type="text" class="comments-modal-input" id="comments-modal-input" placeholder="Escribe un comentario…" maxlength="300">
+          <button class="comments-modal-send" id="comments-modal-send">➤</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+
+  const list = document.getElementById('comments-modal-list');
+  list.innerHTML = '';
+  if (modal._prevUnsub) { modal._prevUnsub(); modal._prevUnsub = null; }
+
+  document.getElementById('comments-modal-title').textContent = `💬 Comentarios del video`;
+  modal.classList.add('active');
+  _lockBodyScroll();
+
+  const { collection, query, where, orderBy, onSnapshot, addDoc, doc, updateDoc, increment, deleteDoc, serverTimestamp } = lib();
+  const q = query(
+    collection(db(), 'ec_comentarios'),
+    where('postId', '==', commentPostId),
+    orderBy('createdAt', 'asc')
+  );
+
+  const unsub = onSnapshot(q, snap => {
+    const cnt = snap.size;
+    // Actualizar botón toggle en la card del feed
+    if (toggleBtn) toggleBtn.textContent = `📝 ${cnt > 0 ? cnt + ' notas' : 'Añadir nota'}`;
+
+    snap.docChanges().forEach(change => {
+      if (change.type === 'added') {
+        const c = { id: change.doc.id, ...change.doc.data() };
+        if (list.querySelector(`[data-comment-id="${c.id}"]`)) return;
+        const esMio = c.authorUid === currentUser.uid;
+        const btnDel = (esMio || isAdmin)
+          ? `<button class="comment-del-btn" onclick="eliminarComentarioDvd('${c.id}','${commentPostId}')" title="Eliminar">🗑️</button>`
+          : '';
+        const items = list.querySelectorAll('.feed-comment-item');
+        const lastItem = items.length ? items[items.length - 1] : null;
+        const sameAuthor = lastItem?.dataset.authorUid === c.authorUid;
+
+        const el = document.createElement('div');
+        el.className = 'feed-comment-item' + (sameAuthor ? ' same-author' : '');
+        el.dataset.commentId = c.id;
+        el.dataset.authorUid = c.authorUid;
+        el.innerHTML = `
+          <img class="feed-comment-avatar" src="${escHtml(c.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
+          <div class="feed-comment-bubble">
+            <div class="feed-comment-author">${escHtml(c.authorName || 'Anónimo')}</div>
+            <div class="feed-comment-text">${escHtml(c.text)}</div>
+            <div class="feed-comment-time">${fmtTime(c.createdAt)} ${btnDel}</div>
+          </div>`;
+        const empty = list.querySelector('.comment-empty-msg');
+        if (empty) empty.remove();
+        list.appendChild(el);
+        list.scrollTop = list.scrollHeight;
+      }
+      if (change.type === 'removed') {
+        const el = list.querySelector(`[data-comment-id="${change.doc.id}"]`);
+        if (el) {
+          const next = el.nextElementSibling;
+          if (next?.classList.contains('same-author') && !el.classList.contains('same-author')) next.classList.remove('same-author');
+          el.remove();
+        }
+        if (!list.querySelector('.feed-comment-item')) {
+          list.innerHTML = '<div class="comment-empty-msg">Sé el primero en comentar. 👋</div>';
+        }
+      }
+    });
+    if (!list.querySelector('.feed-comment-item') && !list.querySelector('.comment-empty-msg')) {
+      list.innerHTML = '<div class="comment-empty-msg">Sé el primero en comentar. 👋</div>';
+    }
+  });
+  modal._prevUnsub = unsub;
+  modal._postId = commentPostId;
+
+  const sendBtn = document.getElementById('comments-modal-send');
+  const input = document.getElementById('comments-modal-input');
+  const newSend = sendBtn.cloneNode(true);
+  sendBtn.parentNode.replaceChild(newSend, sendBtn);
+  const newInput = input.cloneNode(true);
+  input.parentNode.replaceChild(newInput, input);
+
+  async function enviar() {
+    const text = newInput.value.trim();
+    if (!text) return;
+    newSend.disabled = true;
+    try {
+      await addDoc(collection(db(), 'ec_comentarios'), {
+        postId: commentPostId,
+        groupId: currentGroupId,
+        text,
+        authorUid: currentUser.uid,
+        authorName: getUserAlias(),
+        authorEmail: currentUser.email,
+        authorAvatar: currentUser.avatar || '',
+        createdAt: serverTimestamp()
+      });
+      newInput.value = '';
+    } catch(e) { console.error('Error al comentar:', e); }
+    finally { newSend.disabled = false; }
+  }
+
+  newSend.addEventListener('click', enviar);
+  newInput.addEventListener('keydown', e => { if (e.key === 'Enter') enviar(); });
+
+  // Cerrar modal
+  const closeBtn = document.getElementById('comments-modal-close');
+  const newClose = closeBtn.cloneNode(true);
+  closeBtn.parentNode.replaceChild(newClose, closeBtn);
+  newClose.addEventListener('click', () => {
+    modal.classList.remove('active');
+    _unlockBodyScroll();
+    if (modal._prevUnsub) { modal._prevUnsub(); modal._prevUnsub = null; }
+  });
+  modal.addEventListener('click', e => {
+    if (e.target === modal) {
+      modal.classList.remove('active');
+      _unlockBodyScroll();
+      if (modal._prevUnsub) { modal._prevUnsub(); modal._prevUnsub = null; }
+    }
+  }, { once: true });
+}
+
+/* ── Modal comentarios del feed ── */
 function abrirModalComentarios(postId, cardEl) {
   // Si ya existe el modal para este post, solo mostrarlo
   let modal = document.getElementById('comments-modal-overlay');
@@ -2001,14 +2175,17 @@ function buildFeedCard(p) {
         </div>
       </div>`;
   } else if (p.type === 'videotutorial' && p.dvdData) {
+    const dvdIdAttr = p.dvdId ? escHtml(p.dvdId) : '';
+    const dvdUrlAttr = escHtml(p.dvdData.url || '');
     extraContentHtml = `
-      <div class="feed-dvd-shared" data-url="${escHtml(p.dvdData.url)}"
+      <div class="feed-dvd-shared" style="cursor:pointer" onclick="verComentariosDvdDesdeFeed('${dvdIdAttr}','${dvdUrlAttr}')">
         <div class="dvd-rect-thumb">
           <img src="${p.dvdData.thumbnail}" alt="" class="dvd-rect-img">
           <div class="dvd-rect-play-overlay" style="opacity: 1; background: rgba(0,0,0,0.45);">▶</div>
         </div>
         <div class="feed-dvd-info">
           <h4>${escHtml(p.dvdData.titulo)}</h4>
+          <span style="font-size:12px; color:var(--accent); margin-top:4px; display:inline-block;">💬 Ver y comentar →</span>
         </div>
       </div>`;
   } else if (!extraContentHtml && p.text) {
@@ -2043,7 +2220,7 @@ function buildFeedCard(p) {
       <button class="feed-action-btn ${isLiked ? 'liked' : ''}" data-like="${p.id}">
         <span class="foco-icon" style="font-size: 16px;">💡</span> Útil (<span class="like-count">${likeCount}</span>)
       </button>
-      <button class="feed-comments-toggle" data-post="${p.id}">
+      <button class="feed-comments-toggle" data-post="${p.id}"${p.dvdId ? ` data-dvd-id="${escHtml(p.dvdId)}"` : p.dvdData?.url ? ` data-dvd-url="${escHtml(p.dvdData.url)}"` : ''}>
         📝 ${commentCount > 0 ? commentCount + ' notas' : 'Añadir nota'}
       </button>
     </div>
@@ -7305,6 +7482,29 @@ $('btnCompartirLibro')?.addEventListener('click', async () => {
 });
 
 // Compartir VideoTutorial
+window.abrirDetalleDvd = abrirDetalleDvd;
+
+window.verComentariosDvdDesdeFeed = async function(dvdId, dvdUrl) {
+  const { collection, query, where, getDocs, doc, getDoc } = lib();
+  try {
+    let dvd = null;
+    // Intentar por dvdId primero
+    if (dvdId) {
+      const snap = await getDoc(doc(db(), 'ec_videotutoriales', dvdId));
+      if (snap.exists()) dvd = { id: snap.id, ...snap.data() };
+    }
+    // Fallback: buscar por URL
+    if (!dvd && dvdUrl) {
+      const snap = await getDocs(query(collection(db(), 'ec_videotutoriales'), where('url', '==', dvdUrl)));
+      if (!snap.empty) dvd = { id: snap.docs[0].id, ...snap.docs[0].data() };
+    }
+    if (!dvd) { alert('No se encontró el video en la colección.'); return; }
+    // Ir a VideoTutoriales y abrir el modal
+    navigateTo('videotutoriales');
+    setTimeout(() => abrirDetalleDvd(dvd), 400);
+  } catch(e) { alert('Error: ' + e.message); }
+};
+
 window.compartirDvd = async function(dvdId) {
   const { doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc, serverTimestamp } = lib();
   try {
@@ -7336,6 +7536,7 @@ window.compartirDvd = async function(dvdId) {
               groupId: currentGroupId,
               tableroId: tableroId || '',
               type: 'videotutorial',
+              dvdId: dvdId,
               dvdData: { titulo: dvd.titulo, thumbnail: dvd.thumbnail, url: dvd.url },
               text: `📀 Chequen este video tutorial que agregué a la colección.`,
               images: [], authorUid: currentUser.uid, authorName: currentUser.name,

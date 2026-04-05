@@ -6322,7 +6322,7 @@ a {
 .apuntes-photos-grid {
   display: grid !important;
   /* AUMENTAMOS EL TAMAÑO AQUÍ: Mínimo 150px, Máximo 220px para PC */
-  grid-template-columns: repeat(auto-fill, minmax(160px, 160px)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
   justify-content: flex-start !important;
   /* Un poco más de espacio entre fotos grandes */
   gap: 16px !important;
