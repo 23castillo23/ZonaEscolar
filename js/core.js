@@ -167,6 +167,7 @@ function waitForFirebase(cb) {
   if (window._firebaseReady) { cb(); return; }
   window.addEventListener('firebase-ready', cb, { once: true });
 }
+// Acceso global a Firebase
 function db() { return window._db; }
 function lib() { return window._fbLib; }
 
@@ -220,7 +221,7 @@ function getAvatarHtml(url, name, extraClass = '') {
 }
 
 /* ═══════════════════════════════════════════════════
-   AUTH
+  Autenticación con Google
 ═══════════════════════════════════════════════════ */
 function initAuth() {
   waitForFirebase(() => {

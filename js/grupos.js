@@ -103,7 +103,7 @@ async function activarGrupo(groupId) {
   if (btnInvitar) btnInvitar.style.display = isAdmin ? 'inline-block' : 'none';
 
   // ------------------------------------------
-
+ // Cancelar TODOS los listeners activos antes de cambiar de grupo
   if (feedUnsub) { feedUnsub(); feedUnsub = null; }
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
   if (salasUnsub) { salasUnsub(); salasUnsub = null; }

@@ -263,21 +263,12 @@ function _bindVotacionForm() {
       btnLanzar.disabled = true; btnLanzar.textContent = '⏳';
       const { collection, addDoc, serverTimestamp } = lib();
       try {
-        const ref = await addDoc(collection(db(), 'ec_votaciones'), {
+        await addDoc(collection(db(), 'ec_votaciones'), {
           groupId: currentGroupId, pregunta, opciones,
           votos: {}, votantes: [], userVotes: {},
           activa: true, cierreAt: cierreTimestamp || null,
           authorUid: currentUser.uid, authorName: currentUser.name, authorAvatar: currentUser.avatar || '',
           createdAt: serverTimestamp()
-        });
-        await addDoc(collection(db(), 'ec_feed'), {
-          groupId: currentGroupId, type: 'votacion',
-          votacionId: ref.id, pregunta, opciones,
-          votos: {}, votantes: [], userVotes: {},
-          activa: true, cierreAt: cierreTimestamp || null,
-          text: `🗳️ Votación: "${pregunta}"`, images: [],
-          authorUid: currentUser.uid, authorName: currentUser.name, authorAvatar: currentUser.avatar || '',
-          likes: 0, likedBy: [], commentCount: 0, createdAt: serverTimestamp()
         });
         $('votacionPregunta').value = '';
         if ($('votacionFechaCierre')) $('votacionFechaCierre').value = '';
@@ -285,7 +276,7 @@ function _bindVotacionForm() {
         [...wrap.querySelectorAll('.opcion-input')].slice(2).forEach(e => e.remove());
         wrap.querySelectorAll('.opcion-input').forEach(i => i.value = '');
         cerrarFormNuevaVotacion();
-        showToast('¡Votación creada!', 'success');
+        showToast('¡Votación creada! Usa 📌 Compartir para publicarla.', 'success');
       } catch (e) { showToast(friendlyError(e), 'error'); }
       finally { btnLanzar.disabled = false; btnLanzar.textContent = 'Crear votación'; }
     };
@@ -341,17 +332,14 @@ function _renderTarjetaVotacion(v) {
     ? `<span style="font-size:10px;background:var(--green);color:#fff;padding:2px 7px;border-radius:10px;font-weight:700">ABIERTA</span>`
     : `<span style="font-size:10px;background:var(--text2);color:#fff;padding:2px 7px;border-radius:10px;font-weight:700">CERRADA</span>`;
 
-  let gestionHtml = '';
+  // Botones de gestión (solo para propietario/admin)
+  let btnsCierre = '';
   if (puedeGestionar) {
-    gestionHtml = activa
-      ? `<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn-sm btn-sm-danger" onclick="cerrarVotacionPanel('${v.id}')">🔒 Cerrar</button>
-          <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}','${escHtml(v.pregunta)}')">🗑️ Eliminar</button>
-        </div>`
-      : `<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn-sm" onclick="reabrirVotacionPanel('${v.id}')">🔓 Reabrir</button>
-          <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}','${escHtml(v.pregunta)}')">🗑️ Eliminar</button>
-        </div>`;
+    btnsCierre = activa
+      ? `<button class="btn-sm btn-sm-danger" onclick="cerrarVotacionPanel('${v.id}')">🔒 Cerrar</button>
+         <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}','${escHtml(v.pregunta)}')">🗑️ Eliminar</button>`
+      : `<button class="btn-sm" onclick="reabrirVotacionPanel('${v.id}')">🔓 Reabrir</button>
+         <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}','${escHtml(v.pregunta)}')">🗑️ Eliminar</button>`;
   }
 
   return `<div class="din-tarjeta-votacion">
@@ -361,7 +349,11 @@ function _renderTarjetaVotacion(v) {
     </div>
     ${tiempoHtml}
     <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Por ${escHtml(v.authorName || 'Anónimo')} · ${totalVotos} voto${totalVotos !== 1 ? 's' : ''}</div>
-    ${opcionesHtml}${resultadosHtml}${gestionHtml}
+    ${opcionesHtml}${resultadosHtml}
+    <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center">
+      <button class="tarea-share-btn" onclick="compartirVotacion('${v.id}','${escHtml(v.pregunta)}')">📌 Compartir</button>
+      ${btnsCierre}
+    </div>
   </div>`;
 }
 
@@ -536,19 +528,6 @@ window.abrirVistaTrivia = function () {
   loadTriviasGuardadas();
 };
 
-window.abrirFormNuevaTrivia = function () {
-  triviaBanco = [];
-  renderTriviaBanco();
-  if ($('triviaNombreInput')) $('triviaNombreInput').value = '';
-  if ($('triviaPreguntaInput')) $('triviaPreguntaInput').value = '';
-  qsa('.trivia-resp-input').forEach(i => i.value = '');
-  const panel = $('triviaFormPanel');
-  if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-};
-window.cerrarFormNuevaTrivia = function () {
-  const panel = $('triviaFormPanel');
-  if (panel) panel.style.display = 'none';
-};
 
 function loadTriviasGuardadas() {
   if (!currentGroupId) return;
@@ -587,7 +566,7 @@ function renderTriviasLista(trivias) {
     const puedeEliminar = isAdmin || esPropietario;
     const totalPregs = t.preguntas?.length || 0;
     const delBtn = puedeEliminar
-      ? `<button class="btn-sm btn-sm-danger" onclick="eliminarTriviaGuardada('${t.id}','${escHtml(t.nombre)}')">🗑️</button>`
+      ? `<button class="btn-sm btn-sm-danger" onclick="eliminarTriviaGuardada('${t.id}','${escHtml(t.nombre)}')">🗑️ Eliminar</button>`
       : '';
     return `<div class="din-tarjeta-trivia">
       <div class="din-trivia-card-header">
@@ -595,11 +574,12 @@ function renderTriviasLista(trivias) {
           <div style="font-size:14px;font-weight:700;color:var(--text0)">🧠 ${escHtml(t.nombre)}</div>
           <div style="font-size:11px;color:var(--text2);margin-top:3px">${totalPregs} pregunta${totalPregs !== 1 ? 's' : ''} · Por ${escHtml(t.authorName || 'Anónimo')}</div>
         </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          ${delBtn}
-        </div>
       </div>
-      <button class="btn-primary" style="width:100%;margin-top:10px;font-size:13px" onclick="jugarTrivia('${t.id}')">▶️ Jugar</button>
+      <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn-primary" style="flex:1;font-size:13px" onclick="jugarTrivia('${t.id}')">▶️ Jugar</button>
+        <button class="tarea-share-btn" onclick="compartirTrivia('${t.id}','${escHtml(t.nombre)}')">📌 Compartir</button>
+        ${delBtn}
+      </div>
     </div>`;
   }).join('');
 }
@@ -637,65 +617,112 @@ window.eliminarTriviaGuardada = function (id, nombre) {
   });
 };
 
-function renderTriviaBanco() {
-  const el = $('triviaBanco');
+/* — Modal nueva trivia: banco local independiente — */
+let _triviaBancoModal = [];
+
+window.abrirFormNuevaTrivia = function () {
+  _triviaBancoModal = [];
+  _renderBancoModal();
+  const n = $('mt_nombre'); if (n) n.value = '';
+  const p = $('mt_pregunta'); if (p) p.value = '';
+  const wrap = $('mt_respuestasWrap');
+  if (wrap) {
+    wrap.innerHTML = `
+      <div class="mt-resp-row" style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:13px;width:20px;text-align:center;flex-shrink:0">✅</span>
+        <input type="text" class="modal-input mt-resp-input" placeholder="Respuesta correcta" style="flex:1">
+      </div>
+      <div class="mt-resp-row" style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:13px;width:20px;text-align:center;flex-shrink:0">❌</span>
+        <input type="text" class="modal-input mt-resp-input" placeholder="Opción incorrecta" style="flex:1">
+      </div>
+      <div class="mt-resp-row" style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:13px;width:20px;text-align:center;flex-shrink:0">❌</span>
+        <input type="text" class="modal-input mt-resp-input" placeholder="Opción incorrecta" style="flex:1">
+      </div>`;
+  }
+  openModal('modalNuevaTrivia');
+};
+
+window.cerrarFormNuevaTrivia = function () { closeModal('modalNuevaTrivia'); };
+
+function _renderBancoModal() {
+  const el = $('mt_banco');
   if (!el) return;
-  el.innerHTML = triviaBanco.length
-    ? `<p style="font-size:12px;color:var(--text2);margin-bottom:8px">${triviaBanco.length} pregunta(s) lista(s)</p>` +
-      triviaBanco.map((p, i) => `<div class="trivia-banco-item">
-        <span>${escHtml(p.pregunta)}</span>
-        <button onclick="triviaEliminar(${i})" style="color:var(--red);background:none;border:none;cursor:pointer;font-size:12px">✕</button>
-      </div>`).join('')
-    : '<p style="font-size:12px;color:var(--text2)">Agrega preguntas antes de guardar.</p>';
+  if (!_triviaBancoModal.length) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--text2);padding:4px 0">Aún no hay preguntas. Agrégalas arriba.</p>';
+    return;
+  }
+  el.innerHTML = `<p style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:600">${_triviaBancoModal.length} pregunta(s) lista(s):</p>` +
+    _triviaBancoModal.map((p, i) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:8px;padding:8px 12px;margin-bottom:6px;gap:8px">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text0)">${escHtml(p.pregunta)}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${p.respuestas.length} opciones · ✅ ${escHtml(p.respuestas[0])}</div>
+        </div>
+        <button onclick="_triviaBancoModal.splice(${i},1);_renderBancoModal()"
+          style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;flex-shrink:0">🗑️</button>
+      </div>`).join('');
 }
-window.triviaEliminar = function (i) { triviaBanco.splice(i, 1); renderTriviaBanco(); };
 
 document.addEventListener('click', e => {
-  if (e.target.id === 'btnAgregarPregunta') {
-    const pregunta = $('triviaPreguntaInput').value.trim();
-    const resps = qsa('#triviaFormPanel .trivia-resp-input').map(i => i.value.trim()).filter(Boolean);
-    if (!pregunta || resps.length < 2) { showToast('Agrega la pregunta y al menos la respuesta correcta + 1 opción.', 'warning'); return; }
-    triviaBanco.push({ pregunta, respuestas: resps });
-    $('triviaPreguntaInput').value = '';
-    qsa('#triviaFormPanel .trivia-resp-input').forEach(i => i.value = '');
-    renderTriviaBanco();
+  // Agregar fila de respuesta extra
+  if (e.target.id === 'mt_btnAddResp') {
+    const wrap = $('mt_respuestasWrap');
+    if (!wrap) return;
+    const row = document.createElement('div');
+    row.className = 'mt-resp-row';
+    row.style.cssText = 'display:flex;gap:6px;align-items:center';
+    row.innerHTML = `
+      <span style="font-size:13px;width:20px;text-align:center;flex-shrink:0">❌</span>
+      <input type="text" class="modal-input mt-resp-input" placeholder="Opción incorrecta" style="flex:1">
+      <button type="button" onclick="this.parentElement.remove()"
+        style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:0 4px;flex-shrink:0">✕</button>`;
+    wrap.appendChild(row);
+    row.querySelector('input').focus();
   }
-  if (e.target.id === 'btnIniciarTrivia') {
-    guardarTriviaEnFirestore();
+
+  // Guardar pregunta al banco local del modal
+  if (e.target.id === 'mt_btnGuardarPregunta') {
+    const pregunta = ($('mt_pregunta')?.value || '').trim();
+    const resps = [...document.querySelectorAll('#mt_respuestasWrap .mt-resp-input')]
+      .map(i => i.value.trim()).filter(Boolean);
+    if (!pregunta) { showToast('Escribe la pregunta.', 'warning'); return; }
+    if (resps.length < 2) { showToast('Agrega al menos la respuesta correcta y una opción incorrecta.', 'warning'); return; }
+    _triviaBancoModal.push({ pregunta, respuestas: resps });
+    $('mt_pregunta').value = '';
+    document.querySelectorAll('#mt_respuestasWrap .mt-resp-input').forEach(i => i.value = '');
+    _renderBancoModal();
+    showToast('Pregunta guardada ✓', 'success');
+  }
+
+  // Guardar trivia completa
+  if (e.target.id === 'mt_btnGuardarTrivia') {
+    _guardarTriviaEnFirestore();
   }
 });
 
-async function guardarTriviaEnFirestore() {
-  if (!triviaBanco.length) { showToast('Agrega al menos una pregunta.', 'warning'); return; }
-  const nombre = ($('triviaNombreInput')?.value || '').trim() || `Trivia ${new Date().toLocaleDateString('es-MX')}`;
-  const btn = $('btnIniciarTrivia');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+async function _guardarTriviaEnFirestore() {
+  if (!_triviaBancoModal.length) { showToast('Agrega al menos una pregunta antes de guardar.', 'warning'); return; }
+  const nombre = ($('mt_nombre')?.value || '').trim() || `Trivia ${new Date().toLocaleDateString('es-MX')}`;
+  const btn = $('mt_btnGuardarTrivia');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Guardando…'; }
   try {
     const { collection, addDoc, serverTimestamp } = lib();
     await addDoc(collection(db(), 'ec_trivias'), {
       groupId: currentGroupId,
       nombre,
-      preguntas: triviaBanco,
+      preguntas: _triviaBancoModal,
       authorUid: currentUser.uid,
       authorName: currentUser.name,
       authorAvatar: currentUser.avatar || '',
       createdAt: serverTimestamp()
     });
-    // Publicar en feed
-    try {
-      await addDoc(collection(db(), 'ec_feed'), {
-        groupId: currentGroupId, type: 'trivia',
-        text: `🧠 Nueva trivia: "${nombre}" (${triviaBanco.length} pregunta${triviaBanco.length>1?'s':''}) — Ve a Dinámicas → Trivia para jugar.`,
-        images: [], authorUid: currentUser.uid, authorName: currentUser.name, authorAvatar: currentUser.avatar||'',
-        likes:0, likedBy:[], commentCount:0, createdAt: serverTimestamp()
-      });
-    } catch(_) {}
-    triviaBanco = [];
-    renderTriviaBanco();
+    _triviaBancoModal = [];
     cerrarFormNuevaTrivia();
-    showToast(`¡Trivia "${nombre}" guardada!`, 'success');
-  } catch(e) { showToast(friendlyError(e), 'error'); }
-  finally { if(btn){btn.disabled=false; btn.textContent='💾 Guardar trivia';} }
+    showToast(`¡Trivia "${nombre}" guardada! Usa 📌 Compartir para publicarla.`, 'success');
+  } catch (e) { showToast(friendlyError(e), 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar trivia'; } }
 }
 
 function mostrarPreguntaTrivia() {
@@ -735,6 +762,115 @@ window.responderTrivia = function (elegida, correcta, btn) {
   setTimeout(() => { triviaIdx++; mostrarPreguntaTrivia(); }, 1800);
 };
 window.reiniciarTrivia = function () { volverAListaTrivias(); };
+
+/* ─────────────── COMPARTIR EN TABLERO ─────────────── */
+
+window.compartirVotacion = async function (votacionId, pregunta) {
+  if (!currentGroupId) return;
+  const { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp } = lib();
+
+  // Ver en qué tableros ya está compartida
+  const existSnap = await getDocs(query(
+    collection(db(), 'ec_feed'),
+    where('groupId', '==', currentGroupId),
+    where('type', '==', 'votacion'),
+    where('votacionId', '==', votacionId)
+  )).catch(() => null);
+
+  const yaEn = new Set();
+  existSnap?.forEach(d => yaEn.add(d.data().tableroId ?? ''));
+
+  mostrarSelectorTablero(
+    `¿En qué tablero compartir la votación "${pregunta}"?`,
+    async (tableroId, tableroNombre) => {
+      try {
+        // Si ya existe en ese tablero, la sube al inicio
+        const enEste = existSnap?.docs.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
+        if (enEste) {
+          await updateDoc(doc(db(), 'ec_feed', enEste.id), { createdAt: serverTimestamp() });
+          showToast(`📌 ¡Votación subida al inicio de "${tableroNombre}"!`, 'success');
+          return;
+        }
+        // Si no existe, obtiene datos actuales y publica
+        const { getDoc } = lib();
+        const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
+        if (!vSnap.exists()) { showToast('No se encontró la votación.', 'error'); return; }
+        const vData = vSnap.data();
+        await addDoc(collection(db(), 'ec_feed'), {
+          groupId: currentGroupId,
+          tableroId: tableroId || '',
+          type: 'votacion',
+          votacionId: votacionId,
+          pregunta: vData.pregunta,
+          opciones: vData.opciones,
+          votos: vData.votos || {},
+          votantes: vData.votantes || [],
+          userVotes: vData.userVotes || {},
+          activa: vData.activa !== false,
+          cierreAt: vData.cierreAt || null,
+          text: `🗳️ Votación: "${vData.pregunta}"`,
+          images: [],
+          authorUid: currentUser.uid,
+          authorName: currentUser.name,
+          authorAvatar: currentUser.avatar || '',
+          likes: 0, likedBy: [], commentCount: 0,
+          createdAt: serverTimestamp()
+        });
+        showToast(`📌 ¡Votación compartida en "${tableroNombre}"!`, 'success');
+      } catch (e) { showToast('No se pudo compartir. ' + friendlyError(e), 'error'); }
+    },
+    yaEn
+  );
+};
+
+window.compartirTrivia = async function (triviaId, nombre) {
+  if (!currentGroupId) return;
+  const { collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, serverTimestamp } = lib();
+
+  // Ver en qué tableros ya está compartida
+  const existSnap = await getDocs(query(
+    collection(db(), 'ec_feed'),
+    where('groupId', '==', currentGroupId),
+    where('type', '==', 'trivia_compartida'),
+    where('triviaId', '==', triviaId)
+  )).catch(() => null);
+
+  const yaEn = new Set();
+  existSnap?.forEach(d => yaEn.add(d.data().tableroId ?? ''));
+
+  mostrarSelectorTablero(
+    `¿En qué tablero compartir la trivia "${nombre}"?`,
+    async (tableroId, tableroNombre) => {
+      try {
+        // Si ya existe en ese tablero, la sube al inicio
+        const enEste = existSnap?.docs.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
+        if (enEste) {
+          await updateDoc(doc(db(), 'ec_feed', enEste.id), { createdAt: serverTimestamp() });
+          showToast(`📌 ¡Trivia subida al inicio de "${tableroNombre}"!`, 'success');
+          return;
+        }
+        const tSnap = await getDoc(doc(db(), 'ec_trivias', triviaId));
+        if (!tSnap.exists()) { showToast('No se encontró la trivia.', 'error'); return; }
+        const tData = tSnap.data();
+        await addDoc(collection(db(), 'ec_feed'), {
+          groupId: currentGroupId,
+          tableroId: tableroId || '',
+          type: 'trivia_compartida',
+          triviaId: triviaId,
+          text: `🧠 Trivia: "${tData.nombre}" · ${tData.preguntas?.length || 0} preguntas — Ve a Dinámicas → Trivia para jugar.`,
+          images: [],
+          authorUid: currentUser.uid,
+          authorName: currentUser.name,
+          authorAvatar: currentUser.avatar || '',
+          likes: 0, likedBy: [], commentCount: 0,
+          createdAt: serverTimestamp()
+        });
+        showToast(`📌 ¡Trivia compartida en "${tableroNombre}"!`, 'success');
+      } catch (e) { showToast('No se pudo compartir. ' + friendlyError(e), 'error'); }
+    },
+    yaEn
+  );
+};
 
 /* ─────────────── PUNTOS ─────────────── */
 function renderPuntos() {

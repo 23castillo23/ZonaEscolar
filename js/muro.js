@@ -184,7 +184,7 @@ window.crearAlbumMuro = async function () {
   const btn = $('btnCrearAlbum');
   const nombre = ($('albumNombreInput')?.value || '').trim();
   if (!nombre) { showToast('Escribe un nombre para el álbum.', 'warning'); return; }
-  if (!currentGroupId) { showToast('Selecciona un grupo primero.', 'warning'); return; } // ← AGREGA ESTO
+  if (!currentGroupId) { showToast('Selecciona un grupo primero.', 'warning'); return; } 
   const emoji = $('albumEmojiSeleccionado')?.textContent || '📁';  
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   const { collection, addDoc, serverTimestamp } = lib();
@@ -226,7 +226,6 @@ window.eliminarAlbumMuro = async function (albumId, nombre) {
 /* ══════════════════════════════════════════════════════
    SUBIR FOTOS AL MURO (con selector de álbum)
 ══════════════════════════════════════════════════════ */
-
 function mostrarSelectorAlbum(files) {
   _muroFilesBuffer = files;
   const lista = $('listaAlbumsElegir');

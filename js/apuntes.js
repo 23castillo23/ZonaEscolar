@@ -737,7 +737,6 @@ document.addEventListener('click', async e => {
 /* ═══════════════════════════════════════════════════
    CLOUDINARY UPLOAD
 ═══════════════════════════════════════════════════ */
-// REEMPLAZAR: uploadToCloudinary
 async function uploadToCloudinary(file, tag = '') {
   if (file.size > 10 * 1024 * 1024) {
     showToast('El archivo es muy pesado. Máximo 10 MB.', 'info');

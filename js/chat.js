@@ -522,23 +522,33 @@ function renderGaleriaSalas(salas) {
 
 window.abrirSalaChat = function(salaId, nombre, color) {
   currentSalaId = salaId === 'general' ? null : salaId;
-   // ✅ AGREGAR ESTO:
   localStorage.setItem('ze_last_sala', JSON.stringify({ salaId, nombre, color }));
   const vistaGaleria = $('vistaSalasChat');
   const vistaChat = $('vistaChatSala');
   if (vistaGaleria) vistaGaleria.style.display = 'none';
   if (vistaChat) vistaChat.style.display = '';
 
+  // Guardar en salaFeedTitulo (oculto, para compatibilidad)
   const titulo = $('salaFeedTitulo');
   if (titulo) {
     titulo.textContent = nombre;
     if (color) titulo.style.color = color;
   }
 
+  // ── Inyectar botón ← Salas + nombre en el topbar ──
+  const topbarTitle = $('topbarTitle');
+  if (topbarTitle) {
+    topbarTitle.innerHTML = `
+      <button class="tablero-back-btn" id="chatTopbarBack"
+        onclick="cerrarSalaChat()"
+        style="font-size:12px;padding:5px 10px;margin-right:8px">← Salas</button>
+      <span id="chatTopbarNombre" style="font-size:15px;font-weight:700;color:${color || 'var(--text0)'};
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${escHtml(nombre)}</span>`;
+  }
+
   const delBtn = $('salaFeedDel');
   if (delBtn) delBtn.style.display = 'none';
 
-  // Reiniciar chat con la sala seleccionada
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
   initChat();
 };
@@ -546,12 +556,15 @@ window.abrirSalaChat = function(salaId, nombre, color) {
 function cerrarSalaChat() {
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
   currentSalaId = null;
-   // ✅ AGREGAR ESTO:
   localStorage.removeItem('ze_last_sala');
   const vistaGaleria = $('vistaSalasChat');
   const vistaChat = $('vistaChatSala');
   if (vistaGaleria) vistaGaleria.style.display = '';
   if (vistaChat) vistaChat.style.display = 'none';
+
+  // ── Restaurar el topbar al título normal de la sección ──
+  const topbarTitle = $('topbarTitle');
+  if (topbarTitle) topbarTitle.innerHTML = 'Chat';
 }
 
 window.eliminarSalaActiva = function() {

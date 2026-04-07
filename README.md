@@ -2,7 +2,7 @@
 
 Tu espacio escolar privado — apuntes, chat, tareas y dinámicas con tu grupo.
 
-> **Versión actual:** 1.4.0  
+> **Versión actual:** 1.6.0  
 > **Stack:** Firebase (Auth + Firestore) · Cloudinary · PWA  
 > **Sin backend propio** — todo corre en Firebase + Cloudinary
 
@@ -18,7 +18,17 @@ zonaescolar/
 ├── css/
 │   └── style.css           ← Estilos globales (tema oscuro/claro)
 ├── js/
-│   └── app.js              ← Lógica completa de la app
+│   ├── core.js             ← Estado global, auth, utilidades
+│   ├── grupos.js           ← Grupos, miembros, sidebar
+│   ├── tableros.js         ← Feed, tableros temáticos, tarjetas
+│   ├── muro.js             ← Muro personal, álbumes de fotos
+│   ├── chat.js             ← Chat en tiempo real, salas
+│   ├── tareas.js           ← Tareas, subtareas, calendario
+│   ├── biblioteca.js       ← Biblioteca de archivos
+│   ├── apuntes.js          ← Apuntes por semestre y materia
+│   ├── dinamicas.js        ← Ruleta, votación, trivia, puntos
+│   ├── videotutoriales.js  ← Videos tutoriales del grupo
+│   └── utils-extra.js      ← Selector de tablero, helpers
 └── icons/
     └── icon.png            ← Ícono de la app (192×192 mínimo)
 ```
@@ -50,27 +60,22 @@ El proyecto Firebase usado es **zonaescolar-658ff**. Si quieres usar tu propio p
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function isAuth() {
       return request.auth != null;
     }
-
     match /ec_users/{uid} {
       allow get, list, write: if isAuth();
     }
-
     match /ec_grupos/{groupId} {
       allow get, list, create: if isAuth();
       allow delete: if isAuth() && request.auth.uid == resource.data.adminUid;
       allow update: if isAuth();
     }
-
     match /ec_biblio_categorias/{docId} {
       allow get, list, create: if isAuth();
       allow delete: if isAuth() &&
         get(/databases/$(database)/documents/ec_grupos/$(resource.data.groupId)).data.adminUid == request.auth.uid;
     }
-
     match /ec_biblioteca/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth() && (
@@ -78,12 +83,10 @@ service cloud.firestore {
         get(/databases/$(database)/documents/ec_grupos/$(resource.data.groupId)).data.adminUid == request.auth.uid
       );
     }
-
     match /ec_videotutoriales/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth();
     }
-
     match /ec_chat/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth() && (
@@ -91,84 +94,72 @@ service cloud.firestore {
         get(/databases/$(database)/documents/ec_grupos/$(resource.data.groupId)).data.adminUid == request.auth.uid
       );
     }
-
     match /ec_feed/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth();
     }
-
     match /ec_tareas/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth();
     }
-
     match /ec_semestres/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth();
     }
-
     match /ec_galerias/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth();
     }
-
     match /ec_fotos/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth();
     }
-
     match /ec_votaciones/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth();
     }
-
     match /ec_muro_fotos/{docId} {
       allow get, list, create: if isAuth();
       allow delete: if isAuth();
     }
-
     match /ec_comentarios/{docId} {
       allow get, list, create, update: if isAuth();
       allow delete: if isAuth();
     }
-
     match /ec_notas/{docId} {
       allow get, list, create, update, delete: if isAuth();
     }
-
     match /ec_typing/{docId} {
       allow get, list, write: if isAuth();
     }
-
     match /ec_online/{docId} {
       allow get, list, write: if isAuth();
     }
-    
     match /ec_chat_canales/{docId} {
       allow get, list, create: if isAuth();
       allow delete: if isAuth();
     }
-    
     match /ec_salas_chat/{docId} {
       allow get, list, create: if isAuth();
       allow delete: if isAuth() && request.auth.uid == resource.data.adminUid;
       allow update: if isAuth();
     }
-    
     match /ec_muro_albums/{docId} {
       allow get, list, create: if isAuth();
       allow update, delete: if isAuth();
     }
-    
-    match /ec_muro_albums/{docId} {
-      allow get, list, create: if isAuth();
-      allow update, delete: if isAuth();
-    }
-
     match /ec_tableros/{docId} {
       allow get, list, create: if isAuth();
       allow delete: if isAuth() && request.auth.uid == resource.data.createdBy;
       allow update: if isAuth();
+    }
+    match /ec_trivias/{docId} {
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
+    }
+    match /ec_chat_reads/{docId} {
+      allow get, list, create, update: if isAuth();
+      allow delete: if isAuth();
     }
   }
 }
@@ -190,34 +181,46 @@ service cloud.firestore {
 | Módulo | Descripción |
 |---|---|
 | 🔐 **Auth** | Google Login sin contraseñas vía Firebase Authentication |
-| 📍 **Tablero** | Publicaciones de texto y fotos con likes y comentarios en tiempo real |
-| 🙋 **Mis Aportes** | Perfil personal con fotos propias y publicaciones del usuario |
+| 📍 **Tablero** | Publicaciones de texto y fotos con likes y comentarios en tiempo real. Tableros temáticos por materia |
+| 📂 **Mis Aportes** | Perfil personal con álbumes de fotos y publicaciones del usuario |
 | 📸 **Apuntes** | Fotos del pizarrón organizadas por semestre y materia (sube a Cloudinary) |
-| 💬 **Chat** | Mensajes en tiempo real con entrega optimista (aparecen al instante) |
-| ✅ **Tareas** | Tareas con responsable, fecha límite, materia y filtros |
+| 💬 **Chat** | Mensajes en tiempo real con salas. El nombre de la sala activa aparece en la barra superior |
+| ✅ **Tareas** | Tareas con responsable, fecha límite, materia, subtareas y filtros |
+| 🗳️ **Votación** | Encuestas creadas y guardadas. Se publican manualmente en el tablero elegido con 📌 Compartir |
+| 🧠 **Trivia** | Banco de preguntas guardado en Firestore. Se juega desde Dinámicas y se comparte al tablero con 📌 |
 | 🎰 **Ruleta** | Elige al azar quién expone en clase |
-| 🗳️ **Votación** | Encuestas en tiempo real para el grupo |
-| 🧠 **Trivia** | Banco de preguntas de repaso creado por el grupo |
 | 🏆 **Puntos** | Marcador de puntos entre compañeros |
+| 📚 **Biblioteca** | Archivos PDF y links organizados por categorías |
+| 🎬 **VideoTutoriales** | Videos tutoriales del grupo con comentarios |
 
 ---
 
 ## Colecciones Firestore
 
-| Colección | Descripción |
-|---|---|
-| `ec_usuarios` | Perfil de cada usuario (nombre, email, avatar) |
-| `ec_grupos` | Grupos escolares (nombre, admin, lista de miembros) |
-| `ec_feed` | Publicaciones del feed (texto, imágenes, likes, comentarios) |
-| `ec_comentarios` | Comentarios de publicaciones del feed |
-| `ec_chat` | Mensajes del chat grupal |
-| `ec_tareas` | Tareas del grupo |
-| `ec_semestres` | Semestres dentro de Apuntes |
-| `ec_galerias` | Materias/galerías dentro de un semestre |
-| `ec_fotos` | Fotos de apuntes subidas a una galería |
-| `ec_muro_fotos` | Fotos del muro personal de cada usuario |
-| `ec_muro_albums` | Álbumes del muro personal de cada usuario |
-| `ec_votaciones` | Votaciones activas e historial |
+| Colección              | Descripción                                                  |
+|------------------------|--------------------------------------------------------------|
+| `ec_users`             | Perfil de cada usuario (nombre, email, avatar)               |
+| `ec_grupos`            | Grupos escolares (nombre, admin, lista de miembros)          |
+| `ec_feed`              | Publicaciones del feed (texto, imágenes, votaciones compartidas) |
+| `ec_comentarios`       | Comentarios de publicaciones del feed                        |
+| `ec_tableros`          | Tableros temáticos del grupo                                 |
+| `ec_chat`              | Mensajes del chat grupal por sala                            |
+| `ec_salas_chat`        | Salas de chat creadas por el grupo                           |
+| `ec_chat_reads`        | Registro del último mensaje leído por usuario (para contador no leídos) |
+| `ec_typing`            | Indicador "está escribiendo…" en tiempo real                 |
+| `ec_online`            | Presencia online de usuarios en el chat                      |
+| `ec_tareas`            | Tareas del grupo con responsable, fecha y subtareas          |
+| `ec_semestres`         | Semestres dentro de Apuntes                                  |
+| `ec_galerias`          | Materias/galerías dentro de un semestre                      |
+| `ec_fotos`             | Fotos de apuntes subidas a una galería                       |
+| `ec_notas`             | Notas de materia por usuario                                 |
+| `ec_muro_fotos`        | Fotos del muro personal de cada usuario                      |
+| `ec_muro_albums`       | Álbumes del muro personal de cada usuario                    |
+| `ec_biblioteca`        | Archivos PDF/links de la biblioteca del grupo                |
+| `ec_biblio_categorias` | Categorías/repisas de la biblioteca                          |
+| `ec_videotutoriales`   | Videos tutoriales del grupo                                  |
+| `ec_votaciones`        | Votaciones del grupo (no se autopublican en el feed)         |
+| `ec_trivias`           | Trivias guardadas con nombre y banco de preguntas            |
 
 ---
 
@@ -227,7 +230,7 @@ Las imágenes se almacenan en **Cloudinary** (no en Firebase Storage).
 
 - **Cloud name:** `dwjzn6n0a`
 - **Upload preset:** `zonaescolar_unsigned` (unsigned, sin autenticación)
-- Se usa en: Feed, Apuntes, Mi Muro
+- Se usa en: Feed, Apuntes, Chat (imágenes), Mi Muro
 
 ---
 
@@ -243,6 +246,17 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 ---
 
 ## Changelog
+
+### v1.6.0
+- **Votaciones — sin autopublicación:** al crear una votación ya no se publica sola en el feed. El usuario decide cuándo y en qué tablero compartirla con el botón 📌 Compartir.
+- **Trivias — guardadas en Firestore:** las trivias ahora se guardan en `ec_trivias` con nombre y banco de preguntas. Aparecen como tarjetas en Dinámicas → Trivia con botón ▶️ Jugar y 📌 Compartir.
+- **Compartir votación/trivia al tablero:** botón 📌 en cada tarjeta abre el selector de tablero. Si ya está compartida en ese tablero, la sube al inicio en vez de duplicarla.
+- **Quitar del tablero:** el botón en la tarjeta del feed dice "🗑️ Quitar del tablero" y solo borra el post del feed, sin eliminar la votación original.
+- **Modal nueva trivia:** formulario completo con nombre, preguntas y banco visual. Botón "+ Agregar respuesta" para añadir más opciones. Solo el creador y el admin pueden eliminar trivias guardadas.
+- **Modal nueva votación:** el formulario se abre en ventana (modal) en lugar de inline.
+- **Chat — header en topbar:** al entrar a una sala, el botón "← Salas" y el nombre de la sala se muestran en la barra superior de la app en lugar de ocupar espacio dentro del chat. Esto elimina el espacio en blanco que aparecía en móvil y escritorio.
+- **Firestore:** nuevas colecciones `ec_trivias` y `ec_chat_reads`. Agregar sus reglas al panel de Firestore (ver sección Reglas).
+
 
 ### v1.5.0
 - **Álbumes en Mis Aportes:** la pestaña "Fotos" ahora muestra una vista de álbumes. Cada integrante puede crear sus propios álbumes con nombre e ícono emoji para organizar sus fotos ordenadamente.

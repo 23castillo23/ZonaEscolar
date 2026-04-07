@@ -417,8 +417,8 @@
 
         <!-- ── CHAT DENTRO DE UNA SALA ── -->
         <div id="vistaChatSala" style="display:none">
-          <div class="tablero-feed-header" id="salaFeedHeader">
-            <button class="tablero-back-btn" onclick="cerrarSalaChat()">← Salas</button>
+          <!-- El header (← Salas + nombre) se muestra en el topbar al entrar a la sala -->
+          <div id="salaFeedHeader" style="display:none">
             <div class="tablero-feed-titulo" id="salaFeedTitulo"></div>
             <button class="tablero-feed-del" id="salaFeedDel" style="display:none"
               onclick="eliminarSalaActiva()">🗑️</button>
@@ -589,27 +589,6 @@
             <button class="din-back-btn" onclick="cerrarVistaDinamica()">← Dinámicas</button>
             <h2 class="din-vista-titulo">🧠 Trivia</h2>
             <button class="btn-primary din-nueva-btn" onclick="abrirFormNuevaTrivia()">➕ Nueva trivia</button>
-          </div>
-          <!-- Form colapsable para crear trivia -->
-          <div id="triviaFormPanel" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px">
-            <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--accent)">➕ Nueva trivia</h4>
-            <input type="text" id="triviaNombreInput" class="modal-input" placeholder="Nombre de la trivia (ej: Parcial 1)" style="margin-bottom:8px">
-            <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
-            <p style="font-size:12px;color:var(--text2);margin-bottom:8px">Agrega las preguntas:</p>
-            <input type="text" id="triviaPreguntaInput" class="modal-input" placeholder="Pregunta">
-            <div id="triviaRespuestasInputs">
-              <input type="text" class="modal-input trivia-resp-input" placeholder="Respuesta correcta (primera)">
-              <input type="text" class="modal-input trivia-resp-input" placeholder="Opción incorrecta 2">
-              <input type="text" class="modal-input trivia-resp-input" placeholder="Opción incorrecta 3">
-            </div>
-            <div style="display:flex;gap:8px;margin:10px 0">
-              <button class="btn-sm" id="btnAgregarPregunta">+ Guardar pregunta</button>
-            </div>
-            <div class="trivia-banco" id="triviaBanco"></div>
-            <div style="display:flex;gap:8px;margin-top:12px">
-              <button class="btn-primary" id="btnIniciarTrivia" style="flex:1">💾 Guardar trivia</button>
-              <button class="btn-sm" onclick="cerrarFormNuevaTrivia()">Cancelar</button>
-            </div>
           </div>
           <!-- Lista de trivias guardadas -->
           <div id="triviasListaInline">
@@ -1142,6 +1121,49 @@
   </div>
 
   <!-- MODAL: VOTACIÓN -->
+  <!-- MODAL: NUEVA TRIVIA -->
+  <div class="modal-overlay" id="modalNuevaTrivia">
+    <div class="modal-box" style="max-width:520px;max-height:90vh;overflow-y:auto">
+      <button class="modal-close" data-close="modalNuevaTrivia">✕</button>
+      <h3 class="modal-title">🧠 Nueva trivia</h3>
+
+      <label class="modal-label">Nombre de la trivia</label>
+      <input type="text" id="mt_nombre" class="modal-input" placeholder="Ej: Parcial 1, Cálculo, Química…" style="margin-bottom:16px">
+
+      <div style="background:var(--bg3);border-radius:12px;padding:14px;margin-bottom:14px">
+        <label class="modal-label" style="margin-bottom:8px;font-size:12px;letter-spacing:.04em">AGREGAR PREGUNTA</label>
+        <input type="text" id="mt_pregunta" class="modal-input" placeholder="Escribe la pregunta…" style="margin-bottom:10px">
+        <div style="margin-bottom:6px;font-size:11px;color:var(--text2)">Respuestas <span style="opacity:.7">(la primera es la correcta)</span></div>
+        <div id="mt_respuestasWrap" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+          <div class="mt-resp-row" style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:13px;width:20px;text-align:center;flex-shrink:0">✅</span>
+            <input type="text" class="modal-input mt-resp-input" placeholder="Respuesta correcta" style="flex:1">
+          </div>
+          <div class="mt-resp-row" style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:13px;width:20px;text-align:center;flex-shrink:0">❌</span>
+            <input type="text" class="modal-input mt-resp-input" placeholder="Opción incorrecta" style="flex:1">
+          </div>
+          <div class="mt-resp-row" style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:13px;width:20px;text-align:center;flex-shrink:0">❌</span>
+            <input type="text" class="modal-input mt-resp-input" placeholder="Opción incorrecta" style="flex:1">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-sm" id="mt_btnAddResp" style="flex:1">+ Agregar respuesta</button>
+          <button class="btn-primary" id="mt_btnGuardarPregunta" style="flex:1">✓ Guardar pregunta</button>
+        </div>
+      </div>
+
+      <!-- Banco de preguntas guardadas -->
+      <div id="mt_banco" style="margin-bottom:8px"></div>
+
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="btn-cancel" data-close="modalNuevaTrivia">Cancelar</button>
+        <button class="btn-primary" id="mt_btnGuardarTrivia">💾 Guardar trivia</button>
+      </div>
+    </div>
+  </div>
+  
   <!-- MODAL: NUEVA VOTACIÓN -->
   <div class="modal-overlay" id="modalNuevaVotacion">
     <div class="modal-box" style="max-width:460px">

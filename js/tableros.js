@@ -1265,9 +1265,9 @@ function buildFeedCard(p) {
       <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
         ${activa
           ? `<button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="cerrarVotacionPanel('${p.votacionId}')">🔒 Cerrar</button>
-             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="eliminarVotacionPanel('${p.votacionId}','${escHtml(p.pregunta || '')}')">🗑️ Eliminar</button>`
+             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="quitarVotacionDelTablero('${p.id}','${escHtml(p.pregunta || '')}')">🗑️ Quitar del tablero</button>`
           : `<button class="btn-sm" style="font-size:11px" onclick="reabrirVotacionPanel('${p.votacionId}')">🔓 Reabrir</button>
-             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="eliminarVotacionPanel('${p.votacionId}','${escHtml(p.pregunta || '')}')">🗑️ Eliminar</button>`
+             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="quitarVotacionDelTablero('${p.id}','${escHtml(p.pregunta || '')}')">🗑️ Quitar del tablero</button>`
         }
       </div>` : '';
 
@@ -1556,6 +1556,23 @@ async function toggleFeedLike(postId, btn) {
     });
   } catch (e) { console.error(e); }
 }
+
+/* Quita una votación del tablero (solo borra el post del feed, NO la votación) */
+window.quitarVotacionDelTablero = function (feedPostId, pregunta) {
+  showConfirm({
+    title: 'Quitar del tablero',
+    message: `¿Quitar la votación "${pregunta}" de este tablero? La votación seguirá disponible en Dinámicas.`,
+    confirmText: 'Quitar',
+    danger: true,
+    onConfirm: async () => {
+      const { doc, deleteDoc } = lib();
+      try {
+        await deleteDoc(doc(db(), 'ec_feed', feedPostId));
+        showToast('Votación quitada del tablero.', 'success');
+      } catch (e) { showToast('No se pudo quitar. ' + friendlyError(e), 'error'); }
+    }
+  });
+};
 
 window.eliminarPost = async function (postId) {
   const { doc, deleteDoc, getDoc } = lib();

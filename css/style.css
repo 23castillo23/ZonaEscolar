@@ -3504,6 +3504,11 @@ a {
   z-index: 10;
 }
 
+/* El header interno del chat ya no ocupa espacio — está en el topbar */
+#sectionChat #vistaChatSala {
+  padding-top: 0;
+}
+
 /* ═══════════════════════════════════════════════════════
    TAREAS
 ═══════════════════════════════════════════════════════ */
@@ -8629,3 +8634,18 @@ a {
   gap: 10px;
 }
 
+
+/* ── Chat: botón ← Salas en el topbar ── */
+#chatTopbarBack {
+  font-size: 12px;
+  padding: 5px 10px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+/* En el topbar-title, permitir flex para alinear botón + nombre */
+.topbar-title:has(#chatTopbarBack) {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
