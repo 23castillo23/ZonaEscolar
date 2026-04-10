@@ -7687,8 +7687,9 @@ a {
 
   .section {
     padding: 12px;
-    /* Compensar la topbar fixed + safe-area + espacio inferior de bottom-nav */
-    padding-top: calc(56px + env(safe-area-inset-top, 0px) + 12px);
+    /* La topbar en móvil tiene height: auto con min-height = 56px + safe-area-inset-top.
+       Compensamos con un valor generoso que cubre notch + topbar en cualquier iPhone/Android */
+    padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px) + 16px));
     padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
     overflow-y: auto;
     flex: 1 1 auto;
