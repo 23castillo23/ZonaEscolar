@@ -1200,3 +1200,38 @@ function pedirTextoFotoModal(onConfirm) {
     }
   });
 }
+
+/* ── FIX iOS: Visual Viewport API para que el teclado no tape el compose ── */
+(function patchIOSKeyboard() {
+  const vv = window.visualViewport;
+  if (!vv) return; // Solo aplica si el navegador lo soporta (iOS Safari sí lo hace)
+
+  function onViewportResize() {
+    const chatSection = document.getElementById('sectionChat');
+    if (!chatSection || !chatSection.classList.contains('active')) return;
+
+    // Altura visible = lo que queda sobre el teclado
+    const visibleHeight = vv.height;
+    const topbarHeight = 56; // altura de tu topbar fija
+
+    chatSection.style.height = (visibleHeight - topbarHeight) + 'px';
+
+    // Forzar scroll al fondo cuando sube el teclado
+    setTimeout(() => {
+      const box = document.getElementById('chatMessages');
+      if (box) box.scrollTop = box.scrollHeight;
+    }, 50);
+  }
+
+  vv.addEventListener('resize', onViewportResize);
+  vv.addEventListener('scroll', onViewportResize);
+
+  // Al cambiar de sección, limpiar el height inline para no afectar otras secciones
+  document.addEventListener('click', function (e) {
+    const nav = e.target.closest('[data-section]') || e.target.closest('.bottom-nav-btn');
+    if (nav) {
+      const chatSection = document.getElementById('sectionChat');
+      if (chatSection) chatSection.style.height = '';
+    }
+  });
+})();

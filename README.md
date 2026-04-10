@@ -2,7 +2,7 @@
 
 Tu espacio escolar privado — apuntes, chat, tareas y dinámicas con tu grupo.
 
-> **Versión actual:** 1.6.1  
+> **Versión actual:** 1.6.2  
 > **Stack:** Firebase (Auth + Firestore) · Cloudinary · PWA  
 > **Sin backend propio** — todo corre en Firebase + Cloudinary
 
@@ -248,6 +248,26 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 ---
 
 ## Changelog
+
+### v1.6.2 — Limpieza y caché PWA
+
+**Función huérfana eliminada (`biblioteca.js`)**  
+`renderCalendarioTareas` era la versión vieja del calendario que quedó en el archivo sin llamarse desde ningún lado. Se eliminó para evitar confusión. La función activa es `renderCalMes` (introducida en v1.6.1).
+
+**Bump de caché del Service Worker (`sw.js` + `index.html`)**  
+Se actualizó `CACHE_NAME` de `v13` a `v14` y las versiones de todos los scripts de `?v=2` a `?v=3`. Esto garantiza que los usuarios con la PWA instalada descarguen los archivos corregidos en v1.6.1 (topbar fija, calendario, calVerDia sin re-fetch) en lugar de servir versiones viejas del caché.
+
+---
+
+**Archivos modificados en esta versión:**
+| Archivo | Cambio |
+|---|---|
+| `js/biblioteca.js` | Eliminada función `renderCalendarioTareas` (huérfana) |
+| `sw.js` | `CACHE_NAME` bumpeado a `v14` |
+| `index.html` | Scripts actualizados a `?v=3` |
+
+---
+
 
 ### v1.6.1 — Correcciones móvil (PWA)
 

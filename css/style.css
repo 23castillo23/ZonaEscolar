@@ -615,7 +615,7 @@ a {
   overflow: hidden !important;
   padding: 0;
   max-width: 100%;
-  height: calc(100dvh - 56px);
+  height: calc(100svh - 56px);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -3200,7 +3200,7 @@ a {
 #sectionChat {
   display: none;
   flex-direction: column;
-  height: calc(100dvh - 56px);
+  height: calc(100svh - 56px);
   padding: 0;
   max-width: 100%;
   overflow: hidden;
@@ -7704,7 +7704,7 @@ a {
 
   /* Chat: altura fija para que flex:1 de chat-messages funcione en móvil */
   #sectionChat {
-    height: calc(100dvh - 56px - var(--ze-bottom-nav-clearance, 0px));
+    height: calc(100svh - 56px - var(--ze-bottom-nav-clearance, 0px));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
