@@ -608,13 +608,14 @@ a {
     overflow-x: hidden;
 }
 
-/* El chat necesita flex, no block, para que el input quede al fondo */
+/* El chat necesita flex-column con altura fija para que el input quede al fondo */
 #sectionChat.active {
   display: flex !important;
   flex-direction: column;
   overflow: hidden !important;
   padding: 0;
   max-width: 100%;
+  height: calc(100dvh - 56px);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -659,6 +660,9 @@ a {
 
 #vistaSalasChat {
   padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .tableros-galeria-header {
@@ -3189,6 +3193,8 @@ a {
   height: calc(100dvh - 56px);
   padding: 0;
   max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 #vistaChatSala {
@@ -3196,12 +3202,6 @@ a {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  max-height: 100%;
-  overflow: hidden;
-}
-
-#sectionChat.active {
-  display: flex !important;
   overflow: hidden;
 }
 
@@ -3214,11 +3214,9 @@ a {
   flex-direction: column;
   gap: 4px;
   background: var(--bg0);
-  /* Centrar igual que el compose */
   max-width: 720px;
   width: 100%;
   margin: 0 auto;
-  align-self: center;
   box-sizing: border-box;
 }
 
@@ -7684,15 +7682,27 @@ a {
   }
 
 
-  /* Chat: altura flexible dentro del shell (sin restar topbar dos veces) */
+  /* Chat: altura fija para que flex:1 de chat-messages funcione en móvil */
   #sectionChat {
-    height: auto;
+    height: calc(100dvh - 56px - var(--ze-bottom-nav-clearance, 0px));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
-    padding-bottom: var(--ze-bottom-nav-clearance);
+    padding-bottom: 0;
     box-sizing: border-box;
-    position: relative;
+    overflow: hidden;
+    display: flex !important;
+    flex-direction: column;
+  }
+
+  #vistaChatSala {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: var(--ze-bottom-nav-clearance, 0px);
+    box-sizing: border-box;
   }
 
   .chat-messages {

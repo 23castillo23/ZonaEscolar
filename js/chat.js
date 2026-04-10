@@ -498,7 +498,7 @@ function renderGaleriaSalas(salas) {
 
   // 3. Cards de salas creadas
   salasSorted.forEach(s => {
-    const bg = s.color || '#1a237e';
+    const bg = (s.color && s.color.trim()) ? s.color : '#1a237e';
     const icono = s.emoji || getTableroIcono(s.nombre);
     const delBtn = isAdmin
       ? `<button class="tablero-card-del" onclick="event.stopPropagation(); eliminarSala('${s.id}','${escHtml(s.nombre)}')">🗑️</button>`
@@ -1014,7 +1014,7 @@ function appendChatMessageObj(m, box) {
       <div class="chat-msg-time">
         ${fmtTimeChat(getChatMsgDate(m) || m.createdAt)}
         ${mine ? statusHtml : ''}
-        ${mine ? `<button class="chat-del-btn" onclick="eliminarMensaje('${m.id}')" title="Eliminar">🗑️</button>` : ''}
+        ${mine && !m.id.startsWith('optimist-') ? `<button class="chat-del-btn" onclick="eliminarMensaje('${m.id}')" title="Eliminar">🗑️</button>` : ''}
       </div>
     </div>`;
   box.appendChild(msgEl);
@@ -1061,8 +1061,20 @@ async function enviarMensaje() {
 
     // Reemplazar el elemento optimista con el id real para evitar duplicados
     const optimEl = msgBox?.querySelector(`[data-id="${tempId}"]`);
-    if (optimEl) optimEl.dataset.id = docRef.id;
-
+    if (optimEl) {
+      optimEl.dataset.id = docRef.id;
+      // Ahora que tenemos el ID real, inyectar el botón eliminar que faltaba
+      const timeDiv = optimEl.querySelector('.chat-msg-time');
+      if (timeDiv && !timeDiv.querySelector('.chat-del-btn')) {
+        const delBtn = document.createElement('button');
+        delBtn.className = 'chat-del-btn';
+        delBtn.title = 'Eliminar';
+        delBtn.textContent = '🗑️';
+        delBtn.setAttribute('onclick', `eliminarMensaje('${docRef.id}')`);
+        timeDiv.appendChild(delBtn);
+      }
+    }
+    
   } catch (e) {
     console.error('Error al enviar:', e);
     showToast('No se pudo enviar el mensaje. Revisa tu conexión.', 'error');

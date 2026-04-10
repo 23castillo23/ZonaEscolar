@@ -497,18 +497,20 @@ function activarSeccion(section) {
 
 
   if (section === 'chat') {
+    const yaEstabaEnChat = currentSection === 'chat';
     initSalasChat();
-      // ✅ AGREGAR ESTO (restaurar sala si estaba activa):
-  const lastSala = localStorage.getItem('ze_last_sala');
-  if (lastSala) {
-    try {
-      const { salaId, nombre, color } = JSON.parse(lastSala);
-      // Esperar a que initSalasChat termine de renderizar
-      setTimeout(() => abrirSalaChat(salaId, nombre, color), 100);
-    } catch(e) {
-      localStorage.removeItem('ze_last_sala');
+    // Restaurar sala solo si venimos de OTRA sección (no si ya estábamos en chat)
+    if (!yaEstabaEnChat) {
+      const lastSala = localStorage.getItem('ze_last_sala');
+      if (lastSala) {
+        try {
+          const { salaId, nombre, color } = JSON.parse(lastSala);
+          setTimeout(() => abrirSalaChat(salaId, nombre, color), 100);
+        } catch(e) {
+          localStorage.removeItem('ze_last_sala');
+        }
+      }
     }
-  }
     const scrollToMine = () => {
       const v = $('vistaChatSala');
       if (v && v.style.display === 'none') return;
