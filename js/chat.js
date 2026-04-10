@@ -92,7 +92,9 @@ function cargarMuroStats(uid) {
   const qFotos = query(collection(db(), 'ec_muro_fotos'), where('authorUid', '==', targetUid));
   getDocs(qFotos).then(snap => {
     if ($('muroStats')) $('muroStats').textContent = `${snap.size} foto${snap.size !== 1 ? 's' : ''}`;
-  }).catch(() => { });
+  }).catch(err => {
+    console.error('Error al cargar estadísticas del muro:', err);
+  });
 }
 
 function cargarMuroFotos(uid, esPropio) {

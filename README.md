@@ -249,6 +249,43 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 
 ## Changelog
 
+### v1.6.3 — Refactorización y corrección de bugs críticos
+
+**Bugs críticos corregidos:**
+
+**Bug 1 — Duplicación de estado en múltiples archivos**  
+Las variables `muroAlbumActualId` y `muroAlbumsCache` estaban declaradas en AMBOS archivos `chat.js` y `muro.js`, causando potencial inconsistencia de estado. Ahora están centralizadas en `core.js` como variables globales únicas.
+
+**Bug 2 — Variable `calMesOffset` no declarada globalmente**  
+`calMesOffset` se usaba en `tareas.js` sin estar declarada o inicializada. Ahora está en `core.js` inicializada a `0`.
+
+**Bug 3 — Variable `triviasUnsub` no declarada**  
+En `dinamicas.js` se verificaba `typeof triviasUnsub` pero la variable existía sin tipo declarado. Ahora hay una declaración explícita en `dinamicas.js`.
+
+**Bug 4 — Código muerto en apuntes.js**  
+Línea vacía: `const btnPublicar = '';` que nunca se usaba. Eliminada.
+
+**Bug 5 — Manejo de errores silencioso (anti-pattern)**  
+Múltiples `.catch()` con funciones vacías que ocultaban errores:
+- `chat.js` línea 95: cargarMuroStats
+- `muro.js` línea 126: loadMuroAlbums  
+- `utils-extra.js` línea 63: mostrarSelectorTablero
+
+Ahora todos tienen logging: `console.error('Error ad hoc:', err)` para facilitar debugging.
+
+---
+
+**Archivos modificados en esta versión:**
+| Archivo | Cambio |
+|---|---|
+| `js/core.js` | Agregadas: `muroAlbumActualId`, `muroAlbumsCache`, `calMesOffset` |
+| `js/muro.js` | Removidas variables duplicadas + comentario de referencia |
+| `js/chat.js` | Mejorado `.catch()` con logging |
+| `js/apuntes.js` | Eliminada línea vacía de `btnPublicar` |
+| `js/utils-extra.js` | Mejorado `.catch()` con logging |
+
+---
+
 ### v1.6.2 — Limpieza y caché PWA
 
 **Función huérfana eliminada (`biblioteca.js`)**  

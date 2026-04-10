@@ -65,6 +65,9 @@ let currentTableroId = null;   // null = feed general
 let dentroDeTablero = false;
 let tableroFeedUnsub = null;   // listener del feed filtrado por tablero
 
+// ── MURO (Centralizado desde chat.js y muro.js para evitar duplicación) ──
+let muroAlbumActualId = null;     // null = vista de álbumes, string = dentro de un álbum
+let muroAlbumsCache = [];         // caché local de álbemes del usuario visto
 
 let semestresAbiertos = new Set(); // Recuerda qué semestres están abiertos
 let scrollPosicionApuntes = 0;
@@ -78,6 +81,7 @@ let catBiblioUnsub = null;
 let biblioCategorias = [];
 let bibliotecaUiBound = false;
 let calDiaSeleccionado = null;
+let calMesOffset = 0;             // Offset de mes para calendarios (debe ser global)
 
 const EMOJIS_SEMESTRE = [
   '📅', '📚', '🎓', '🌱', '☀️', '🍂', '❄️', '📖', '🏫', '✏️',

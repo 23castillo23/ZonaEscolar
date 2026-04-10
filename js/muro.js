@@ -4,8 +4,7 @@
 let muroFotosUnsub = null;
 let muroFeedUnsub = null;
 let muroAlbumsUnsub = null;       // listener de álbumes
-let muroAlbumActualId = null;     // null = vista de álbumes, string = dentro de un álbum
-let muroAlbumsCache = [];         // caché local de álbumes del usuario visto
+// NOTE: muroAlbumActualId y muroAlbumsCache están centralizadas en core.js (línea ~50)
 let _muroFilesBuffer = [];        // fotos pendientes de asignar a álbum
 
 const EMOJIS_ALBUM = [
@@ -124,7 +123,8 @@ function renderMuroAlbums(targetUid, esPropio) {
     grid.innerHTML = cardsHtml || `<div class="feed-loading" style="grid-column:1/-1;padding:20px;font-size:13px;opacity:.6">
       No hay álbumes. Usa "➕ Nuevo álbum" para crear uno.
     </div>`;
-  }).catch(() => {
+  }).catch(err => {
+    console.error('Error al cargar álbumes del muro:', err);
     grid.innerHTML = `<div class="feed-loading" style="grid-column:1/-1">Error al cargar.</div>`;
   });
 }

@@ -60,7 +60,8 @@ function mostrarSelectorTablero(desc, onSelect, yaCompartidoEn = new Set()) {
         onSelect(id, nombre);
       });
     });
-  }).catch(() => {
+  }).catch(err => {
+    console.error('Error al cargar tableros:', err);
     const generalYa = yaCompartidoEn.has('');
     lista.innerHTML = `
       <button class="selector-tablero-item general ${generalYa ? 'ya-compartido' : ''}" data-id="" data-nombre="Tablero general">
