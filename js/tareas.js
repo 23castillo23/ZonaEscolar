@@ -23,9 +23,10 @@ function initTareas() {
         
         if (tareasVistaCalendario) {
             const hoy = new Date();
-            const año = hoy.getFullYear() + Math.floor((hoy.getMonth() + calMesOffset) / 12);
-            const mes = ((hoy.getMonth() + calMesOffset) % 12 + 12) % 12;
-            renderCalMes(tareas, año, mes);
+            // FIX Bug 1: usar Date() para calcular año/mes correctamente al cruzar límites de año,
+            // en lugar del cálculo manual que puede desfasarse cuando calMesOffset cruza diciembre.
+            const target = new Date(hoy.getFullYear(), hoy.getMonth() + calMesOffset, 1);
+            renderCalMes(tareas, target.getFullYear(), target.getMonth());
         } else {
             renderTareas(tareas);
         }

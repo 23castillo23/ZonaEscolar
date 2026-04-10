@@ -177,23 +177,20 @@ $('btnCompartirLibro')?.addEventListener('click', async () => {
 window.abrirDetalleDvd = abrirDetalleDvd;
 
 window.verComentariosDvdDesdeFeed = async function(dvdId, dvdUrl) {
-  const { collection, query, where, getDocs, doc, getDoc } = lib();
+  // Abre el video directo en YouTube sin salir del tablero
+  const { doc, getDoc } = lib();
   try {
-    let dvd = null;
-    // Intentar por dvdId primero
-    if (dvdId) {
+    let url = dvdUrl;
+    if (dvdId && !url) {
       const snap = await getDoc(doc(db(), 'ec_videotutoriales', dvdId));
-      if (snap.exists()) dvd = { id: snap.id, ...snap.data() };
+      if (snap.exists()) url = snap.data().url;
     }
-    // Fallback: buscar por URL
-    if (!dvd && dvdUrl) {
-      const snap = await getDocs(query(collection(db(), 'ec_videotutoriales'), where('url', '==', dvdUrl)));
-      if (!snap.empty) dvd = { id: snap.docs[0].id, ...snap.docs[0].data() };
+    if (url) {
+      window.open(url, '_blank', 'noopener');
+      return;
     }
-    if (!dvd) { showToast('No se encontró el video en la colección.', 'error'); return; }
-    // Ir a VideoTutoriales y abrir el modal
-    navigateTo('videotutoriales');
-    setTimeout(() => abrirDetalleDvd(dvd), 400);
+    // Si no hay URL directa, mostrar error
+    showToast('No se encontró el enlace del video.', 'error');
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 };
 

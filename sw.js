@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zonaescolar-shell-v12';
+const CACHE_NAME = 'zonaescolar-shell-v13';
 const APP_SHELL = [
   './',
   './index.html',

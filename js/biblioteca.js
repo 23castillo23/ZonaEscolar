@@ -285,6 +285,9 @@ function renderCalendarioTareas(tareas) {
 }
 
 let calMesOffset = 0;
+// FIX Bug 2: caché local de tareas para que calVerDia no haga un getDocs extra a Firebase
+let _calTareasCache = [];
+
 window.calNavegar = function (dir) {
   calMesOffset += dir;
   // Rebuscar tareas con el nuevo mes
@@ -300,6 +303,8 @@ window.calNavegar = function (dir) {
 };
 
 function renderCalMes(tareas, año, mes) {
+  // FIX Bug 2: guardar tareas en caché para que calVerDia las use sin ir a Firebase
+  _calTareasCache = tareas;
   const container = $('tareasList');
   const hoy = new Date();
   const tareasPorDia = {};
@@ -383,42 +388,32 @@ window.calVerDia = function (dia, mes, año) {
     const proxDiv = $('contenedorProximasTareas');
     if (proxDiv) proxDiv.style.display = 'none';
 
-    // 3. Consultamos Firebase para obtener las tareas
-    const { collection, query, where, getDocs } = lib();
-    const q = query(collection(db(), 'ec_tareas'), where('groupId', '==', currentGroupId));
-
-    getDocs(q).then(snap => {
-        const filtradas = [];
-        snap.forEach(d => {
-            const t = d.data();
-            if (t.fecha) {
-                // Hay que usar Date local, no toDate() directamente porque viene en string desde tu input type="datetime-local"
-                const dTarea = new Date(t.fecha);
-                if (dTarea.getDate() === dia && dTarea.getMonth() === mes && dTarea.getFullYear() === año) {
-                    filtradas.push({ id: d.id, ...t });
-                }
-            }
-        });
-
-        // 4. Renderizamos el resultado en el contenedor de abajo
-        const listaAbajo = $('calListaTareasAbajo');
-        if (!listaAbajo) return;
-
-        const nombresMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-        
-        listaAbajo.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <h4 style="font-size:14px; color:var(--accent2); margin:0;">📌 Tareas del ${dia} de ${nombresMes[mes]}</h4>
-                <button onclick="resetVistaCalendario()" style="background:none; border:none; color:var(--text3); font-size:11px; cursor:pointer; text-decoration:underline;">
-                    Ver próximas tareas
-                </button>
-            </div>
-            ${filtradas.length === 0 
-                ? `<div style="padding:20px; text-align:center; background:var(--bg3); border-radius:12px; border:1px dashed var(--border); font-size:13px; color:var(--text2);">No hay tareas para este día.</div>` 
-                : filtradas.map(t => buildTareaHTML(t)).join('')
-            }
-        `;
+    // FIX Bug 2: filtrar desde el caché local en lugar de hacer getDocs a Firebase.
+    // Esto evita el retardo visible al cambiar de día porque los datos ya están en memoria.
+    const filtradas = (_calTareasCache || []).filter(t => {
+        if (!t.fecha) return false;
+        const dTarea = new Date(t.fecha);
+        return dTarea.getDate() === dia && dTarea.getMonth() === mes && dTarea.getFullYear() === año;
     });
+
+    // 3. Renderizamos el resultado en el contenedor de abajo
+    const listaAbajo = $('calListaTareasAbajo');
+    if (!listaAbajo) return;
+
+    const nombresMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    
+    listaAbajo.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h4 style="font-size:14px; color:var(--accent2); margin:0;">📌 Tareas del ${dia} de ${nombresMes[mes]}</h4>
+            <button onclick="resetVistaCalendario()" style="background:none; border:none; color:var(--text3); font-size:11px; cursor:pointer; text-decoration:underline;">
+                Ver próximas tareas
+            </button>
+        </div>
+        ${filtradas.length === 0 
+            ? `<div style="padding:20px; text-align:center; background:var(--bg3); border-radius:12px; border:1px dashed var(--border); font-size:13px; color:var(--text2);">No hay tareas para este día.</div>` 
+            : filtradas.map(t => buildTareaHTML(t)).join('')
+        }
+    `;
 };
 
 // Función para volver al estado inicial (Quitar el filtro)

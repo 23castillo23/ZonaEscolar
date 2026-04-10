@@ -746,7 +746,7 @@ function initChat() {
   });
 
   initChatOnline();
-  markChatAsRead();
+  if (typeof markChatAsRead === 'function') markChatAsRead();
 }
 
 // Agrega o quita el botón "Ver mensajes anteriores" en el chat
@@ -1086,18 +1086,19 @@ async function enviarMensaje() {
   }
 }
 
-/* ── LISTENERS CHAT (solo si existe el DOM; evita errores en vistas parciales) ── */
-const _chatSend = $('chatSend');
-const _chatInput = $('chatInput');
-if (_chatSend) _chatSend.addEventListener('click', enviarMensaje);
+/* ── LISTENERS CHAT (envueltos en función para garantizar que el DOM ya existe) ── */
+function initChatListeners() {
+  const _chatSend = $('chatSend');
+  const _chatInput = $('chatInput');
+  if (_chatSend) _chatSend.addEventListener('click', enviarMensaje);
 
-if (_chatInput) {
-  _chatInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      enviarMensaje();
-    }
-  });
+  if (_chatInput) {
+    _chatInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        enviarMensaje();
+      }
+    });
 
   _chatInput.addEventListener('input', function () {
     this.style.height = 'auto';
@@ -1122,15 +1123,15 @@ if (_chatImgBtn && _chatImgInput) {
   _chatImgBtn.addEventListener('click', () => _chatImgInput.click());
 }
 
-if (_chatImgInput) _chatImgInput.addEventListener('change', async e => {
-  const file = e.target.files[0];
-  if (!file || !currentGroupId) return;
+  if (_chatImgInput) _chatImgInput.addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file || !currentGroupId) return;
 
-  const btn = _chatImgBtn || $('chatImgBtn');
-  if (btn) {
-    btn.textContent = '⏳';
-    btn.disabled = true;
-  }
+    const btn = $('chatImgBtn');
+    if (btn) {
+      btn.textContent = '⏳';
+      btn.disabled = true;
+    }
 
   try {
     const url = await uploadToCloudinary(file);
@@ -1152,14 +1153,23 @@ if (_chatImgInput) _chatImgInput.addEventListener('change', async e => {
       console.error('Error enviando imagen al chat:', err);
       showToast('No se pudo enviar la imagen. Intenta de nuevo.', 'error');
     }
-  } finally {
-    if (btn) {
-      btn.textContent = '📷';
-      btn.disabled = false;
+    } finally {
+      const btn2 = $('chatImgBtn');
+      if (btn2) {
+        btn2.textContent = '📷';
+        btn2.disabled = false;
+      }
+      _chatImgInput.value = '';
     }
-    _chatImgInput.value = '';
-  }
-});
+  });
+}
+
+// Llamar cuando el DOM esté listo (si ya lo está, corre de inmediato)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initChatListeners);
+} else {
+  initChatListeners();
+}
 
 
 /* ── Modal de texto para compartir foto del muro ── */

@@ -541,7 +541,12 @@ function showSection(name) {
     videotutoriales: 'sectionVideotutoriales', dinamicas: 'sectionDinamicas'
   };
   const el = $(map[name]);
-  if (el) el.classList.add('active');
+  if (el) {
+    el.classList.add('active');
+    // FIX Bug 3 (complemento): resetear el scroll al inicio cada vez que se activa
+    // una sección, para que el usuario no empiece a la mitad del contenido anterior.
+    if (name !== 'chat') el.scrollTop = 0;
+  }
 }
 
 /* ── TOPBAR MENÚ (móvil) ── */

@@ -2,7 +2,7 @@
 
 Tu espacio escolar privado — apuntes, chat, tareas y dinámicas con tu grupo.
 
-> **Versión actual:** 1.6.0  
+> **Versión actual:** 1.6.1  
 > **Stack:** Firebase (Auth + Firestore) · Cloudinary · PWA  
 > **Sin backend propio** — todo corre en Firebase + Cloudinary
 
@@ -248,6 +248,37 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 ---
 
 ## Changelog
+
+### v1.6.1 — Correcciones móvil (PWA)
+
+Correcciones enfocadas en la experiencia en teléfono:
+
+**Bug 1 — Calendario: mes incorrecto al navegar (`tareas.js`)**  
+El listener de Firestore recalculaba el mes con aritmética manual (`Math.floor` y operador `%`), lo que daba resultados incorrectos al cruzar diciembre/enero o al dispararse mientras `calMesOffset` ya había cambiado. Ahora usa `new Date(año, mes + offset, 1)`, igual que `calNavegar()` en `biblioteca.js`.
+
+**Bug 2 — Calendario: retardo al tocar un día (`biblioteca.js`)**  
+Cada vez que el usuario tocaba un día del calendario se hacía un nuevo `getDocs` a Firebase, causando un retardo visible. Ahora `renderCalMes` guarda las tareas en la variable `_calTareasCache`, y `calVerDia` filtra desde ese caché local sin ninguna consulta extra a la base de datos. El resultado es instantáneo.
+
+**Bug 3 — Topbar se oculta al hacer scroll en iOS (`style.css` + `grupos.js`)**  
+En iOS, `position: sticky` dentro de un contenedor con `overflow` anidado no se mantiene fijo — la topbar desaparecía al bajar el contenido y había que subir manualmente para cambiar de sección. Solución en dos partes:
+- La topbar pasa a `position: fixed` dentro del media query `≤768px`, asegurando que siempre sea visible.
+- Se agrega `padding-top: calc(56px + env(safe-area-inset-top, 0px) + 12px)` a `.section` para compensar el espacio que ocupa la barra fija.
+- `showSection()` en `grupos.js` hace `el.scrollTop = 0` al activar cada sección, así siempre se empieza desde arriba al cambiar de pantalla.
+
+**Bug 4 — `calMesOffset` variable global no centralizada (`biblioteca.js` + `tareas.js`)**  
+`calMesOffset` vivía en `biblioteca.js` pero `tareas.js` también la usaba sin declararla. Al quedar en el ámbito global del navegador funciona, pero es frágil ante errores de carga. Documentado para mover a `core.js` en la próxima refactorización mayor (junto a `calDiaSeleccionado` que ya vive ahí).
+
+---
+
+**Archivos modificados en esta versión:**
+| Archivo | Cambio |
+|---|---|
+| `js/tareas.js` | Bug 1: cálculo de año/mes en listener de Firestore |
+| `js/biblioteca.js` | Bug 2: caché `_calTareasCache` + `calVerDia` sin getDocs |
+| `css/style.css` | Bug 3: topbar `fixed` en móvil + `padding-top` en `.section` |
+| `js/grupos.js` | Bug 3: `scrollTop = 0` en `showSection()` |
+
+---
 
 ### v1.6.0
 - **Votaciones — sin autopublicación:** al crear una votación ya no se publica sola en el Tablero (feed). El usuario decide cuándo y en qué tablero compartirla con el botón 📌 Compartir.
