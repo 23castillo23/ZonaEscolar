@@ -12,6 +12,20 @@ window.openLightboxFeed = function (imgEl) {
   updateLightbox();
   $('lightbox').classList.add('open');
 };
+
+/** Abre el lightbox con TODAS las imágenes del post y salta al índice tocado */
+window.openLightboxFeedMulti = function (imgEl, imgsJson, idx) {
+  try {
+    const urls = JSON.parse(imgsJson);
+    lightboxPhotos = urls.map(u => ({ url: u, caption: '' }));
+    lightboxIdx = idx;
+  } catch (_) {
+    lightboxPhotos = [{ url: imgEl.src, caption: '' }];
+    lightboxIdx = 0;
+  }
+  updateLightbox();
+  $('lightbox').classList.add('open');
+};
 function updateLightbox() {
   const p = lightboxPhotos[lightboxIdx];
   if (!p) return;

@@ -1294,14 +1294,16 @@ function buildFeedCard(p) {
   let extraContentHtml = '';
 
   if (p.images && p.images.length) {
+    // Serializar todas las URLs del post para pasarlas al lightbox
+    const imgsJson = escHtml(JSON.stringify(p.images));
     if (p.images.length === 1) {
-      extraContentHtml = `<img src="${escHtml(p.images[0])}" class="feed-card-img" alt="" onclick="openLightboxFeed(this)" style="cursor:pointer;">`;
+      extraContentHtml = `<img src="${escHtml(p.images[0])}" class="feed-card-img" alt="" onclick="openLightboxFeedMulti(this, '${imgsJson}', 0)" style="cursor:pointer;">`;
     } else {
       // Si hay más de 4, aplicamos la clase count-more
       const countClass = p.images.length >= 4 ? 'count-more' : `count-${p.images.length}`;
       
-      extraContentHtml = `<div class="feed-card-images-grid ${countClass}">` + p.images.map(img =>
-        `<img src="${escHtml(img)}" alt="" onclick="openLightboxFeed(this)" style="cursor:pointer;">`
+      extraContentHtml = `<div class="feed-card-images-grid ${countClass}">` + p.images.map((img, i) =>
+        `<img src="${escHtml(img)}" alt="" onclick="openLightboxFeedMulti(this, '${imgsJson}', ${i})" style="cursor:pointer;">`
       ).join('') + `</div>`;
     }
 } else if (p.type === 'libro' && p.libroData) {

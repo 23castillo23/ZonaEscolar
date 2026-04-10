@@ -408,6 +408,14 @@ qsa('.nav-item').forEach(btn => {
     const section = btn.dataset.section;
     currentSection = section;
     localStorage.setItem('ze_last_section', section);
+    // Si salimos del chat, cerrar la sala activa para que no reaparezca en otras secciones
+    if (section !== 'chat') {
+      localStorage.removeItem('ze_last_sala');
+      const vistaChat = document.getElementById('vistaChatSala');
+      if (vistaChat) vistaChat.style.display = 'none';
+      const vistaGaleria = document.getElementById('vistaSalasChat');
+      if (vistaGaleria) vistaGaleria.style.display = '';
+    }
     setActiveNav(section);
     activarSeccion(section);
     closeSidebar();
@@ -419,6 +427,14 @@ qsa('.bottom-nav-item').forEach(btn => {
     const section = btn.dataset.section;
     currentSection = section;
     localStorage.setItem('ze_last_section', section);
+    // Si salimos del chat, cerrar la sala activa para que no reaparezca en otras secciones
+    if (section !== 'chat') {
+      localStorage.removeItem('ze_last_sala');
+      const vistaChat = document.getElementById('vistaChatSala');
+      if (vistaChat) vistaChat.style.display = 'none';
+      const vistaGaleria = document.getElementById('vistaSalasChat');
+      if (vistaGaleria) vistaGaleria.style.display = '';
+    }
     setActiveNav(section);
     activarSeccion(section);
   });
@@ -472,6 +488,14 @@ function activarSeccion(section) {
     if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
     const onlineList = $('chatOnlineList');
     if (onlineList) onlineList.style.display = 'none';
+  }
+  
+  // Si NO es la sección chat, forzar que vistaChatSala quede oculto
+  if (section !== 'chat') {
+    const vistaChat = document.getElementById('vistaChatSala');
+    if (vistaChat) vistaChat.style.display = 'none';
+    const vistaGaleria = document.getElementById('vistaSalasChat');
+    if (vistaGaleria) vistaGaleria.style.display = '';
   }
 
   showSection(section);
