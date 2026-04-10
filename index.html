@@ -17,7 +17,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Sora:wght@400;600;700&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=3">
 </head>
 
 <body>
@@ -522,12 +522,20 @@
             </div>
             <div class="dvd-header-actions">
               <input type="search" id="dvdSearch" class="dvd-search" placeholder="🔍 Buscar tutorial…">
+              <button class="dvd-sort-btn" id="btnDvdSort" onclick="dvdCiclarOrden()" title="Cambiar orden">
+                <span id="dvdSortIcon">📅</span>
+                <span id="dvdSortLabel">Recientes</span>
+              </button>
               <button class="btn-primary" id="btnAgregarDvd">+ Agregar</button>
             </div>
           </div>
           <!-- Filtro por categoría -->
-          <div class="dvd-cats-bar" id="dvdCatsBar">
-            <button class="dvd-cat-btn active" data-cat="all">Todos</button>
+          <div class="dvd-cats-outer">
+            <button class="dvd-cats-arrow dvd-cats-arrow--left" id="dvdCatsArrowLeft" aria-label="Anterior" onclick="dvdScrollCats(-1)">‹</button>
+            <div class="dvd-cats-bar" id="dvdCatsBar">
+              <button class="dvd-cat-btn active" data-cat="all">Todos</button>
+            </div>
+            <button class="dvd-cats-arrow dvd-cats-arrow--right" id="dvdCatsArrowRight" aria-label="Siguiente" onclick="dvdScrollCats(1)">›</button>
           </div>
           <!-- Grid de DVDs -->
           <div class="dvd-grid" id="dvdGrid">
@@ -994,16 +1002,23 @@
         style="resize:vertical;margin-top:4px"></textarea>
 
       <label class="modal-label" style="margin-top:12px">Color de la caja</label>
-      <div class="dvd-color-picker" id="dvdColorPicker">
-        <button class="dvd-color-opt selected" data-color="#1a237e" style="background:#1a237e"
-          title="Azul oscuro"></button>
-        <button class="dvd-color-opt" data-color="#4a148c" style="background:#4a148c" title="Morado"></button>
-        <button class="dvd-color-opt" data-color="#b71c1c" style="background:#b71c1c" title="Rojo"></button>
-        <button class="dvd-color-opt" data-color="#1b5e20" style="background:#1b5e20" title="Verde"></button>
-        <button class="dvd-color-opt" data-color="#e65100" style="background:#e65100" title="Naranja"></button>
-        <button class="dvd-color-opt" data-color="#263238" style="background:#263238" title="Negro azulado"></button>
-        <button class="dvd-color-opt" data-color="#880e4f" style="background:#880e4f" title="Rosa oscuro"></button>
-        <button class="dvd-color-opt" data-color="#004d40" style="background:#004d40" title="Teal"></button>
+      <div class="dvd-color-picker dvd-color-picker--dvd-modal" id="dvdColorPicker">
+        <button class="dvd-color-opt selected" data-color="#1a237e" style="background:#1a237e" title="Índigo"></button>
+        <button class="dvd-color-opt" data-color="#283593" style="background:#283593" title="Índigo intenso"></button>
+        <button class="dvd-color-opt" data-color="#3949ab" style="background:#3949ab" title="Azul"></button>
+        <button class="dvd-color-opt" data-color="#5c6bc0" style="background:#5c6bc0" title="Azul claro"></button>
+        <button class="dvd-color-opt" data-color="#7e57c2" style="background:#7e57c2" title="Violeta"></button>
+        <button class="dvd-color-opt" data-color="#8e24aa" style="background:#8e24aa" title="Púrpura"></button>
+        <button class="dvd-color-opt" data-color="#ab47bc" style="background:#ab47bc" title="Morado"></button>
+        <button class="dvd-color-opt" data-color="#ec407a" style="background:#ec407a" title="Rosa"></button>
+        <button class="dvd-color-opt" data-color="#ef5350" style="background:#ef5350" title="Rojo"></button>
+        <button class="dvd-color-opt" data-color="#fb8c00" style="background:#fb8c00" title="Naranja"></button>
+        <button class="dvd-color-opt" data-color="#fdd835" style="background:#fdd835" title="Amarillo"></button>
+        <button class="dvd-color-opt" data-color="#9ccc65" style="background:#9ccc65" title="Lima"></button>
+        <button class="dvd-color-opt" data-color="#43a047" style="background:#43a047" title="Verde"></button>
+        <button class="dvd-color-opt" data-color="#00897b" style="background:#00897b" title="Verde azulado"></button>
+        <button class="dvd-color-opt" data-color="#00acc1" style="background:#00acc1" title="Cian"></button>
+        <button class="dvd-color-opt" data-color="#1e88e5" style="background:#1e88e5" title="Azul cielo"></button>
       </div>
 
       <div class="modal-actions">
@@ -1428,17 +1443,17 @@
     </div>
   </div>
 
-  <script src="js/core.js?v=1"></script>
-  <script src="js/grupos.js?v=1"></script>
-  <script src="js/tableros.js?v=1"></script>
-  <script src="js/muro.js?v=1"></script>
-  <script src="js/chat.js?v=1"></script>
-  <script src="js/tareas.js?v=1"></script>
-  <script src="js/biblioteca.js?v=1"></script>
-  <script src="js/apuntes.js?v=1"></script>
-  <script src="js/dinamicas.js?v=1"></script>
-  <script src="js/videotutoriales.js?v=1"></script>
-  <script src="js/utils-extra.js?v=1"></script>
+  <script src="js/core.js?v=2"></script>
+  <script src="js/grupos.js?v=2"></script>
+  <script src="js/tableros.js?v=2"></script>
+  <script src="js/muro.js?v=2"></script>
+  <script src="js/chat.js?v=2"></script>
+  <script src="js/tareas.js?v=2"></script>
+  <script src="js/biblioteca.js?v=2"></script>
+  <script src="js/apuntes.js?v=2"></script>
+  <script src="js/dinamicas.js?v=2"></script>
+  <script src="js/videotutoriales.js?v=3"></script>
+  <script src="js/utils-extra.js?v=2"></script>
 </body>
 
 </html>

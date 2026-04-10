@@ -120,6 +120,8 @@ service cloud.firestore {
     }
     match /ec_muro_fotos/{docId} {
       allow get, list, create: if isAuth();
+      /* update: p. ej. quitar albumId al eliminar un álbum (Mis aportes) */
+      allow update: if isAuth() && request.auth.uid == resource.data.authorUid;
       allow delete: if isAuth();
     }
     match /ec_comentarios/{docId} {
@@ -248,10 +250,10 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 ## Changelog
 
 ### v1.6.0
-- **Votaciones — sin autopublicación:** al crear una votación ya no se publica sola en el feed. El usuario decide cuándo y en qué tablero compartirla con el botón 📌 Compartir.
+- **Votaciones — sin autopublicación:** al crear una votación ya no se publica sola en el Tablero (feed). El usuario decide cuándo y en qué tablero compartirla con el botón 📌 Compartir.
 - **Trivias — guardadas en Firestore:** las trivias ahora se guardan en `ec_trivias` con nombre y banco de preguntas. Aparecen como tarjetas en Dinámicas → Trivia con botón ▶️ Jugar y 📌 Compartir.
 - **Compartir votación/trivia al tablero:** botón 📌 en cada tarjeta abre el selector de tablero. Si ya está compartida en ese tablero, la sube al inicio en vez de duplicarla.
-- **Quitar del tablero:** el botón en la tarjeta del feed dice "🗑️ Quitar del tablero" y solo borra el post del feed, sin eliminar la votación original.
+- **Quitar del tablero:** el botón en la tarjeta del Tablero (feed) dice "🗑️ Quitar del tablero" y solo borra el post del Tablero (feed), sin eliminar la votación original.
 - **Modal nueva trivia:** formulario completo con nombre, preguntas y banco visual. Botón "+ Agregar respuesta" para añadir más opciones. Solo el creador y el admin pueden eliminar trivias guardadas.
 - **Modal nueva votación:** el formulario se abre en ventana (modal) en lugar de inline.
 - **Chat — header en topbar:** al entrar a una sala, el botón "← Salas" y el nombre de la sala se muestran en la barra superior de la app en lugar de ocupar espacio dentro del chat. Esto elimina el espacio en blanco que aparecía en móvil y escritorio.
@@ -262,15 +264,15 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 - **Álbumes en Mis Aportes:** la pestaña "Fotos" ahora muestra una vista de álbumes. Cada integrante puede crear sus propios álbumes con nombre e ícono emoji para organizar sus fotos ordenadamente.
 - **Subir foto a álbum:** al usar el botón "+ Foto", aparece un selector para elegir en qué álbum guardar las imágenes. Si estás dentro de un álbum abierto, las fotos van directo a ese álbum sin preguntar.
 - **Álbum "Sin álbum":** las fotos subidas antes de esta versión (y las que se suban sin elegir álbum) aparecen automáticamente en una tarjeta especial "📷 Sin álbum".
-- **Eliminar álbum:** el admin y el dueño pueden eliminar álbumes; las fotos dentro quedan en "Sin álbum" en lugar de borrarse.
+- **Eliminar álbum:** el admin y el dueño pueden eliminar álbumes.
 - **Vista de álbum ajeno:** al ver el muro de un compañero también se ven sus álbumes (sin el botón de crear/eliminar).
 - **Firestore:** nueva colección `ec_muro_albums`. Agregar su regla al panel de Firestore (ver sección Reglas).
 
 ### v1.4.0
-- **Chat — Imágenes:** botón 📷 en el chat para enviar fotos directamente en la conversación (se suben a Cloudinary). Preview miniatura antes de enviar con opción de cancelar.
-- **Chat — ✔ Enviado / ✔✔ Visto:** cada mensaje propio muestra ✔ cuando se envió y ✔✔ en azul cuando al menos otro miembro lo leyó (automático al renderizar).
+- **Chat — Imágenes:** botón 📷 en el chat para enviar fotos directamente en la conversación (se suben a Cloudinary). 
+- **Chat — ✔ Enviado / ✔✔ Visto:** cada mensaje propio muestra ✔ cuando se envió y ✔✔ en cuando al menos otro integrante lo leyó (automático al renderizar).
 - **Chat — Typing indicator:** aparece "X está escribiendo…" en tiempo real cuando un compañero escribe. Desaparece automáticamente a los 2 segundos.
-- **Chat — Usuarios online:** barra superior del chat muestra con un punto verde 🟢 quién del grupo está conectado en este momento.
+- **Chat — Usuarios online:** barra lateral izquierda muestra con un punto verde 🟢 quién del grupo está conectado en este momento.
 - **Chat — Notificaciones push:** si llegas un mensaje mientras el tab no está activo, aparece una notificación del sistema (pide permiso la primera vez).
 - **Firestore:** se añadieron las colecciones `ec_typing` y `ec_online` para las nuevas features. Agregar sus reglas al README.
 
@@ -280,22 +282,22 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 - **Nombre personalizado:** al guardar, el nombre se actualiza en Firestore y se refleja inmediatamente en el sidebar, topbar y muro sin recargar.
 - **Eliminar foto propia del muro:** cada usuario puede eliminar las fotos que él mismo subió a su muro (botón 🗑️ al pasar el cursor). El admin puede eliminar cualquier foto. Al eliminar también se borra la publicación asociada del feed.
 - **Eliminar comentario propio:** ahora aparece un botón 🗑️ en cada comentario que tú escribiste. El admin puede eliminar cualquier comentario del grupo.
-- **Fix duplicados en feed:** las tarjetas del feed ya no se duplican al abrir/cerrar la sección de comentarios. Se corrigió que `data-id` no estaba en el HTML generado por `buildFeedCard`, causando que el listener de Firestore re-insertara cards existentes.
+- **Fix duplicados en Tablero (feed):** las tarjetas del Tablero (feed) ya no se duplican al abrir/cerrar la sección de comentarios. Se corrigió que `data-id` no estaba en el HTML generado por `buildFeedCard`, causando que el listener de Firestore re-insertara cards existentes.
 - **Fix comentarios acumulando listeners:** `loadComments` ahora cancela el listener anterior antes de crear uno nuevo al abrir la sección de comentarios en una tarjeta.
 - **Fix sección de comentarios oculta por defecto:** se corrigió que `.feed-comments-section` no tenía `style="display:none"` en el HTML generado, haciendo que apareciera abierta al renderizar.
 
 ### v1.2.0
 - **Sidebar — Miembros del grupo:** la barra lateral ahora muestra la lista de miembros del grupo activo con avatar inicial y nombre. Al hacer clic en un miembro se abre su muro para ver sus fotos y publicaciones. Los miembros invitados que aún no hayan iniciado sesión muestran un mensaje informativo.
 - **Muro ajeno:** al ver el muro de otro miembro se oculta el botón "+ Foto" y aparece un botón "← Volver a mi muro". Cada miembro solo puede subir fotos a su propio muro.
-- **Feed:** el listener se reinicia correctamente al publicar con fotos — las imágenes aparecen en tiempo real sin necesidad de recargar la página.
+- **Tablero (Feed):** el listener se reinicia correctamente al publicar con fotos — las imágenes aparecen en tiempo real sin necesidad de recargar la página.
 - **Tareas:** el listener de tareas se reinicia al cambiar de grupo o sección, solucionando que no aparecieran nuevas tareas creadas.
 - **Apuntes:** creación de semestres y materias ahora muestra errores descriptivos y feedback visual (⏳) durante la operación.
 
 ### v1.1.0
-- **Feed:** preview de fotos antes de publicar, con opción de quitar imágenes individuales. Feedback visual (botón de envío muestra ⏳) mientras sube a Cloudinary.
+- **Tablero (Feed):** preview de fotos antes de publicar, con opción de quitar imágenes individuales. Feedback visual (botón de envío muestra ⏳) mientras sube a Cloudinary.
 - **Chat:** mensajes optimistas — el texto aparece al instante sin esperar Firestore. Layout adaptativo para móvil.
 - **Miembros:** el modal `+ Invitar` muestra la lista completa de miembros actuales con nombre, correo y rol.
-- **Grupos:** al cambiar de grupo se limpian todos los listeners activos (feed, chat, tareas, votaciones).
+- **Grupos:** al cambiar de grupo se limpian todos los listeners activos (Tablero (feed), chat, tareas, votaciones).
 
 ### v1.0.0
-- Lanzamiento inicial: Auth Google, Feed, Chat, Tareas, Apuntes, Muro, Dinámicas (Ruleta, Votación, Trivia, Puntos), PWA, tema oscuro/claro.
+- Lanzamiento inicial: Auth Google, Tablero (Feed), Chat, Tareas, Apuntes, Mis Aportes (Muro), Dinámicas (Ruleta, Votación, Trivia, Puntos), PWA, tema oscuro/claro.

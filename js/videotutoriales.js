@@ -6,6 +6,81 @@ let dvdUnsub = null;
 let dvdColorSeleccionado = '#1a237e';
 let dvdFiltroCategoria = 'all';
 let dvdBusqueda = '';
+let dvdFiltroFavs = false;
+let dvdOrden = 'fecha_desc'; // 'fecha_desc' | 'fecha_asc' | 'az' | 'za'
+
+const DVD_ORDENES = [
+  { key: 'fecha_desc', icon: '📅', label: 'Recientes' },
+  { key: 'fecha_asc',  icon: '📅', label: 'Antiguos'  },
+  { key: 'az',         icon: '🔤', label: 'A → Z'     },
+  { key: 'za',         icon: '🔤', label: 'Z → A'     },
+];
+
+window.dvdCiclarOrden = function() {
+  const idx = DVD_ORDENES.findIndex(o => o.key === dvdOrden);
+  dvdOrden = DVD_ORDENES[(idx + 1) % DVD_ORDENES.length].key;
+  dvdActualizarBtnOrden();
+  filtrarDvds();
+};
+
+function dvdActualizarBtnOrden() {
+  const config = DVD_ORDENES.find(o => o.key === dvdOrden) || DVD_ORDENES[0];
+  const iconEl = $('dvdSortIcon');
+  const labelEl = $('dvdSortLabel');
+  const btn = $('btnDvdSort');
+  if (iconEl) iconEl.textContent = config.icon;
+  if (labelEl) labelEl.textContent = config.label;
+  if (btn) btn.classList.toggle('active', dvdOrden !== 'fecha_desc');
+}
+
+function dvdOrdenarArray(dvds) {
+  const arr = [...dvds];
+  if (dvdOrden === 'fecha_desc') {
+    arr.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  } else if (dvdOrden === 'fecha_asc') {
+    arr.sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0));
+  } else if (dvdOrden === 'az') {
+    arr.sort((a, b) => (a.titulo || '').localeCompare(b.titulo || '', 'es', { sensitivity: 'base' }));
+  } else if (dvdOrden === 'za') {
+    arr.sort((a, b) => (b.titulo || '').localeCompare(a.titulo || '', 'es', { sensitivity: 'base' }));
+  }
+  return arr;
+}
+
+/** Convierte #RGB a {r,g,b} o null */
+function dvdHexToRgb(hex) {
+  if (!hex || typeof hex !== 'string') return null;
+  let h = hex.trim();
+  if (h.length === 4 && h[0] === '#') {
+    h = `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}`;
+  }
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h);
+  return m
+    ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) }
+    : null;
+}
+
+/** Luminancia relativa 0–1 (WCAG) — colores oscuros < ~0.3 */
+function dvdColorLuminance(hex) {
+  const rgb = dvdHexToRgb(hex);
+  if (!rgb) return 0.5;
+  const lin = [rgb.r, rgb.g, rgb.b].map(c => {
+    c /= 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+/**
+ * Estilos de botón de categoría: en modo oscuro los bordes/textos con color puro (#1a237e, etc.)
+ * casi no se ven. Usamos fondo tintado + borde aclarado y texto con variable de tema.
+ */
+function dvdCatBtnStyles(hex, isActive) {
+  // Solo usamos el color para la línea inferior (--dvd-cat-line),
+  // el diseño de tabs lo controla el CSS. No inyectamos background ni border.
+  if (!hex) return '';
+  return `--dvd-cat-line:${hex};`;
+}
 
 /* ── Utilidad: extraer Video ID de una URL de YouTube ── */
 function extraerYoutubeId(url) {
@@ -44,6 +119,8 @@ function buildDvdCard(dvd, puedeBorrar) {
     : '';
   const infoBtn = `<button class="dvd-info-btn" data-id="${dvd.id}" title="Ver descripción y comentarios" onclick="event.stopPropagation()">ℹ️</button>`;
   const avatarLetra = addedBy ? addedBy.trim().charAt(0).toUpperCase() : '?';
+  const esFav = getDvdFavs().includes(dvd.id);
+  const favBtn = `<button class="dvd-fav-toggle ${esFav ? 'active' : ''}" data-id="${dvd.id}" title="${esFav ? 'Quitar de favoritos' : 'Agregar a favoritos'}" onclick="event.stopPropagation()">${esFav ? '★' : '☆'}</button>`;
 
   return `
     <div class="dvd-item dvd-item-rect" data-id="${dvd.id}" data-cat="${escHtml(dvd.categoria || '')}" data-titulo="${titulo.toLowerCase()}" style="border-top: 4px solid ${color}">
@@ -63,6 +140,7 @@ function buildDvdCard(dvd, puedeBorrar) {
             <span>${addedBy}</span>
           </div>` : '<div></div>'}
         <div style="display:flex;gap:6px">
+          ${favBtn}
           ${infoBtn}
           <button class="dvd-share-btn" onclick="event.stopPropagation(); compartirDvd('${dvd.id}')" title="Compartir al Tablero">
               <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -101,6 +179,9 @@ function initVideotutoriales() {
   if (dvdUnsub) { dvdUnsub(); dvdUnsub = null; }
   const { collection, query, where, onSnapshot } = lib();
 
+  // Iniciar listener de favoritos del usuario (Firestore)
+  initDvdFavs();
+
   const q = query(
     collection(db(), 'ec_videotutoriales'),
     where('groupId', '==', currentGroupId)
@@ -123,13 +204,40 @@ function initVideotutoriales() {
   });
 }
 
+/* ── Scroll de categorías con flechas ── */
+window.dvdScrollCats = function(dir) {
+  const bar = $('dvdCatsBar');
+  if (!bar) return;
+  bar.scrollBy({ left: dir * 200, behavior: 'smooth' });
+};
+
+function dvdUpdateArrows(bar) {
+  const left = $('dvdCatsArrowLeft');
+  const right = $('dvdCatsArrowRight');
+  if (!left || !right) return;
+  const canLeft = bar.scrollLeft > 4;
+  const canRight = bar.scrollLeft < bar.scrollWidth - bar.clientWidth - 4;
+  left.classList.toggle('visible', canLeft);
+  right.classList.toggle('visible', canRight);
+  // Ocultar flecha si no hay contenido que scrollear
+  left.style.visibility = canLeft ? 'visible' : 'hidden';
+  right.style.visibility = canRight ? 'visible' : 'hidden';
+}
+
 /* ── Renderizar categorías ── */
 function renderDvdCats(dvds) {
   const bar = $('dvdCatsBar');
   if (!bar) return;
+
+  // Conectar listener de scroll para actualizar flechas (solo una vez)
+  if (!bar._arrowListener) {
+    bar._arrowListener = true;
+    bar.addEventListener('scroll', () => dvdUpdateArrows(bar), { passive: true });
+  }
+
   const cats = [...new Set(dvds.map(d => d.categoria).filter(Boolean))];
 
-  // Calcular el color más frecuente por categoría
+  // Calcular color más frecuente por categoría (restaurado)
   const catColor = {};
   dvds.forEach(d => {
     if (d.categoria && d.color) {
@@ -142,24 +250,51 @@ function renderDvdCats(dvds) {
     return Object.entries(catColor[cat]).sort((a, b) => b[1] - a[1])[0][0];
   };
 
-  bar.innerHTML = `<button class="dvd-cat-btn ${dvdFiltroCategoria === 'all' ? 'active' : ''}" data-cat="all">Todos</button>` +
+  // Contar videos por categoría
+  const conteo = { all: dvds.length };
+  dvds.forEach(d => {
+    if (d.categoria) conteo[d.categoria] = (conteo[d.categoria] || 0) + 1;
+  });
+
+  // Contar favoritos
+  const favIds = getDvdFavs();
+  const countFavs = dvds.filter(d => favIds.includes(d.id)).length;
+
+  bar.innerHTML =
+    `<button class="dvd-cat-btn ${dvdFiltroCategoria === 'all' && !dvdFiltroFavs ? 'active' : ''}" data-cat="all">
+      Todos <span class="dvd-cat-badge-count">${conteo.all}</span>
+    </button>` +
     cats.map(c => {
       const col = getTopColor(c);
-      const colStyle = col ? `style="border-color:${col};color:${col}"` : '';
-      const activeStyle = col ? `style="background:${col};border-color:${col};color:#fff"` : '';
-      return `<button class="dvd-cat-btn ${dvdFiltroCategoria === c ? 'active' : ''}" data-cat="${escHtml(c)}" ${dvdFiltroCategoria === c ? activeStyle : colStyle}>${escHtml(c)}</button>`;
-    }).join('');
+      const sel = dvdFiltroCategoria === c && !dvdFiltroFavs;
+      const tint = col ? dvdCatBtnStyles(col, sel) : '';
+      const st = tint ? ` style="${tint}"` : '';
+      return `<button type="button" class="dvd-cat-btn${col ? ' dvd-cat-btn--tinted' : ''} ${sel ? 'active' : ''}" data-cat="${escHtml(c)}"${st}>
+        ${escHtml(c)} <span class="dvd-cat-badge-count">${conteo[c] || 0}</span>
+      </button>`;
+    }).join('') +
+    `<button class="dvd-cat-btn dvd-cat-fav ${dvdFiltroFavs ? 'active' : ''}" data-cat="__favs__">
+      <span class="dvd-fav-star">⭐</span> Favoritos
+      <span class="dvd-cat-badge-count">${countFavs}</span>
+    </button>`;
 
   bar.querySelectorAll('.dvd-cat-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      dvdFiltroCategoria = btn.dataset.cat;
-      bar.querySelectorAll('.dvd-cat-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      // Re-renderizar con el color activo aplicado
+      if (btn.dataset.cat === '__favs__') {
+        dvdFiltroFavs = true;
+        dvdFiltroCategoria = 'all';
+      } else {
+        dvdFiltroFavs = false;
+        dvdFiltroCategoria = btn.dataset.cat;
+      }
       renderDvdCats(dvds);
       filtrarDvds();
+      btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     });
   });
+
+  // Estado inicial de las flechas
+  setTimeout(() => dvdUpdateArrows(bar), 60);
 }
 
 /* ── Renderizar grid ── */
@@ -187,18 +322,24 @@ function filtrarDvds() {
   if (!grid || !grid._dvds) return;
   const dvds = grid._dvds;
 
-  const filtrados = dvds.filter(d => {
+  const filtrados = dvdOrdenarArray(dvds.filter(d => {
+    if (dvdFiltroFavs) return getDvdFavs().includes(d.id);
     const matchCat = dvdFiltroCategoria === 'all' || d.categoria === dvdFiltroCategoria;
     const matchSearch = !dvdBusqueda || (d.titulo || '').toLowerCase().includes(dvdBusqueda) ||
       (d.categoria || '').toLowerCase().includes(dvdBusqueda);
     return matchCat && matchSearch;
-  });
+  }));
 
   if (!filtrados.length) {
-    grid.innerHTML = `<div class="dvd-empty">
-      <div class="dvd-empty-icon">🔍</div>
-      <div class="dvd-empty-text">No se encontraron tutoriales.</div>
-    </div>`;
+    grid.innerHTML = dvdFiltroFavs
+      ? `<div class="dvd-empty">
+          <div class="dvd-empty-icon">⭐</div>
+          <div class="dvd-empty-text">Aún no tienes favoritos.<br>Toca el <b>★</b> en cualquier video para guardarlo.</div>
+        </div>`
+      : `<div class="dvd-empty">
+          <div class="dvd-empty-icon">🔍</div>
+          <div class="dvd-empty-text">No se encontraron tutoriales.</div>
+        </div>`;
     return;
   }
 
@@ -210,6 +351,7 @@ function filtrarDvds() {
     item.addEventListener('click', e => {
       if (e.target.classList.contains('dvd-del-btn')) return;
       if (e.target.classList.contains('dvd-info-btn')) return;
+      if (e.target.classList.contains('dvd-fav-toggle')) return;
       const dvd = dvds.find(d => d.id === item.dataset.id);
       if (dvd && dvd.url) window.open(dvd.url, '_blank', 'noopener');
     });
@@ -238,6 +380,20 @@ function filtrarDvds() {
       const dvd = dvds.find(d => d.id === btn.dataset.id);
       if (!dvd) return;
       abrirDetalleDvd(dvd);
+    });
+  });
+
+  // Botones favorito ★
+  grid.querySelectorAll('.dvd-fav-toggle').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleDvdFav(btn.dataset.id, btn);
+      // Actualizar badge del tab favoritos en tiempo real
+      const bar = $('dvdCatsBar');
+      if (bar) {
+        const favBadge = bar.querySelector('.dvd-cat-fav .dvd-cat-badge-count');
+        if (favBadge) favBadge.textContent = getDvdFavs().length;
+      }
     });
   });
 }
@@ -432,4 +588,76 @@ if (btnConfirmarDvd) {
     btnConfirmarDvd.disabled = false;
     btnConfirmarDvd.textContent = '💾 Guardar DVD';
   });
+}
+
+/* ── Favoritos (Firestore — sincronizados por usuario y grupo) ──
+   Documento: ec_dvd_favs/{uid}_{groupId}
+   Campos: { uid, groupId, favIds: [...] }
+─────────────────────────────────────────────────────────────── */
+
+// Caché local para no esperar a Firestore en cada render
+let _dvdFavsCache = [];
+let _dvdFavsUnsub = null;
+
+/** Inicia el listener en tiempo real de favoritos del usuario actual.
+ *  Se llama desde initVideotutoriales() para tener los favs listos. */
+function initDvdFavs() {
+  if (_dvdFavsUnsub) { _dvdFavsUnsub(); _dvdFavsUnsub = null; }
+  if (!currentUser?.uid || !currentGroupId) return;
+
+  const { doc, onSnapshot } = lib();
+  const ref = doc(db(), 'ec_dvd_favs', `${currentUser.uid}_${currentGroupId}`);
+
+  _dvdFavsUnsub = onSnapshot(ref, snap => {
+    _dvdFavsCache = snap.exists() ? (snap.data().favIds || []) : [];
+    // Refrescar la grid y el badge del tab en tiempo real
+    filtrarDvds();
+    const bar = $('dvdCatsBar');
+    if (bar) {
+      const favBadge = bar.querySelector('.dvd-cat-fav .dvd-cat-badge-count');
+      if (favBadge) favBadge.textContent = _dvdFavsCache.length;
+    }
+  }, err => {
+    console.warn('initDvdFavs error:', err);
+    _dvdFavsCache = [];
+  });
+}
+
+/** Devuelve el array de IDs favoritos desde la caché local (síncrono). */
+function getDvdFavs() {
+  return _dvdFavsCache;
+}
+
+/** Agrega o quita un favorito en Firestore y actualiza el botón al instante. */
+async function toggleDvdFav(dvdId, btn) {
+  if (!currentUser?.uid || !currentGroupId) return;
+
+  const esFav = _dvdFavsCache.includes(dvdId);
+  // Actualizar UI de forma optimista antes de esperar a Firestore
+  if (btn) {
+    btn.classList.toggle('active', !esFav);
+    btn.textContent = !esFav ? '★' : '☆';
+    btn.title = !esFav ? 'Quitar de favoritos' : 'Agregar a favoritos';
+    btn.disabled = true; // evitar doble clic mientras guarda
+  }
+
+  const { doc, setDoc, arrayUnion, arrayRemove } = lib();
+  const ref = doc(db(), 'ec_dvd_favs', `${currentUser.uid}_${currentGroupId}`);
+
+  try {
+    await setDoc(ref, {
+      uid: currentUser.uid,
+      groupId: currentGroupId,
+      favIds: esFav ? arrayRemove(dvdId) : arrayUnion(dvdId)
+    }, { merge: true });
+  } catch (e) {
+    // Revertir UI si falla
+    if (btn) {
+      btn.classList.toggle('active', esFav);
+      btn.textContent = esFav ? '★' : '☆';
+    }
+    showToast('No se pudo guardar el favorito. ' + friendlyError(e), 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }

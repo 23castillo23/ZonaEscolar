@@ -202,8 +202,8 @@ function cargarMuroFotos(uid, esPropio) {
       return `<div class="muro-photo-thumb" onclick="openLightbox(${i})">
         <img src="${escHtml(f.url)}" loading="lazy" alt="">
         ${btnDelFoto}
-        ${badge}
         <div class="muro-photo-overlay">
+          ${badge}
           ${btnPublicar}
         </div>
       </div>`;
@@ -730,6 +730,10 @@ function initChat() {
             }
           }
         }
+        if (change.type === 'removed') {
+          const el = box.querySelector(`[data-id="${change.doc.id}"]`);
+          if (el) el.remove();
+        }
       });
     }, err => {
       console.error('Chat realtime error:', err);
@@ -948,6 +952,27 @@ window.openChatImgLightbox = function (url) {
   $('lightboxNext').style.display = 'none';
 };
 
+/** Avatar en burbuja: foto URL, emoji o inicial (incluye mensajes propios). */
+window._zeChatAvatarBroken = function (el) {
+  const fb = document.createElement('span');
+  fb.className = 'chat-msg-avatar chat-msg-avatar-fallback';
+  fb.textContent = el.getAttribute('data-initial') || '?';
+  el.replaceWith(fb);
+};
+
+function buildChatAvatarHtml(authorAvatar, authorName) {
+  const av = (authorAvatar || '').trim();
+  const initialOne = (authorName || '?').charAt(0).toUpperCase();
+  const initialChar = escHtml(initialOne);
+  const isUrl = av.startsWith('http');
+  const isEmoji = av && !isUrl && [...av].length <= 2;
+  if (isUrl) {
+    return `<img class="chat-msg-avatar" src="${escHtml(av)}" alt="" data-initial="${initialChar}" onerror="_zeChatAvatarBroken(this)">`;
+  }
+  const inner = isEmoji ? escHtml(av) : initialChar;
+  return `<span class="chat-msg-avatar chat-msg-avatar-fallback">${inner}</span>`;
+}
+
 function appendChatMessageObj(m, box) {
   const mine = m.authorUid === currentUser?.uid;
 
@@ -982,7 +1007,7 @@ function appendChatMessageObj(m, box) {
   msgEl.className = `chat-msg ${mine ? 'mine' : ''}`;
   msgEl.dataset.id = m.id;
   msgEl.innerHTML = `
-    <img class="chat-msg-avatar" src="${escHtml(m.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
+    ${buildChatAvatarHtml(m.authorAvatar, m.authorName)}
     <div class="chat-msg-wrap">
       <div class="chat-msg-author" style="${mine ? 'text-align:right;color:var(--accent2);' : ''}">${escHtml(m.authorName || 'Compañero')}</div>
       <div class="chat-msg-bubble">${bubbleContent}</div>

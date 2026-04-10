@@ -35,6 +35,8 @@
   --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   --chat-mine-bg: var(--accent);
   --chat-other-bg: var(--bg3);
+  /* Espacio reservado sobre el contenido para la bottom nav fija + home indicator (iOS) */
+  --ze-bottom-nav-clearance: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ── VARIABLES MODO CLARO (Suave y sin fatiga visual) ── */
@@ -100,6 +102,7 @@
 html {
   font-size: 16px;
   -webkit-tap-highlight-color: transparent;
+  height: 100%;
 }
 
 body {
@@ -110,6 +113,7 @@ body {
   background-size: 24px 24px;
   color: var(--text0);
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
   overflow-x: hidden;
   line-height: 1.55;
   transition: background-color 0.3s, color 0.3s;
@@ -335,6 +339,7 @@ a {
 .app-shell {
   display: flex;
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
 }
 
 /* ── SIDEBAR ── */
@@ -579,6 +584,7 @@ a {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
   max-height: 100dvh;
   overflow: hidden;
   background: var(--bg0);
@@ -589,6 +595,7 @@ a {
 .section {
   display: none;
   flex: 1;
+  min-height: 0;
   padding: 20px;
   max-width: 1200px; /* ¡AQUÍ ESTÁ EL CAMBIO CLAVE! (Antes 720px) */
   width: 100%;
@@ -598,6 +605,16 @@ a {
 .section.active {
   display: block;
   overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* El chat necesita flex, no block, para que el input quede al fondo */
+#sectionChat.active {
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden !important;
+  padding: 0;
+  max-width: 100%;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -754,6 +771,11 @@ a {
   line-height: 1.3;
   text-shadow: 0 1px 4px rgba(0,0,0,0.5);
   word-break: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 .tablero-card-meta {
   font-size: 11px;
@@ -3296,8 +3318,21 @@ a {
   align-self: flex-end;
 }
 
-.chat-msg.mine .chat-msg-avatar {
-  display: none;
+.chat-msg-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text0);
+  background: var(--bg4);
+  border: 1px solid var(--border);
+}
+
+.chat-msg.mine .chat-msg-avatar-fallback {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .chat-msg-wrap {
@@ -4883,14 +4918,16 @@ a {
 .muro-photo-thumb .muro-photo-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+  border-radius: inherit;
+  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.18) 55%, transparent 100%);
   opacity: 0;
   transition: opacity 0.2s;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 8px;
-  gap: 5px;
+  gap: 6px;
+  overflow: hidden;
 }
 
 .muro-photo-thumb:hover .muro-photo-overlay {
@@ -4932,6 +4969,9 @@ a {
   text-align: center;
   z-index: 2;
   position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
 .muro-photo-thumb:hover .muro-photo-del,
@@ -5730,7 +5770,7 @@ a {
 /* ── CHAT BURBUJA FLOTANTE ── */
 .chat-fab {
   position: fixed;
-  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--ze-bottom-nav-clearance) + 16px);
   right: 18px;
   width: 52px;
   height: 52px;
@@ -5787,10 +5827,10 @@ a {
 /* ── Panel burbuja ── */
 .chat-burbuja-panel {
   position: fixed;
-  bottom: calc(138px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--ze-bottom-nav-clearance) + 74px);
   right: 18px;
   width: min(320px, calc(100vw - 48px));
-  max-height: min(420px, calc(100vh - 220px));
+  max-height: min(420px, calc(100dvh - 220px));
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
@@ -6615,31 +6655,214 @@ a {
 }
 .dvd-search:focus { border-color: var(--accent); }
 
-/* Barra de categorías */
-.dvd-cats-bar {
-  display: flex;
+/* Botón de ordenar */
+.dvd-sort-btn {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg3);
+  color: var(--text1);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font);
+  transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.15s;
+  user-select: none;
+}
+.dvd-sort-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.dvd-sort-btn:active { transform: scale(0.95); }
+.dvd-sort-btn.active {
+  border-color: var(--accent);
+  background: var(--bg2);
+  color: var(--accent);
+}
+
+/* Contenedor externo con flechas */
+.dvd-cats-outer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
   margin-bottom: 20px;
 }
 
-.dvd-cat-btn {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 999px;
+/* Flechas ‹ › */
+.dvd-cats-arrow {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--bg2);
   color: var(--text1);
-  font-size: 12px;
-  font-weight: 500;
-  padding: 5px 14px;
+  font-size: 18px;
   cursor: pointer;
-  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.15s;
+  visibility: hidden;
+  padding: 0;
+  user-select: none;
+  line-height: 1;
 }
-.dvd-cat-btn:hover { border-color: var(--accent); color: var(--accent); }
-.dvd-cat-btn.active {
+.dvd-cats-arrow.visible { visibility: visible; }
+.dvd-cats-arrow:hover {
+  background: var(--bg3);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.1);
+}
+.dvd-cats-arrow:active { transform: scale(0.92); }
+
+/* Zona scrollable */
+.dvd-cats-bar {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 6px;
+  padding: 4px 2px 8px;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.dvd-cats-bar::-webkit-scrollbar { display: none; }
+
+/* Pills base */
+.dvd-cat-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 100px;
+  border: 1.5px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font);
+  user-select: none;
+  position: relative;
+  transition: background 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.15s;
+}
+/* Sin underline */
+.dvd-cat-btn::after { display: none; }
+.dvd-cat-btn:hover {
+  background: var(--bg4, var(--bg3));
+  color: var(--text0);
+  transform: translateY(-1px);
+}
+.dvd-cat-btn:active { transform: scale(0.95); }
+
+/* "Todos" activo */
+.dvd-cat-btn[data-cat="all"].active {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: #fff;
+  box-shadow: 0 3px 12px var(--accent-glow, rgba(99,102,241,0.38));
 }
+.dvd-cat-btn[data-cat="all"]:not(.active):hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Pills tintados con color de la categoría — sin color-mix (compat) */
+.dvd-cat-btn--tinted {
+  background: var(--bg3) !important;
+  border-color: var(--dvd-cat-line, var(--border)) !important;
+  color: var(--text1) !important;
+  border-width: 2px !important;
+}
+.dvd-cat-btn--tinted:hover {
+  background: var(--bg4, var(--bg3)) !important;
+  color: var(--text0) !important;
+  filter: none;
+}
+.dvd-cat-btn--tinted.active {
+  background: var(--dvd-cat-line, var(--accent)) !important;
+  border-color: var(--dvd-cat-line, var(--accent)) !important;
+  color: #fff !important;
+  filter: none;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+}
+
+/* Badge contador */
+.dvd-cat-badge-count {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 100px;
+  background: rgba(0,0,0,0.12);
+  color: inherit;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.6;
+  transition: all var(--transition);
+}
+.dvd-cat-btn.active .dvd-cat-badge-count {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+/* Pill favoritos — dorado */
+.dvd-cat-btn.dvd-cat-fav {
+  background: var(--bg3);
+  border-color: rgba(251,191,36,0.45);
+  color: var(--amber, #fbbf24);
+}
+.dvd-cat-btn.dvd-cat-fav:hover {
+  background: var(--bg4, var(--bg3));
+  border-color: var(--amber, #fbbf24);
+}
+.dvd-cat-btn.dvd-cat-fav.active {
+  background: var(--amber, #fbbf24);
+  border-color: var(--amber, #fbbf24);
+  color: #1a1200;
+  box-shadow: 0 3px 12px rgba(251,191,36,0.38);
+}
+.dvd-cat-btn.dvd-cat-fav.active .dvd-cat-badge-count {
+  background: rgba(0,0,0,0.15);
+  color: #1a1200;
+}
+.dvd-fav-star {
+  font-size: 13px;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+.dvd-cat-btn.dvd-cat-fav:hover .dvd-fav-star,
+.dvd-cat-btn.dvd-cat-fav.active .dvd-fav-star {
+  transform: scale(1.25) rotate(-10deg);
+}
+
+/* Botón ★ en cada tarjeta */
+.dvd-fav-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text2);
+  padding: 4px 5px;
+  border-radius: 6px;
+  transition: color var(--transition), transform 0.15s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.dvd-fav-toggle:hover { color: var(--amber); transform: scale(1.2); }
+.dvd-fav-toggle.active { color: var(--amber); }
+
+
 
 /* ── GRID DE DVDs ── */
 .dvd-grid {
@@ -6837,6 +7060,25 @@ a {
   margin-top: 8px;
 }
 
+/* Paleta del modal VideoTutorial: una sola fila que reparte el ancho */
+.dvd-color-picker--dvd-modal {
+  flex-wrap: nowrap;
+  gap: 4px;
+  width: 100%;
+  justify-content: space-between;
+  align-items: stretch;
+  box-sizing: border-box;
+}
+
+.dvd-color-picker--dvd-modal .dvd-color-opt {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  max-width: 40px;
+  height: 26px;
+  border-radius: 6px;
+}
+
 .dvd-color-opt {
   width: 28px;
   height: 28px;
@@ -6844,12 +7086,17 @@ a {
   border: 2px solid transparent;
   cursor: pointer;
   transition: var(--transition);
+  box-sizing: border-box;
 }
-.dvd-color-opt:hover { transform: scale(1.15); }
+.dvd-color-opt:hover { transform: scale(1.08); }
 .dvd-color-opt.selected {
-  border-color: white;
-  transform: scale(1.2);
-  box-shadow: 0 0 8px rgba(255,255,255,0.4);
+  border-color: var(--text0);
+  transform: scale(1.05);
+  box-shadow: 0 0 0 2px var(--bg1), 0 0 0 4px var(--accent);
+}
+
+[data-theme="light"] .dvd-color-opt.selected {
+  box-shadow: 0 0 0 2px var(--bg1), 0 0 0 4px var(--accent);
 }
 
 /* Grid de emojis */
@@ -7414,15 +7661,21 @@ a {
   .main-content {
     margin-left: 0;
     padding-bottom: 0;
-    max-height: 100dvh;
+    min-height: 0;
+    max-height: none;
+    flex: 1;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
     overflow: hidden;
   }
 
   .section {
     padding: 12px;
-    padding-bottom: calc(12px + 48px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
     overflow-y: auto;
-    max-height: 100dvh;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
   }
 
   /* Bottom nav visible */
@@ -7431,10 +7684,14 @@ a {
   }
 
 
-  /* Chat ocupa toda la pantalla disponible, respetando el teclado */
+  /* Chat: altura flexible dentro del shell (sin restar topbar dos veces) */
   #sectionChat {
-    height: calc(100dvh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: auto;
+    min-height: 0;
+    flex: 1 1 auto;
     padding: 0;
+    padding-bottom: var(--ze-bottom-nav-clearance);
+    box-sizing: border-box;
     position: relative;
   }
 
@@ -7546,14 +7803,14 @@ a {
 
   /* Burbuja Flotante */
   .chat-fab {
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--ze-bottom-nav-clearance) + 12px);
     right: 14px;
     width: 48px;
     height: 48px;
   }
 
   .chat-burbuja-panel {
-    bottom: calc(130px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--ze-bottom-nav-clearance) + 68px);
     right: 14px;
     width: min(300px, calc(100vw - 48px));
     max-height: 360px;
@@ -7758,9 +8015,14 @@ a {
     font-size: 20px;
   }
 
-  /* Topbar compacta */
+  /* Topbar compacta — no pisar safe-area del notch (iPhone mini, etc.) */
   .topbar {
-    padding: 0 10px;
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: 0;
+    min-height: calc(56px + env(safe-area-inset-top, 0px));
+    height: auto;
     gap: 8px;
   }
 
@@ -7777,9 +8039,12 @@ a {
   }
 
   .btn-theme-toggle {
-    width: 28px;
-    height: 28px;
-    font-size: 13px;
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+    padding: 0;
   }
 
   #btnInvitarCompa {
@@ -7787,9 +8052,10 @@ a {
     font-size: 11px;
   }
 
-  /* Sections */
+  /* Sections — mantener hueco para bottom nav */
   .section {
     padding: 10px 8px;
+    padding-bottom: calc(10px + var(--ze-bottom-nav-clearance));
   }
 
   /* Feed */
@@ -8056,23 +8322,23 @@ a {
 
 /* ── Badge "ya compartida" en fotos del muro ── */
 .muro-photo-compartido-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   background: rgba(22, 163, 74, 0.92);
   border-radius: 20px;
   padding: 3px 8px 3px 5px;
   font-size: 11px;
   font-weight: 700;
   color: #fff;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  z-index: 3;
-  max-width: calc(100% - 12px);
-  cursor: default;
   backdrop-filter: blur(4px);
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  max-width: 100%;
+  cursor: default;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.18s;
+  align-self: flex-start;
 }
 
 .muro-photo-compartido-lista {
@@ -8081,7 +8347,11 @@ a {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px;
+  max-width: 110px;
+}
+
+.muro-photo-thumb:hover .muro-photo-compartido-badge {
+  opacity: 1;
 }
 
 /* Botón "Volver a compartir" — tono distinto */
