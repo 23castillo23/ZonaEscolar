@@ -36,7 +36,7 @@
   --chat-mine-bg: var(--accent);
   --chat-other-bg: var(--bg3);
   /* Espacio reservado sobre el contenido para la bottom nav fija + home indicator (iOS) */
-  --ze-bottom-nav-clearance: calc(56px + env(safe-area-inset-bottom, 0px));
+  --ze-bottom-nav-clearance: calc(48px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ── VARIABLES MODO CLARO (Suave y sin fatiga visual) ── */
@@ -615,7 +615,7 @@ a {
   overflow: hidden !important;
   padding: 0;
   max-width: 100%;
-  height: calc(100dvh - 56px);
+  height: calc(100svh - 56px);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -3200,7 +3200,7 @@ a {
 #sectionChat {
   display: none;
   flex-direction: column;
-  height: calc(100dvh - 56px);
+  height: calc(100svh - 56px);
   padding: 0;
   max-width: 100%;
   overflow: hidden;
@@ -4523,34 +4523,25 @@ a {
   top: 50%;
   transform: translateY(-50%);
   color: white;
-  font-size: 28px;
-  background: rgba(255, 255, 255, 0.18);
+  font-size: 32px;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
-  width: 56px;
-  height: 56px;
-  min-width: 56px;
-  min-height: 56px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  border: 1.5px solid rgba(255,255,255,0.25);
 }
 
 .lightbox-prev {
-  left: max(16px, env(safe-area-inset-left, 16px));
+  left: 16px;
 }
 
 .lightbox-next {
-  right: max(16px, env(safe-area-inset-right, 16px));
+  right: 16px;
 }
 
 .lightbox-content {
-  position: relative;
-  z-index: 1;
   text-align: center;
   max-width: 90vw;
 }
@@ -7713,7 +7704,7 @@ a {
 
   /* Chat: altura fija para que flex:1 de chat-messages funcione en móvil */
   #sectionChat {
-    height: calc(100dvh - 56px - var(--ze-bottom-nav-clearance, 0px));
+    height: calc(100dvh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
@@ -7730,7 +7721,7 @@ a {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding-bottom: var(--ze-bottom-nav-clearance, 0px);
+    padding-bottom: 0;
     box-sizing: border-box;
   }
 
@@ -7797,15 +7788,15 @@ a {
   }
 
   .galeria-header {
-    top: -12px;
-    margin-top: -12px;
+    top: 0;
+    margin-top: 0;
     padding-top: 12px;
     padding-bottom: 10px;
   }
   
   .tablero-feed-header {
-    top: -12px;
-    margin-top: -12px;
+    top: 0;
+    margin-top: 0;
     padding-top: 12px;
   }
 
