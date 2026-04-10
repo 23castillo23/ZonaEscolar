@@ -7703,7 +7703,7 @@ a {
 
 
   /* Chat: altura fija para que flex:1 de chat-messages funcione en móvil */
-  #sectionChat {
+  #sectionChat.active {
     height: calc(100dvh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     min-height: 0;
     flex: 1 1 auto;
@@ -7714,7 +7714,10 @@ a {
     display: flex !important;
     flex-direction: column;
   }
-
+  #sectionChat:not(.active) {
+    display: none !important;
+  }
+  
   #vistaChatSala {
     flex: 1;
     min-height: 0;
