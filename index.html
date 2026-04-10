@@ -143,6 +143,22 @@
       </section>
 
       <!-- ── SECCIÓN: SIN GRUPO ── -->
+      <!-- ── SECCIÓN: EXPULSADO ── -->
+      <section class="section" id="sectionExpulsado">
+        <div class="expulsado-hero">
+          <div class="expulsado-icon">🚫</div>
+          <h2 class="expulsado-title">Ya no formas parte de este grupo</h2>
+          <p class="expulsado-text">El administrador te ha removido del grupo.<br>Ya no tienes acceso a su contenido.</p>
+          <div class="expulsado-info">
+            <span>✅ Tus publicaciones siguen disponibles para el grupo</span>
+            <span>👁️ Puedes ver tu historial en "Mis publicaciones"</span>
+          </div>
+          <button class="btn-primary" onclick="activarSeccion('muro')" style="margin-top:20px">
+            📋 Ver mis publicaciones
+          </button>
+        </div>
+      </section>
+
       <section class="section" id="sectionNoGroup">
         <div class="empty-hero">
           <div class="empty-hero-icon">🏫</div>
@@ -991,9 +1007,10 @@
       <input type="text" id="dvdTitulo" class="modal-input" placeholder="Ej: Intro a Python - HolaMundo" maxlength="60">
 
       <label class="modal-label">Categoría</label>
-      <div style="display:flex;gap:8px">
+      <div style="position:relative">
         <input type="text" id="dvdCategoria" class="modal-input" placeholder="Ej: Programación, Matemáticas…"
-          style="flex:1;margin:0" maxlength="30">
+          maxlength="30" autocomplete="off" style="margin:0">
+        <div id="dvdCatSuggestions" class="dvd-cat-suggestions" style="display:none"></div>
       </div>
 
       <label class="modal-label" style="margin-top:12px">Descripción (opcional)</label>

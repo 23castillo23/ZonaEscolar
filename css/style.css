@@ -8817,6 +8817,41 @@ a {
   animation: modalIn 0.18s ease;
 }
 
+
+/* ═══════════════════════════════════════════════════
+   DVD — CATEGORÍA: SUGERENCIAS Y CHIPS
+═══════════════════════════════════════════════════ */
+.dvd-cat-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border-hover);
+  border-radius: 10px;
+  z-index: 200;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  max-height: 180px;
+  overflow-y: auto;
+}
+.dvd-cat-suggestion-item {
+  padding: 9px 14px;
+  font-size: 13px;
+  color: var(--text1);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.dvd-cat-suggestion-item:hover {
+  background: var(--bg4);
+  color: var(--accent);
+}
+
+
+/* El confirm siempre aparece encima de cualquier otro modal (comentarios, etc.) */
+#modalConfirmDestructivo {
+  z-index: 99999;
+}
+
 /* ═══════════════════════════════════════════════════
    DINÁMICAS — VISTAS INLINE (Votación y Trivia)
 ═══════════════════════════════════════════════════ */
@@ -8918,4 +8953,56 @@ a {
   align-items: center;
   gap: 4px;
   overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════
+   PANTALLA DE EXPULSADO
+═══════════════════════════════════════════════════ */
+.expulsado-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  padding: 40px 24px;
+  text-align: center;
+  gap: 12px;
+}
+.expulsado-icon {
+  font-size: 64px;
+  margin-bottom: 8px;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.8; }
+}
+.expulsado-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text0);
+  margin: 0;
+}
+.expulsado-text {
+  font-size: 14px;
+  color: var(--text2);
+  line-height: 1.6;
+  margin: 0;
+}
+.expulsado-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 20px;
+  max-width: 340px;
+  width: 100%;
+}
+.expulsado-info span {
+  font-size: 13px;
+  color: var(--text2);
+  text-align: left;
 }

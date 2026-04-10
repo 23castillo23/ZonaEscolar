@@ -342,17 +342,18 @@ function initFeed() {
     feedHayMas = true;
     feedCargandoMas = false;
 
-    const { getDocs, startAfter } = lib();
     const LIMIT = 30;
 
-    const qInicial = query(
+    // Un único onSnapshot cubre: posts nuevos, eliminaciones Y modificaciones de TODOS
+    // los posts del tablero general (sin tableroId, tableroId vacío, o tableroId null).
+    // Usamos limit(LIMIT) para la carga inicial; "cargar más" sigue usando getDocs.
+    feedUnsub = onSnapshot(query(
       collection(db(), 'ec_feed'),
       where('groupId', '==', currentGroupId),
       orderBy('createdAt', 'desc'),
       limit(LIMIT)
-    );
-
-    getDocs(qInicial).then(snap => {
+    ), { includeMetadataChanges: false }, snap => {
+      // Filtrar en cliente: solo posts sin tablero (tableroId vacío, null o ausente)
       const posts = [];
       snap.forEach(d => {
         const data = d.data();
@@ -369,39 +370,6 @@ function initFeed() {
       window._feedPostsCache = posts;
       renderFeed(posts);
       _actualizarBotonMasFeed();
-    }).catch(onErr);
-
-    // Tiempo real solo para posts nuevos
-    feedUnsub = onSnapshot(query(
-      collection(db(), 'ec_feed'),
-      where('groupId', '==', currentGroupId),
-      where('tableroId', '==', ''),
-      orderBy('createdAt', 'desc'),
-      limit(5)
-    ), { includeMetadataChanges: false }, snap => {
-      snap.docChanges().forEach(change => {
-        if (change.type === 'added') {
-          const p = { id: change.doc.id, ...change.doc.data() };
-          const cache = window._feedPostsCache || [];
-          const yaEnCache = cache.find(x => x.id === p.id);
-          if (!yaEnCache) {
-            // Insertar al inicio del cache (mas reciente primero) y re-renderizar en columnas
-            window._feedPostsCache = [p, ...cache];
-            renderFeed(window._feedPostsCache);
-            _actualizarBotonMasFeed();
-          }
-        }
-        if (change.type === 'removed') {
-          window._feedPostsCache = (window._feedPostsCache || []).filter(x => x.id !== change.doc.id);
-          renderFeed(window._feedPostsCache);
-          _actualizarBotonMasFeed();
-        }
-        if (change.type === 'modified') {
-          const p = { id: change.doc.id, ...change.doc.data() };
-          window._feedPostsCache = (window._feedPostsCache || []).map(x => x.id === p.id ? p : x);
-          renderFeed(window._feedPostsCache);
-        }
-      });
     }, onErr);
   }
 }

@@ -195,6 +195,7 @@ function initVideotutoriales() {
         const tb = b.createdAt?.toMillis?.() ?? 0;
         return tb - ta;
       });
+    dvdActualizarCategoriasConocidas(dvds);
     renderDvdGrid(dvds);
     renderDvdCats(dvds);
   }, err => {
@@ -506,6 +507,37 @@ window.eliminarComentarioDvd = async function(comentarioId, dvdId) {
   });
 };
 
+/* ── Categorías conocidas (se actualizan con el snapshot) ── */
+let _dvdCategoriasConocidas = [];
+
+function dvdActualizarCategoriasConocidas(dvds) {
+  _dvdCategoriasConocidas = [...new Set(dvds.map(d => d.categoria).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, 'es', { sensitivity: 'base' })
+  );
+}
+
+function dvdMostrarSugerencias(valor) {
+  const box = $('dvdCatSuggestions');
+  if (!box) return;
+  const q = valor.trim().toLowerCase();
+  const matches = q
+    ? _dvdCategoriasConocidas.filter(c => c.toLowerCase().includes(q) && c.toLowerCase() !== q)
+    : _dvdCategoriasConocidas;
+
+  if (!matches.length) { box.style.display = 'none'; return; }
+  box.innerHTML = matches.map(c =>
+    `<div class="dvd-cat-suggestion-item" data-cat="${escHtml(c)}">${escHtml(c)}</div>`
+  ).join('');
+  box.style.display = 'block';
+  box.querySelectorAll('.dvd-cat-suggestion-item').forEach(item => {
+    item.addEventListener('mousedown', e => {
+      e.preventDefault();
+      $('dvdCategoria').value = item.dataset.cat;
+      box.style.display = 'none';
+    });
+  });
+}
+
 /* ── Modal: abrir ── */
 function abrirModalDvd() {
   $('dvdYoutubeUrl').value = '';
@@ -518,7 +550,22 @@ function abrirModalDvd() {
   $('dvdColorPicker').querySelectorAll('.dvd-color-opt').forEach(b => {
     b.classList.toggle('selected', b.dataset.color === dvdColorSeleccionado);
   });
+  // Ocultar sugerencias al abrir
+  if ($('dvdCatSuggestions')) $('dvdCatSuggestions').style.display = 'none';
   openModal('modalAgregarDvd');
+
+  // Listener de sugerencias (se inicializa aquí para que siempre esté fresco)
+  const input = $('dvdCategoria');
+  const newInput = input.cloneNode(true);
+  input.parentNode.replaceChild(newInput, input);
+  newInput.addEventListener('input', () => {
+    dvdMostrarSugerencias(newInput.value);
+
+  });
+  newInput.addEventListener('focus', () => dvdMostrarSugerencias(newInput.value));
+  newInput.addEventListener('blur', () => setTimeout(() => {
+    if ($('dvdCatSuggestions')) $('dvdCatSuggestions').style.display = 'none';
+  }, 150));
 }
 
 /* ── Vista previa al pegar URL ── */

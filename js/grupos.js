@@ -31,12 +31,26 @@ async function loadGruposDelUsuario() {
         if ($('btnInvitarCompa')) $('btnInvitarCompa').style.display = 'none';
       }
     } else {
-      // Actualizaciones en tiempo real: refrescar selector y datos del grupo activo
+      // Actualizaciones en tiempo real: actualizar datos PRIMERO, luego renderizar
+      if (currentGroupId) {
+        const grupoActual = grupos.find(g => g.id === currentGroupId);
+        if (grupoActual) {
+          currentGroupData = grupoActual; // ← datos frescos antes de renderizar
+          // Verificar si el usuario actual sigue siendo miembro
+          const sigueEnGrupo = grupoActual.miembros?.includes(currentUser.email);
+          if (!sigueEnGrupo) {
+            _manejarExpulsion();
+            return;
+          }
+        } else {
+          // El grupo ya no aparece en la query (usuario fue removido del array miembros)
+          _manejarExpulsion();
+          return;
+        }
+      }
+      // Renderizar con los datos ya actualizados
       renderGroupSelector();
       renderSidebarMiembros();
-      if (currentGroupId) {
-        currentGroupData = grupos.find(g => g.id === currentGroupId) || currentGroupData;
-      }
     }
   }, err => {
     console.error('Error cargando grupos:', err);
@@ -187,6 +201,50 @@ function renderSidebarMiembros() {
         </div>`;
   }).join('')}
     </div>`;
+}
+
+/* ── Manejar cuando el usuario actual es expulsado en tiempo real ── */
+function _manejarExpulsion() {
+  // Cancelar todos los listeners activos
+  if (feedUnsub) { feedUnsub(); feedUnsub = null; }
+  if (chatUnsub) { chatUnsub(); chatUnsub = null; }
+  if (salasUnsub) { salasUnsub(); salasUnsub = null; }
+  if (bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
+  if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
+  if (votacionUnsub) { votacionUnsub(); votacionUnsub = null; }
+  if (semestresUnsub) { semestresUnsub(); semestresUnsub = null; }
+  if (galeriasUnsub) { galeriasUnsub(); galeriasUnsub = null; }
+  if (tablerosUnsub) { tablerosUnsub(); tablerosUnsub = null; }
+  if (dvdUnsub) { dvdUnsub(); dvdUnsub = null; }
+  if (muroFeedUnsub) { muroFeedUnsub(); muroFeedUnsub = null; }
+  if (muroFotosUnsub) { muroFotosUnsub(); muroFotosUnsub = null; }
+  if (muroAlbumsUnsub) { muroAlbumsUnsub(); muroAlbumsUnsub = null; }
+  if (sidebarOnlineUnsub) { sidebarOnlineUnsub(); sidebarOnlineUnsub = null; }
+  if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
+  if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
+
+  // Cerrar cualquier modal abierto
+  document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+  const commentsModal = document.getElementById('comments-modal-overlay');
+  if (commentsModal) commentsModal.classList.remove('active');
+
+  // Limpiar estado del grupo
+  const nombreGrupo = currentGroupData?.name || 'el grupo';
+  currentGroupId = null;
+  currentGroupData = null;
+  isAdmin = false;
+
+  // Ocultar nav y FAB
+  const fab = $('chatFab');
+  if (fab) fab.style.display = 'none';
+
+  // Mostrar toast y pantalla de expulsado
+  showToast(`Has sido removido de "${nombreGrupo}".`, 'info');
+  showSection('expulsado');
+  setActiveNav('');
+
+  // Actualizar selector (el grupo ya no aparecerá)
+  renderGroupSelector();
 }
 
 window.expulsarMiembro = async function (emailExpulsado) {
@@ -367,7 +425,14 @@ qsa('.bottom-nav-item').forEach(btn => {
 });
 
 function activarSeccion(section) {
-  if (!currentGroupId && section !== 'muro') { showSection('noGroup'); return; }
+  // Si no hay grupo y no es muro, verificar si fue expulsado o simplemente no tiene grupo
+  if (!currentGroupId && section !== 'muro') {
+    // Si la sección expulsado está activa, no redirigir a noGroup (ya está bien)
+    const expulsadoEl = $('sectionExpulsado');
+    if (expulsadoEl && expulsadoEl.classList.contains('active')) return;
+    showSection('noGroup');
+    return;
+  }
 
   if (section !== 'biblioteca' && bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
 
@@ -467,6 +532,7 @@ function showSection(name) {
   qsa('.section').forEach(s => s.classList.remove('active'));
   const map = {
     loading: 'sectionLoading', noGroup: 'sectionNoGroup',
+    expulsado: 'sectionExpulsado',
     feed: 'sectionFeed', muro: 'sectionMuro',
     apuntes: 'sectionApuntes', chat: 'sectionChat',
     tareas: 'sectionTareas', biblioteca: 'sectionBiblioteca', 
