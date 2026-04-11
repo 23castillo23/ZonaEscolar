@@ -7803,6 +7803,34 @@ a {
     margin-top: 0;
     padding-top: 12px;
   }
+  
+  /* ── FIX MÓVIL: Toolbars/headers de sección pegados al top al hacer scroll ── */
+  .tableros-galeria-header,
+  .apuntes-toolbar,
+  .tareas-toolbar,
+  .biblio-header,
+  .dvd-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg0);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    /* Borde sutil para separar visualmente del contenido al hacer scroll */
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+
+  /* Cuando hay scroll, mostrar el separador */
+  .tableros-galeria-header.scrolled,
+  .apuntes-toolbar.scrolled,
+  .tareas-toolbar.scrolled,
+  .biblio-header.scrolled,
+  .dvd-header.scrolled {
+    border-bottom-color: var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
 
   .btn-back-galeria {
     padding: 7px 10px;

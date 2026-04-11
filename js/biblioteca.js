@@ -213,9 +213,9 @@ window.eliminarCategoria = function (id, nombre) {
 };
 
 
-let calMesOffset = 0;
+// calMesOffset declarado en tareas.js
 // FIX Bug 2: caché local de tareas para que calVerDia no haga un getDocs extra a Firebase
-let _calTareasCache = [];
+// _calTareasCache declarado en tareas.js
 
 window.calNavegar = function (dir) {
   calMesOffset += dir;
