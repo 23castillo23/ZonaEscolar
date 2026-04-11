@@ -7687,14 +7687,40 @@ a {
 
   .section {
     padding: 12px;
-    /* La topbar en móvil tiene height: auto con min-height = 56px + safe-area-inset-top.
-       Compensamos con un valor generoso que cubre notch + topbar en cualquier iPhone/Android */
-    padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px) + 16px));
+    /* Reducimos el padding-top: los headers sticky compensan con su propio top */
+    padding-top: 12px;
     padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
     overflow-y: auto;
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;
+    /* Espacio para la topbar fija usando scroll-padding */
+    scroll-padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px) + 16px));
+  }
+
+  /* Spacer invisible al inicio de cada sección para que el contenido no quede bajo la topbar */
+  .section::before {
+    content: '';
+    display: block;
+    height: max(60px, calc(56px + env(safe-area-inset-top, 0px)));
+    pointer-events: none;
+  }
+
+  /* ── FIX MÓVIL: Headers/toolbars de sección siempre visibles ── */
+  .tableros-galeria-header,
+  .apuntes-toolbar,
+  .tareas-toolbar,
+  .biblio-header,
+  .dvd-header {
+    position: sticky;
+    top: max(60px, calc(56px + env(safe-area-inset-top, 0px)));
+    z-index: 50;
+    background: var(--bg0);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    margin-top: -10px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
   }
 
   /* Bottom nav visible */
@@ -7804,32 +7830,14 @@ a {
     padding-top: 12px;
   }
   
-  /* ── FIX MÓVIL: Toolbars/headers de sección pegados al top al hacer scroll ── */
-  .tableros-galeria-header,
-  .apuntes-toolbar,
-  .tareas-toolbar,
-  .biblio-header,
-  .dvd-header {
-    position: sticky;
-    top: 0;
-    z-index: 50;
+  /* biblio-header sticky: fondo plano para cubrir contenido al hacer scroll */
+  .biblio-header {
     background: var(--bg0);
-    padding-top: 10px;
-    padding-bottom: 10px;
-    margin-bottom: 12px;
-    /* Borde sutil para separar visualmente del contenido al hacer scroll */
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.2s;
-  }
-
-  /* Cuando hay scroll, mostrar el separador */
-  .tableros-galeria-header.scrolled,
-  .apuntes-toolbar.scrolled,
-  .tareas-toolbar.scrolled,
-  .biblio-header.scrolled,
-  .dvd-header.scrolled {
-    border-bottom-color: var(--border);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border: none;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .btn-back-galeria {
