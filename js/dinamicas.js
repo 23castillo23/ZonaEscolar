@@ -736,17 +736,33 @@ function mostrarPreguntaTrivia() {
     return;
   }
   const p = triviaBanco[triviaIdx];
-  const opciones = [...p.respuestas].sort(() => Math.random() - 0.5);
-  const correcta = p.respuestas[0];
+  // Shuffle con Fisher-Yates para mezcla uniforme y sin sesgos
+  const opciones = [...p.respuestas];
+  for (let i = opciones.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [opciones[i], opciones[j]] = [opciones[j], opciones[i]];
+  }
+  // La correcta es siempre respuestas[0] — se guarda en una variable de módulo,
+  // NO se expone en el HTML para que no sea visible en el DOM.
+  _triviaCorrectaActual = p.respuestas[0];
   $('triviaProgreso').textContent = `Pregunta ${triviaIdx + 1} de ${triviaBanco.length} · Puntos: ${triviaScore}`;
   $('triviaPreguntaText').textContent = p.pregunta;
   $('triviaFeedback').textContent = '';
-  $('triviaOpciones').innerHTML = opciones.map(op =>
-    `<button class="trivia-opcion" onclick="responderTrivia('${escHtml(op)}','${escHtml(correcta)}',this)">
+  // Se pasa el ÍNDICE de la opción, no el texto, para no revelar nada en el HTML
+  $('triviaOpciones').innerHTML = opciones.map((op, i) =>
+    `<button class="trivia-opcion" data-idx="${i}" onclick="responderTrivia(${i},this)">
       ${escHtml(op)}
     </button>`).join('');
+  // Guardamos el array mezclado para poder consultarlo al responder
+  _triviaOpcionesActuales = opciones;
 }
-window.responderTrivia = function (elegida, correcta, btn) {
+// Variables de estado del juego (no expuestas en el DOM)
+let _triviaCorrectaActual = '';
+let _triviaOpcionesActuales = [];
+
+window.responderTrivia = function (idx, btn) {
+  const elegida = _triviaOpcionesActuales[idx];
+  const correcta = _triviaCorrectaActual;
   qsa('.trivia-opcion').forEach(b => { b.disabled = true; });
   const correcto = elegida === correcta;
   if (correcto) {
@@ -755,7 +771,10 @@ window.responderTrivia = function (elegida, correcta, btn) {
     $('triviaFeedback').style.color = 'var(--green)';
   } else {
     btn.classList.add('incorrecto');
-    qsa('.trivia-opcion').forEach(b => { if (b.textContent.trim() === correcta) b.classList.add('correcto'); });
+    // Marca la correcta buscando por valor en el array, no en el DOM
+    qsa('.trivia-opcion').forEach(b => {
+      if (_triviaOpcionesActuales[parseInt(b.dataset.idx)] === correcta) b.classList.add('correcto');
+    });
     $('triviaFeedback').textContent = `❌ Era: ${correcta}`;
     $('triviaFeedback').style.color = 'var(--red)';
   }

@@ -9199,3 +9199,37 @@ a {
     transition: height 0.15s ease, max-height 0.15s ease;
   }
 }
+
+/* ══════════════════════════════════════════════════════
+   FIX: Bottom nav — íconos uniformes en todos los ítems
+   (evita que emojis anchos como 💬 o 🎮 inflen su celda)
+══════════════════════════════════════════════════════ */
+.bottom-nav-item {
+  flex: 1 1 0;          /* base 0 en lugar de auto: reparte espacio igual */
+  max-width: calc(100% / 8); /* nunca más de 1/8 del total */
+  overflow: hidden;
+}
+
+.bottom-nav-item .bnav-icon {
+  display: block;
+  width: 24px;          /* caja fija: el emoji no puede crecer más */
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  font-size: 20px;      /* igual al valor ya definido, pero ahora contenido */
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+@media (max-width: 390px) {
+  /* Pantallas muy pequeñas (iPhone SE, etc.) */
+  .bottom-nav-item .bnav-icon {
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    font-size: 17px;
+  }
+  .bottom-nav-item {
+    font-size: 7.5px;
+  }
+}
