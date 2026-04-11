@@ -139,7 +139,7 @@ $('btnCompartirLibro')?.addEventListener('click', async () => {
       try {
         const feedRef = collection(db(), 'ec_feed');
         // Buscar si ya existe en ESE tablero específico
-        const enEste = existingSnap?.docs.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
+        const enEste = existingSnap?.docs?.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
 
         if (enEste) {
           await updateDoc(doc(db(), 'ec_feed', enEste.id), {
@@ -211,13 +211,13 @@ window.compartirDvd = async function(dvdId) {
     )).catch(() => null);
 
     const yaEn = new Set();
-    existingSnap?.forEach(d => yaEn.add(d.data().tableroId ?? ''));
+    existingSnap?.docs?.forEach(d => yaEn.add(d.data().tableroId ?? ''));
 
     mostrarSelectorTablero(
       `¿En qué tablero compartir "${dvd.titulo}"?`,
       async (tableroId, tableroNombre) => {
         try {
-          const enEste = existingSnap?.docs.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
+          const enEste = existingSnap?.docs?.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
           if (enEste) {
             await updateDoc(doc(db(), 'ec_feed', enEste.id), { createdAt: serverTimestamp() });
             showToast(`📌 ¡Video subido al inicio de "${tableroNombre}"!`, 'success');
@@ -400,7 +400,19 @@ window.compartirNotaAlTablero = async function(fotoId, url) {
     // Scroll al fondo de los mensajes cuando sube el teclado
     if (currentSection === 'chat' || currentSection === 'sectionChat') {
       const box = document.getElementById('chatMessages');
-      if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 80);
+      if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 100);
+    }
+    
+    // Desplazar la sección de chat si el teclado cubre contenido
+    const activeSection = document.querySelector('#sectionChat.active');
+    if (activeSection) {
+      const offsetY = window.visualViewport.offsetY;
+      const offsetX = window.visualViewport.offsetX;
+      if (offsetY > 0) {
+        activeSection.style.transform = `translateY(-${Math.min(offsetY, 120)}px)`;
+      } else {
+        activeSection.style.transform = '';
+      }
     }
   }
 

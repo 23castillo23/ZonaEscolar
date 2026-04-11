@@ -9087,6 +9087,9 @@ a {
   #vistaSalasChat {
     display: flex;
     flex-direction: column;
+    height: calc(100svh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100svh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow: hidden;
   }
 
   #vistaSalasChat .tableros-galeria-header {
@@ -9105,7 +9108,9 @@ a {
   #vistaSalasChat .tableros-galeria {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
+    -webkit-overflow-scrolling: touch;
   }
     
   /* ══════════════════════════════════════════════════════
