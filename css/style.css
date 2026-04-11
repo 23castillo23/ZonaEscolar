@@ -7715,24 +7715,15 @@ a {
     display: flex !important;
     flex-direction: column;
   }
-  #sectionChat:not(.active) {
+#sectionChat:not(.active) {
     display: none !important;
   }
   
-
-  /* Chat: la galería de salas necesita su propio padding-top porque sectionChat tiene padding:0 */
+  /* FIX: Chat galería de salas - compensar topbar fija (sectionChat tiene padding:0) */
   #vistaSalasChat {
     padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px) + 16px));
   }
-
-  /* El header dentro de vistaSalasChat NO debe ser sticky (ya tiene padding-top propio) */
-  #vistaSalasChat .tableros-galeria-header {
-    position: static !important;
-    background: transparent;
-    border-bottom: none;
-    padding-top: 0;
-    margin-bottom: 16px;
-  }
+  
   #vistaChatSala {
     flex: 1;
     min-height: 0;

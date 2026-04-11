@@ -343,13 +343,13 @@ function renderFotosGaleria(fotos) {
     const esAutor = currentUser && f.authorUid === currentUser.uid;
     const puedeActuar = esAutor || isAdmin;
 
-    // --- EL BOTÓN DEL COHETE QUE NECESITAS ---
-    const btnCompartirTablero = `<button class="foto-publish-btn" style="left: 75px; background: var(--accent);" title="Compartir en cualquier Tablero" 
-        onclick="event.stopPropagation(); compartirNotaAlTablero('${f.id}', '${escHtml(f.url)}')">📌</button>`;
-
     const btnPublicar = puedeActuar
       ? `<button class="foto-publish-btn" title="Publicar en tablero" onclick="event.stopPropagation(); publicarFotoEnFeed('${escHtml(f.id)}')">🚀</button>`
       : '';
+
+    // --- EL BOTÓN DEL COHETE QUE NECESITAS ---
+    const btnCompartirTablero = `<button class="foto-publish-btn" style="left: 75px; background: var(--accent);" title="Compartir en cualquier Tablero" 
+        onclick="event.stopPropagation(); compartirNotaAlTablero('${f.id}', '${escHtml(f.url)}')">📌</button>`;
 
     const btnEliminar = puedeActuar
       ? `<button class="foto-del-btn" title="Eliminar foto" onclick="event.stopPropagation(); eliminarFotoApunte('${escHtml(f.id)}')">🗑️</button>`
