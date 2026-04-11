@@ -9083,6 +9083,7 @@ a {
    por eso el sticky global no funcionaba en esta sección)
 ══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+  
   #vistaSalasChat {
     display: flex;
     flex-direction: column;
@@ -9104,6 +9105,41 @@ a {
   #vistaSalasChat .tableros-galeria {
     flex: 1;
     overflow-y: auto;
+    min-height: 0;
+  }
+    
+  /* ══════════════════════════════════════════════════════
+   FIX MÓVIL: Reducir tamaño de tarjetas de salas en Chat
+   para evitar el exceso de espacio vertical entre ellas
+══════════════════════════════════════════════════════ */
+
+  #salasGaleria.tableros-galeria .tablero-card {
+    aspect-ratio: 3/2;
+  }
+
+/* ══════════════════════════════════════════════════════
+   FIX MÓVIL: Botón X del lightbox respeta la barra de
+   estado del iPhone (safe-area-inset-top)
+══════════════════════════════════════════════════════ */
+  .lightbox-close {
+    top: max(16px, calc(env(safe-area-inset-top, 0px) + 10px));
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   FIX MÓVIL: Chat — cuando el teclado sube en iPhone,
+   el sectionChat se reduce automáticamente usando dvh
+   (dynamic viewport height) sin tocar el JS existente
+══════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  #sectionChat.active {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  /* Cuando el input del chat tiene foco, el viewport
+     dinámico ya excluye el teclado — no hace falta JS */
+  #vistaChatSala {
     min-height: 0;
   }
 }
