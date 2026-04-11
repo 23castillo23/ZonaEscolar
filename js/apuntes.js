@@ -331,8 +331,16 @@ function cargarFotosGaleria() {
   });
 }
 
+// Variable local de apuntes para no pisar lightboxPhotos de otros módulos (Mis Aportes, Muro, etc.)
+let _apuntesLightboxPhotos = [];
+
+window.openApuntesLightbox = function(index) {
+  lightboxPhotos = _apuntesLightboxPhotos;
+  openLightbox(index);
+};
+
 function renderFotosGaleria(fotos) {
-  lightboxPhotos = fotos;
+  _apuntesLightboxPhotos = fotos;
   const grid = $('apuntesGrid');
   if (!fotos.length) {
     grid.innerHTML = '<div class="feed-loading">Sin fotos aún. ¡Sube tus apuntes!</div>';
@@ -342,6 +350,10 @@ function renderFotosGaleria(fotos) {
   grid.innerHTML = fotos.map((f, i) => {
     const esAutor = currentUser && f.authorUid === currentUser.uid;
     const puedeActuar = esAutor || isAdmin;
+
+    const btnPublicar = puedeActuar
+      ? `<button class="foto-publish-btn" title="Publicar en tablero" onclick="event.stopPropagation(); publicarFotoEnFeed('${escHtml(f.id)}')">📌</button>`
+      : '';
 
     // --- EL BOTÓN DEL COHETE QUE NECESITAS ---
     const btnCompartirTablero = `<button class="foto-publish-btn" style="left: 75px; background: var(--accent);" title="Compartir en cualquier Tablero" 
@@ -360,8 +372,8 @@ function renderFotosGaleria(fotos) {
     const isLiked = f.likedBy?.includes(currentUser.uid);
 
     return `<div class="photo-thumb" data-foto-id="${escHtml(f.id)}">
-      <img src="${escHtml(f.url)}" loading="lazy" alt="" onclick="openLightbox(${i})">
-      <div class="photo-thumb-overlay" onclick="openLightbox(${i})">${autorLabel}</div>
+      <img src="${escHtml(f.url)}" loading="lazy" alt="" onclick="openApuntesLightbox(${i})">
+      <div class="photo-thumb-overlay" onclick="openApuntesLightbox(${i})">${autorLabel}</div>
       <div class="photo-actions-bar">
         <button class="photo-action-btn feed-action-btn ${isLiked ? 'liked' : ''}" onclick="event.stopPropagation(); toggleFotoLike('${f.id}', this)">
           <span class="foco-icon" style="font-size: 16px;">💡</span> (<span class="like-count">${likeCount}</span>)
