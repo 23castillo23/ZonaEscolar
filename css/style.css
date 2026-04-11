@@ -9076,3 +9076,34 @@ a {
   color: var(--text2);
   text-align: left;
 }
+
+/* ══════════════════════════════════════════════════════
+   FIX MÓVIL: Barra "Salas de Chat" sticky dentro de
+   #vistaSalasChat (el scroll vive ahí, no en la ventana,
+   por eso el sticky global no funcionaba en esta sección)
+══════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  #vistaSalasChat {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #vistaSalasChat .tableros-galeria-header {
+    position: sticky;
+    top: 0;
+    z-index: 55;
+    background: var(--bg0);
+    padding-top: 14px;
+    padding-bottom: 10px;
+    margin-top: 0;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #vistaSalasChat .tableros-galeria {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
+}
