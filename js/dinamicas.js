@@ -725,6 +725,10 @@ async function _guardarTriviaEnFirestore() {
   finally { if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar trivia'; } }
 }
 
+// Estado interno del juego — nunca se expone en el HTML
+let _triviaCorrectaActual = '';
+let _triviaOpcionesActuales = [];
+
 function mostrarPreguntaTrivia() {
   if (triviaIdx >= triviaBanco.length) {
     $('triviaJuego').innerHTML = `<div style="text-align:center;padding:20px">
@@ -736,29 +740,28 @@ function mostrarPreguntaTrivia() {
     return;
   }
   const p = triviaBanco[triviaIdx];
-  // Shuffle con Fisher-Yates para mezcla uniforme y sin sesgos
+
+  // Fisher-Yates: mezcla uniforme y sin sesgos (sort() con random es impredecible)
   const opciones = [...p.respuestas];
   for (let i = opciones.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [opciones[i], opciones[j]] = [opciones[j], opciones[i]];
   }
-  // La correcta es siempre respuestas[0] — se guarda en una variable de módulo,
-  // NO se expone en el HTML para que no sea visible en el DOM.
-  _triviaCorrectaActual = p.respuestas[0];
+
+  // Guardar en variables de módulo — NO se escriben en el HTML
+  _triviaCorrectaActual   = p.respuestas[0];
+  _triviaOpcionesActuales = opciones;
+
   $('triviaProgreso').textContent = `Pregunta ${triviaIdx + 1} de ${triviaBanco.length} · Puntos: ${triviaScore}`;
   $('triviaPreguntaText').textContent = p.pregunta;
   $('triviaFeedback').textContent = '';
-  // Se pasa el ÍNDICE de la opción, no el texto, para no revelar nada en el HTML
+
+  // Solo se pasa el índice numérico — la respuesta correcta no aparece en ningún atributo
   $('triviaOpciones').innerHTML = opciones.map((op, i) =>
     `<button class="trivia-opcion" data-idx="${i}" onclick="responderTrivia(${i},this)">
       ${escHtml(op)}
     </button>`).join('');
-  // Guardamos el array mezclado para poder consultarlo al responder
-  _triviaOpcionesActuales = opciones;
 }
-// Variables de estado del juego (no expuestas en el DOM)
-let _triviaCorrectaActual = '';
-let _triviaOpcionesActuales = [];
 
 window.responderTrivia = function (idx, btn) {
   const elegida = _triviaOpcionesActuales[idx];
@@ -771,7 +774,7 @@ window.responderTrivia = function (idx, btn) {
     $('triviaFeedback').style.color = 'var(--green)';
   } else {
     btn.classList.add('incorrecto');
-    // Marca la correcta buscando por valor en el array, no en el DOM
+    // Marca la correcta por índice — sin comparar textContent (evita fallos con caracteres especiales)
     qsa('.trivia-opcion').forEach(b => {
       if (_triviaOpcionesActuales[parseInt(b.dataset.idx)] === correcta) b.classList.add('correcto');
     });

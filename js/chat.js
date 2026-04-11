@@ -1256,37 +1256,76 @@ function pedirTextoFotoModal(onConfirm) {
   });
 }
 
-/* ── FIX iOS: Visual Viewport API para que el teclado no tape el compose ── */
+/* ── FIX iOS: Visual Viewport API global — teclado no tapa ninguna sección ── */
 (function patchIOSKeyboard() {
   const vv = window.visualViewport;
-  if (!vv) return; // Solo aplica si el navegador lo soporta (iOS Safari sí lo hace)
+  if (!vv) return;
 
-  function onViewportResize() {
+  const TOPBAR_H    = 56;
+  const KB_THRESHOLD = 100; // px — si el viewport bajó más de esto, el teclado subió
+
+  function onViewportChange() {
+    const visibleH  = vv.height;
+    const screenH   = window.screen.height;
+    const kbOpen    = (screenH - visibleH) > KB_THRESHOLD;
+
+    const mainContent = document.querySelector('.main-content');
+    const bottomNav   = document.getElementById('bottomNav');
     const chatSection = document.getElementById('sectionChat');
-    if (!chatSection || !chatSection.classList.contains('active')) return;
 
-    // Altura visible = lo que queda sobre el teclado
-    const visibleHeight = vv.height;
-    const topbarHeight = 56; // altura de tu topbar fija
-
-    chatSection.style.height = (visibleHeight - topbarHeight) + 'px';
-
-    // Forzar scroll al fondo cuando sube el teclado
-    setTimeout(() => {
-      const box = document.getElementById('chatMessages');
-      if (box) box.scrollTop = box.scrollHeight;
-    }, 50);
+    if (kbOpen) {
+      // Fijar el contenedor principal al espacio visible exacto
+      if (mainContent) {
+        mainContent.style.height    = visibleH + 'px';
+        mainContent.style.minHeight = visibleH + 'px';
+        mainContent.style.maxHeight = visibleH + 'px';
+      }
+      // Ocultar la bottom-nav (se desliza hacia abajo)
+      if (bottomNav) {
+        bottomNav.style.transform  = 'translateY(100%)';
+        bottomNav.style.visibility = 'hidden';
+      }
+      // Chat: ajustar altura interna y hacer scroll al fondo
+      if (chatSection && chatSection.classList.contains('active')) {
+        const chatH = (visibleH - TOPBAR_H) + 'px';
+        chatSection.style.height    = chatH;
+        chatSection.style.maxHeight = chatH;
+        chatSection.style.setProperty('--chat-h', chatH);
+        setTimeout(() => {
+          const box = document.getElementById('chatMessages');
+          if (box) box.scrollTop = box.scrollHeight;
+        }, 60);
+      }
+    } else {
+      // Restaurar todo cuando el teclado baja
+      if (mainContent) {
+        mainContent.style.height    = '';
+        mainContent.style.minHeight = '';
+        mainContent.style.maxHeight = '';
+      }
+      if (bottomNav) {
+        bottomNav.style.transform  = '';
+        bottomNav.style.visibility = '';
+      }
+      if (chatSection) {
+        chatSection.style.height    = '';
+        chatSection.style.maxHeight = '';
+        chatSection.style.removeProperty('--chat-h');
+      }
+    }
   }
 
-  vv.addEventListener('resize', onViewportResize);
-  vv.addEventListener('scroll', onViewportResize);
+  vv.addEventListener('resize', onViewportChange);
+  vv.addEventListener('scroll', onViewportChange);
 
-  // Al cambiar de sección, limpiar el height inline para no afectar otras secciones
+  // Al cambiar de sección limpiar los estilos inline
   document.addEventListener('click', function (e) {
-    const nav = e.target.closest('[data-section]') || e.target.closest('.bottom-nav-btn');
-    if (nav) {
-      const chatSection = document.getElementById('sectionChat');
-      if (chatSection) chatSection.style.height = '';
-    }
+    if (!e.target.closest('[data-section]')) return;
+    const mainContent = document.querySelector('.main-content');
+    const bottomNav   = document.getElementById('bottomNav');
+    const chatSection = document.getElementById('sectionChat');
+    if (mainContent) { mainContent.style.height = ''; mainContent.style.minHeight = ''; mainContent.style.maxHeight = ''; }
+    if (bottomNav)   { bottomNav.style.transform = ''; bottomNav.style.visibility = ''; }
+    if (chatSection) { chatSection.style.height = ''; chatSection.style.maxHeight = ''; chatSection.style.removeProperty('--chat-h'); }
   });
 })();
