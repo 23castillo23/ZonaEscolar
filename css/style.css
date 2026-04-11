@@ -7685,42 +7685,16 @@ a {
     overflow: hidden;
   }
 
-  .section {
+    .section {
     padding: 12px;
-    /* Reducimos el padding-top: los headers sticky compensan con su propio top */
-    padding-top: 12px;
+    /* La topbar en móvil tiene height: auto con min-height = 56px + safe-area-inset-top.
+       Compensamos con un valor generoso que cubre notch + topbar en cualquier iPhone/Android */
+    padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px) + 16px));
     padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
     overflow-y: auto;
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;
-    /* Espacio para la topbar fija usando scroll-padding */
-    scroll-padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px) + 16px));
-  }
-
-  /* Spacer invisible al inicio de cada sección para que el contenido no quede bajo la topbar */
-  .section::before {
-    content: '';
-    display: block;
-    height: max(60px, calc(56px + env(safe-area-inset-top, 0px)));
-    pointer-events: none;
-  }
-
-  /* ── FIX MÓVIL: Headers/toolbars de sección siempre visibles ── */
-  .tableros-galeria-header,
-  .apuntes-toolbar,
-  .tareas-toolbar,
-  .biblio-header,
-  .dvd-header {
-    position: sticky;
-    top: max(60px, calc(56px + env(safe-area-inset-top, 0px)));
-    z-index: 50;
-    background: var(--bg0);
-    padding-top: 10px;
-    padding-bottom: 10px;
-    margin-top: -10px;
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--border);
   }
 
   /* Bottom nav visible */
@@ -7745,6 +7719,20 @@ a {
     display: none !important;
   }
   
+
+  /* Chat: la galería de salas necesita su propio padding-top porque sectionChat tiene padding:0 */
+  #vistaSalasChat {
+    padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px) + 16px));
+  }
+
+  /* El header dentro de vistaSalasChat NO debe ser sticky (ya tiene padding-top propio) */
+  #vistaSalasChat .tableros-galeria-header {
+    position: static !important;
+    background: transparent;
+    border-bottom: none;
+    padding-top: 0;
+    margin-bottom: 16px;
+  }
   #vistaChatSala {
     flex: 1;
     min-height: 0;
@@ -7830,16 +7818,6 @@ a {
     padding-top: 12px;
   }
   
-  /* biblio-header sticky: fondo plano para cubrir contenido al hacer scroll */
-  .biblio-header {
-    background: var(--bg0);
-    border: none;
-    border-bottom: 1px solid var(--border);
-    border-radius: 0;
-    padding-left: 0;
-    padding-right: 0;
-  }
-
   .btn-back-galeria {
     padding: 7px 10px;
     font-size: 12px;
