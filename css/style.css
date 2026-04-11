@@ -3200,11 +3200,13 @@ a {
 #sectionChat {
   display: none;
   flex-direction: column;
-  height: calc(100svh - 56px);
+  height: 100vh;
+  height: 100dvh;
   padding: 0;
   max-width: 100%;
   overflow: hidden;
   box-sizing: border-box;
+  -webkit-user-select: none;
 }
 
 #vistaChatSala {
@@ -3217,8 +3219,9 @@ a {
 
 .chat-messages {
   flex: 1;
-  min-height: auto;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -3229,6 +3232,7 @@ a {
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Agrupación de mensajes del mismo autor */
@@ -3430,7 +3434,7 @@ a {
 /* El nuevo contenedor que agrupa los emojis y la barra */
 .chat-compose-wrapper {
   background: var(--bg2);
-  padding: 10px 14px 16px 14px;
+  padding: 10px 14px calc(16px + env(safe-area-inset-bottom, 0px)) 14px;
   max-width: 720px;
   width: calc(100% - 28px);
   margin: 8px auto 0 auto;
@@ -5527,10 +5531,14 @@ a {
 
 /* Barra de online */
 .chat-online-bar {
-  padding: 4px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: 6px 14px;
   background: var(--bg1);
   border-bottom: 1px solid var(--border);
-  min-height: 0;
+  min-height: 26px;
+  flex-shrink: 0;
 }
 
 .chat-online-list {

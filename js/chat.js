@@ -1108,14 +1108,29 @@ function initChatListeners() {
   });
 
   _chatInput.addEventListener('focus', () => {
+    // Scroll al final cuando se abre el teclado
+    setTimeout(() => ajustarScrollChat(false), 100);
     setTimeout(() => ajustarScrollChat(false), 300);
     setTimeout(() => ajustarScrollChat(false), 600);
   });
 
   _chatInput.addEventListener('blur', () => {
-    setTimeout(() => {
-      window.scrollTo(0, 0);
-    }, 150);
+    // No hagas scroll a (0,0) ya que puede causar comportamientos raros en móvil
+    const box = $('chatMessages');
+    if (box && box.scrollHeight > box.clientHeight) {
+      box.scrollTop = box.scrollHeight;
+    }
+  });
+
+  // Ajustar scroll cuando el viewport cambia (keyboard open/close)
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      if (document.activeElement === _chatInput) {
+        ajustarScrollChat(false);
+      }
+    }, 50);
   });
 }
 
