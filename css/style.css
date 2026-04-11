@@ -9111,6 +9111,10 @@ a {
     overflow-x: hidden;
     min-height: 0;
     -webkit-overflow-scrolling: touch;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    align-content: start;
   }
     
   /* ══════════════════════════════════════════════════════
@@ -9119,7 +9123,7 @@ a {
 ══════════════════════════════════════════════════════ */
 
   #salasGaleria.tableros-galeria .tablero-card {
-    aspect-ratio: 3/2;
+    aspect-ratio: 16/10;
   }
 
 /* ══════════════════════════════════════════════════════
