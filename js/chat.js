@@ -1125,27 +1125,45 @@ if (_chatImgBtn && _chatImgInput) {
   _chatImgBtn.addEventListener('click', () => _chatImgInput.click());
 }
 
-// Emoji picker toggle
-const _chatEmojiBtn = $('chatEmojiBtn');
-const _chatEmojiPicker = $('chatEmojiPicker');
-if (_chatEmojiBtn && _chatEmojiPicker) {
-  _chatEmojiBtn.addEventListener('click', () => {
-    const isVisible = _chatEmojiPicker.style.display !== 'none';
-    _chatEmojiPicker.style.display = isVisible ? 'none' : 'flex';
-    _chatEmojiBtn.classList.toggle('active', !isVisible);
-  });
+// Setup emoji picker
+function setupEmojiPicker() {
+  const _chatEmojiBtn = $('chatEmojiBtn');
+  const _chatEmojiPicker = $('chatEmojiPicker');
   
-  // Manejar clicks en emojis
-  _chatEmojiPicker.querySelectorAll('.q-emoji').forEach(emoji => {
-    emoji.addEventListener('click', () => {
-      const input = $('chatInput');
-      if (input) {
-        input.value += emoji.textContent;
-        input.focus();
-        input.dispatchEvent(new Event('input'));
-      }
+  if (_chatEmojiBtn && _chatEmojiPicker) {
+    // Remover listeners anteriores
+    const newBtn = _chatEmojiBtn.cloneNode(true);
+    _chatEmojiBtn.parentNode?.replaceChild(newBtn, _chatEmojiBtn);
+    
+    const _newEmojiBtn = $('chatEmojiBtn');
+    if (_newEmojiBtn) {
+      _newEmojiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isVisible = _chatEmojiPicker.style.display !== 'none';
+        _chatEmojiPicker.style.display = isVisible ? 'none' : 'flex';
+        _newEmojiBtn.classList.toggle('active', !isVisible);
+      });
+    }
+    
+    // Manejar clicks en emojis
+    _chatEmojiPicker.querySelectorAll('.q-emoji').forEach(emoji => {
+      emoji.addEventListener('click', () => {
+        const input = $('chatInput');
+        if (input) {
+          input.value += emoji.textContent;
+          input.focus();
+          input.dispatchEvent(new Event('input'));
+        }
+      });
     });
-  });
+  }
+}
+
+// Ejecutar setup en cuanto el DOM esté listo
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupEmojiPicker);
+} else {
+  setupEmojiPicker();
 }
 
   if (_chatImgInput) _chatImgInput.addEventListener('change', async e => {
