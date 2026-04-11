@@ -373,3 +373,39 @@ window.compartirNotaAlTablero = async function(fotoId, url) {
     }
   );
 };
+
+
+/* ══════════════════════════════════════════════════════
+   FIX MÓVIL: Teclado en Chat — iOS Safari no reduce
+   dvh cuando sube el teclado nativo, así que usamos
+   visualViewport para calcular la altura real disponible
+   y la asignamos como variable CSS --chat-h
+══════════════════════════════════════════════════════ */
+(function fixChatKeyboardHeight() {
+  if (!window.visualViewport) return;
+
+  const BOTTOM_NAV_H = 48;  // altura de la bottom nav
+  const TOP_BAR_H = 56;     // altura del topbar
+
+  function updateChatHeight() {
+    const vvHeight = window.visualViewport.height;
+    const safeTop = parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue('--sat') || '0') || 0;
+    const safeBottom = parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue('--sab') || '0') || 0;
+
+    const chatH = vvHeight - TOP_BAR_H - BOTTOM_NAV_H - safeTop - safeBottom;
+    document.documentElement.style.setProperty('--chat-h', Math.max(chatH, 200) + 'px');
+
+    // Scroll al fondo de los mensajes cuando sube el teclado
+    if (currentSection === 'chat' || currentSection === 'sectionChat') {
+      const box = document.getElementById('chatMessages');
+      if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 80);
+    }
+  }
+
+  window.visualViewport.addEventListener('resize', updateChatHeight);
+  window.visualViewport.addEventListener('scroll', updateChatHeight);
+  window.addEventListener('resize', updateChatHeight);
+  updateChatHeight();
+})();

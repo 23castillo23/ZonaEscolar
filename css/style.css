@@ -9127,19 +9127,13 @@ a {
 }
 
 /* ══════════════════════════════════════════════════════
-   FIX MÓVIL: Chat — cuando el teclado sube en iPhone,
-   el sectionChat se reduce automáticamente usando dvh
-   (dynamic viewport height) sin tocar el JS existente
+   FIX MÓVIL: Chat — altura controlada por JS via
+   --chat-h cuando el teclado sube en iPhone
 ══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   #sectionChat.active {
-    height: 100dvh;
-    max-height: 100dvh;
-  }
-
-  /* Cuando el input del chat tiene foco, el viewport
-     dinámico ya excluye el teclado — no hace falta JS */
-  #vistaChatSala {
-    min-height: 0;
+    height: var(--chat-h, calc(100dvh - 56px - 48px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
+    max-height: var(--chat-h, calc(100dvh - 56px - 48px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
+    transition: height 0.15s ease, max-height 0.15s ease;
   }
 }
