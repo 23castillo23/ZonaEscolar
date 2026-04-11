@@ -1780,14 +1780,3 @@ window.eliminarMateria = function (id, nombre) {
   });
 };
 
-// Activar Emojis en el chat principal (delegación de eventos)
-document.addEventListener('click', e => {
-  if (e.target.classList.contains('q-emoji')) {
-    const input = $('chatInput');
-    if (input) {
-      input.value += e.target.textContent;
-      input.focus();
-    }
-  }
-});
-
