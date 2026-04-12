@@ -165,6 +165,8 @@ function dibujarRuleta() {
 /* ─────────────── VOTACIÓN — vista inline ─────────────── */
 
 let votacionesUnsub = null;
+// Caché local de votaciones para optimistic UI
+let _votacionesCache = {};
 
 /* Abre la vista inline de votaciones */
 window.abrirVistaVotacion = function () {
@@ -217,7 +219,7 @@ function loadVotacionActiva() {
   );
   votacionesUnsub = onSnapshot(q, snap => {
     const todas = [];
-    snap.forEach(d => todas.push({ id: d.id, ...d.data() }));
+    snap.forEach(d => { const v = { id: d.id, ...d.data() }; todas.push(v); _votacionesCache[v.id] = v; });
     _autoCerrarVencidas(todas);
     renderPanelVotaciones(todas);
   });
@@ -419,22 +421,24 @@ async function _ejecutarVotoTransaccion(votacionId, opcionIdx) {
   return status;
 }
 
-async function _syncVotacionFeedCopies(votacionId) {
+// Recibe el payload ya calculado (sin lectura extra) y actualiza en paralelo
+async function _syncVotacionFeedCopies(votacionId, payload) {
   const { doc, getDoc, collection, query, where, getDocs, updateDoc } = lib();
-  const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
-  if (!vSnap.exists()) return;
-  const v = vSnap.data();
-  const payload = {
-    votos: v.votos || {},
-    votantes: v.votantes || [],
-    userVotes: v.userVotes || {},
-    activa: v.activa !== false
-  };
-  // votacionId es único en el proyecto; una sola clave evita índice compuesto
-  const fs = await getDocs(query(collection(db(), 'ec_feed'), where('votacionId', '==', votacionId)));
-  for (const d of fs.docs) {
-    await updateDoc(doc(db(), 'ec_feed', d.id), payload);
+  // Si no se pasó payload, leer de Firestore como fallback
+  if (!payload) {
+    const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
+    if (!vSnap.exists()) return;
+    const v = vSnap.data();
+    payload = {
+      votos: v.votos || {},
+      votantes: v.votantes || [],
+      userVotes: v.userVotes || {},
+      activa: v.activa !== false
+    };
   }
+  const fs = await getDocs(query(collection(db(), 'ec_feed'), where('votacionId', '==', votacionId)));
+  // Actualizar todas las copias en paralelo en lugar de loop secuencial
+  await Promise.all(fs.docs.map(d => updateDoc(doc(db(), 'ec_feed', d.id), payload)));
 }
 
 const _votacionVoteLocks = new Set();
@@ -442,18 +446,43 @@ const _votacionVoteLocks = new Set();
 window.votarEnPanel = async function (votacionId, opcionIdx) {
   if (_votacionVoteLocks.has(votacionId)) return;
   _votacionVoteLocks.add(votacionId);
+
+  // — Optimistic UI: calcular nuevo estado localmente y renderizar YA —
+  const uid = currentUser.uid;
+  const vCached = _votacionesCache[votacionId];
+  let optimisticPayload = null;
+  if (vCached) {
+    const prev = parseUserVoteIndex(vCached?.userVotes?.[uid]);
+    // Si es el mismo voto, no hacer nada
+    if (prev !== null && prev === opcionIdx) { _votacionVoteLocks.delete(votacionId); return; }
+
+    const newVotos = { ...(vCached.votos || {}) };
+    if (prev !== null && Number.isFinite(prev)) newVotos[prev] = Math.max(0, (newVotos[prev] || 0) - 1);
+    newVotos[opcionIdx] = (newVotos[opcionIdx] || 0) + 1;
+
+    const newUserVotes = { ...(vCached.userVotes || {}), [uid]: opcionIdx };
+    const newVotantes = vCached.votantes?.includes(uid) ? vCached.votantes : [...(vCached.votantes || []), uid];
+
+    // Actualizar caché local inmediatamente
+    _votacionesCache[votacionId] = { ...vCached, votos: newVotos, userVotes: newUserVotes, votantes: newVotantes };
+    optimisticPayload = { votos: newVotos, userVotes: newUserVotes, votantes: newVotantes, activa: vCached.activa !== false };
+
+    // Re-render inmediato sin esperar red
+    renderPanelVotaciones(Object.values(_votacionesCache));
+  }
+
   try {
     const status = await _ejecutarVotoTransaccion(votacionId, opcionIdx);
     if (status === 'cerrada') { showToast('Esta votación ya cerró.', 'info'); return; }
     if (status === 'invalid') return;
     if (status === 'missing' || status === 'noop') return;
-    try {
-      await _syncVotacionFeedCopies(votacionId);
-    } catch (syncErr) {
-      console.error('Sync feed votación:', syncErr);
-    }
-  } catch (e) { showToast('No se pudo registrar tu voto. ' + friendlyError(e), 'error'); }
-  finally { _votacionVoteLocks.delete(votacionId); }
+    // Sync al feed en background — no bloquea la UI
+    _syncVotacionFeedCopies(votacionId, optimisticPayload).catch(e => console.error('Sync feed votación:', e));
+  } catch (e) {
+    // Revertir el optimistic update si falló
+    if (vCached) { _votacionesCache[votacionId] = vCached; renderPanelVotaciones(Object.values(_votacionesCache)); }
+    showToast('No se pudo registrar tu voto. ' + friendlyError(e), 'error');
+  } finally { _votacionVoteLocks.delete(votacionId); }
 };
 window.cerrarVotacionPanel = function (vid) {
   showConfirm({ title:'Cerrar votación', message:'¿Cerrar esta votación?', confirmText:'Cerrar', onConfirm: async () => {
@@ -493,47 +522,68 @@ window.votar = async function (votacionId, opcionIdx) { await window.votarEnPane
 window.votarDesdeFeed = async function (votacionId, opcionIdx, feedPostId) {
   if (_votacionVoteLocks.has(votacionId)) return;
   _votacionVoteLocks.add(votacionId);
-  const { doc, getDoc } = lib();
+
+  // — Optimistic UI: calcular y renderizar el card del feed YA —
+  const uid = currentUser.uid;
+  // Buscar datos actuales en el cache del feed
+  let prevFeedPost = null;
+  if (window._feedPostsCache) {
+    prevFeedPost = window._feedPostsCache.find(p => p.votacionId === votacionId && p.type === 'votacion');
+  }
+
+  let optimisticPayload = null;
+  let prevSnapshot = null;
+  if (prevFeedPost) {
+    const prev = parseUserVoteIndex(prevFeedPost?.userVotes?.[uid]);
+    if (prev !== null && prev === opcionIdx) { _votacionVoteLocks.delete(votacionId); return; }
+    prevSnapshot = { ...prevFeedPost };
+
+    const newVotos = { ...(prevFeedPost.votos || {}) };
+    if (prev !== null && Number.isFinite(prev)) newVotos[prev] = Math.max(0, (newVotos[prev] || 0) - 1);
+    newVotos[opcionIdx] = (newVotos[opcionIdx] || 0) + 1;
+    const newUserVotes = { ...(prevFeedPost.userVotes || {}), [uid]: opcionIdx };
+    const newVotantes = prevFeedPost.votantes?.includes(uid) ? prevFeedPost.votantes : [...(prevFeedPost.votantes || []), uid];
+
+    optimisticPayload = {
+      opciones: prevFeedPost.opciones,
+      votos: newVotos, votantes: newVotantes, userVotes: newUserVotes,
+      activa: prevFeedPost.activa !== false,
+      votacionId, pregunta: prevFeedPost.pregunta, authorUid: prevFeedPost.authorUid
+    };
+
+    // Actualizar DOM del card del feed inmediatamente
+    _actualizarCardVotacionDOM(feedPostId, optimisticPayload);
+    if (window._feedPostsCache) {
+      window._feedPostsCache = window._feedPostsCache.map(p =>
+        (p.votacionId === votacionId && p.type === 'votacion')
+          ? { ...p, votos: newVotos, votantes: newVotantes, userVotes: newUserVotes }
+          : p
+      );
+    }
+  }
+
   try {
     const status = await _ejecutarVotoTransaccion(votacionId, opcionIdx);
     if (status === 'cerrada') { showToast('Esta votación ya cerró.', 'info'); return; }
     if (status === 'invalid') return;
     if (status === 'missing' || status === 'noop') return;
-    try {
-      await _syncVotacionFeedCopies(votacionId);
-    } catch (syncErr) {
-      console.error('Sync feed votación:', syncErr);
+    // Sync al feed en background
+    _syncVotacionFeedCopies(votacionId, optimisticPayload
+      ? { votos: optimisticPayload.votos, votantes: optimisticPayload.votantes, userVotes: optimisticPayload.userVotes, activa: optimisticPayload.activa }
+      : null
+    ).catch(e => console.error('Sync feed votación:', e));
+  } catch (e) {
+    // Revertir optimistic update
+    if (prevSnapshot) {
+      _actualizarCardVotacionDOM(feedPostId, prevSnapshot);
+      if (window._feedPostsCache) {
+        window._feedPostsCache = window._feedPostsCache.map(p =>
+          (p.votacionId === votacionId && p.type === 'votacion') ? prevSnapshot : p
+        );
+      }
     }
-    const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
-    if (!vSnap.exists()) return;
-    const data = vSnap.data();
-    const merged = {
-      opciones: data.opciones,
-      votos: data.votos || {},
-      votantes: data.votantes || [],
-      userVotes: data.userVotes || {},
-      activa: data.activa !== false,
-      votacionId,
-      pregunta: data.pregunta,
-      authorUid: data.authorUid
-    };
-    _actualizarCardVotacionDOM(feedPostId, merged);
-    if (window._feedPostsCache) {
-      window._feedPostsCache = window._feedPostsCache.map(p => {
-        if (p.votacionId === votacionId && p.type === 'votacion') {
-          return {
-            ...p,
-            votos: merged.votos,
-            votantes: merged.votantes,
-            userVotes: merged.userVotes,
-            activa: merged.activa
-          };
-        }
-        return p;
-      });
-    }
-  } catch (e) { showToast(friendlyError(e), 'error'); }
-  finally { _votacionVoteLocks.delete(votacionId); }
+    showToast(friendlyError(e), 'error');
+  } finally { _votacionVoteLocks.delete(votacionId); }
 };
 
 /* Actualiza el DOM del card de votación en el feed sin re-renderizar todo */

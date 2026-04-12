@@ -4553,19 +4553,44 @@ header.topbar {
 }
 
 /* ═══════════════════════════════════════════════════════
-   iOS SAFE AREAS — notch, home bar, etc.
+   iOS / ANDROID SAFE AREAS — notch, home bar, etc.
+   Se aplica en navegador Y en PWA standalone/fullscreen
 ═══════════════════════════════════════════════════════ */
 @supports (padding-top: env(safe-area-inset-top)) {
   .topbar {
     padding-top: env(safe-area-inset-top, 0px);
     height: calc(56px + env(safe-area-inset-top, 0px));
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
-    }
-  
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
   .login-screen {
-    padding-top: env(safe-area-inset-top, 0);
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* PWA instalada en Android (standalone) — fuerza el safe area
+   aunque @supports no lo detecte al arrancar */
+@media (display-mode: standalone) {
+  .topbar {
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  .login-screen {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* PWA en fullscreen (algunos Android la instalan así) */
+@media (display-mode: fullscreen) {
+  .topbar {
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
   }
 }
 
