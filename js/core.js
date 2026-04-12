@@ -254,6 +254,23 @@ function _setTopbarHeight() {
   }
 }
 
+/** Alto real de la bottom nav (móvil); en escritorio 0. Evita hueco/solape con valores fijos 48px. */
+function _setBottomNavClearance() {
+  const nav = document.getElementById('bottomNav');
+  if (!nav) return;
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  if (!isMobile) {
+    document.documentElement.style.setProperty('--ze-bottom-nav-clearance', '0px');
+    return;
+  }
+  const h = nav.getBoundingClientRect().height;
+  if (h > 0) {
+    document.documentElement.style.setProperty('--ze-bottom-nav-clearance', h + 'px');
+  } else {
+    document.documentElement.style.removeProperty('--ze-bottom-nav-clearance');
+  }
+}
+
 function _setRealVh() {
   // En Safari la barra de dirección hace que 100vh > viewport real.
   // Guardamos el valor real como variable CSS para usarla en los cálculos.
@@ -262,35 +279,36 @@ function _setRealVh() {
 }
 
 function _initSafariFixes() {
-  // Topbar height
-  _setTopbarHeight();
-  // Real viewport height
-  _setRealVh();
+  const _layoutTick = () => {
+    _setRealVh();
+    _setTopbarHeight();
+    _setBottomNavClearance();
+  };
+
+  _layoutTick();
 
   // Escuchar visualViewport (Safari lo soporta desde iOS 13)
   // Se dispara cuando la barra de dirección aparece/desaparece
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', () => {
-      _setRealVh();
-      _setTopbarHeight();
-    }, { passive: true });
+    window.visualViewport.addEventListener('resize', _layoutTick, { passive: true });
   }
 
-  window.addEventListener('resize', () => {
-    _setRealVh();
-    _setTopbarHeight();
-  }, { passive: true });
+  window.addEventListener('resize', _layoutTick, { passive: true });
 
   window.addEventListener('orientationchange', () => {
-    requestAnimationFrame(() => {
-      _setRealVh();
-      _setTopbarHeight();
-    });
+    requestAnimationFrame(_layoutTick);
   }, { passive: true });
 
+  try {
+    window.matchMedia('(max-width: 768px)').addEventListener('change', _layoutTick);
+  } catch (_) {
+    window.matchMedia('(max-width: 768px)').addListener(_layoutTick);
+  }
+
+  requestAnimationFrame(() => requestAnimationFrame(_layoutTick));
   // Segunda medición tras aplicar safe-areas en iOS
-  setTimeout(() => { _setRealVh(); _setTopbarHeight(); }, 100);
-  setTimeout(() => { _setRealVh(); _setTopbarHeight(); }, 600);
+  setTimeout(_layoutTick, 100);
+  setTimeout(_layoutTick, 600);
 }
 
 if (document.readyState === 'loading') {

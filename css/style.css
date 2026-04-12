@@ -35,8 +35,8 @@
   --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   --chat-mine-bg: var(--accent);
   --chat-other-bg: var(--bg3);
-  /* Espacio reservado sobre el contenido para la bottom nav fija + home indicator (iOS) */
-  --ze-bottom-nav-clearance: calc(48px + env(safe-area-inset-bottom, 0px));
+  /* Espacio bajo el contenido: sobreescrito por JS con el alto real de #bottomNav (móvil) */
+  --ze-bottom-nav-clearance: calc(52px + env(safe-area-inset-bottom, 0px));
   --ze-topbar-h: calc(56px + env(safe-area-inset-top, 0px)); /* sobreescrito por JS */
   --ze-real-vh: 1vh; /* sobreescrito por JS con visualViewport — fix Safari */
   /* Safe-area shortcuts usadas por el iOS keyboard fix en utils-extra.js */
@@ -4490,11 +4490,16 @@ header.topbar {
   background: var(--bg1);
   border-top: 1px solid var(--border);
   z-index: 150;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: space-between;
   padding: 6px 0;
   padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   gap: 0;
   transition: transform 0.18s ease, visibility 0.18s ease;
   will-change: transform;
+  box-sizing: border-box;
 }
 
 .bottom-nav-item {
@@ -8452,7 +8457,7 @@ header.topbar {
     min-height: 0;
     max-height: none;
     /* Espacio para la topbar fija usando scroll-padding */
-    scroll-padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px) + 16px));
+    scroll-padding-top: max(72px, calc(var(--ze-topbar-h, 56px) + 16px));
   }
 
   /* Spacer mínimo para compensar la topbar fija (position:fixed en móvil) */
@@ -8470,7 +8475,7 @@ header.topbar {
   .biblio-header,
   .dvd-header {
     position: sticky;
-    top: calc(56px + env(safe-area-inset-top, 0px));
+    top: var(--ze-topbar-h, calc(56px + env(safe-area-inset-top, 0px)));
     z-index: 50;
     background: var(--bg0);
     padding-top: 10px;
@@ -8486,10 +8491,10 @@ header.topbar {
   }
 
 
-  /* Chat: altura fija. --chat-h la ajusta utils-extra (teclado); si no existe, usa topbar medido */
+  /* Chat: altura fija. --chat-h (teclado); fallback = topbar + bottom nav medidos (sin duplicar safe-area) */
   #sectionChat.active {
-    height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - 48px - env(safe-area-inset-bottom, 0px)));
-    max-height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - 48px - env(safe-area-inset-bottom, 0px)));
+    height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    max-height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
@@ -8652,10 +8657,8 @@ header.topbar {
   #vistaSalasChat {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-    height: calc(100svh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-    max-height: calc(100vh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-    max-height: calc(100svh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px));
+    max-height: calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px));
     overflow: hidden;
   }
 

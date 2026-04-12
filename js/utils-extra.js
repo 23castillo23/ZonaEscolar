@@ -288,9 +288,6 @@ window.addEventListener('resize', () => {
 (function setupIOSKeyboardFix() {
   if (!window.visualViewport) return;
 
-  const BOTTOM_NAV_H = 48;
-  const TOP_BAR_H = 56;
-
   let _lastVVHeight = window.visualViewport.height;
 
   function _scrollChatToBottom() {
@@ -298,34 +295,31 @@ window.addEventListener('resize', () => {
     if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 100);
   }
 
+  /** Lee px ya resueltos de variables fijadas por core.js (--ze-topbar-h, --ze-bottom-nav-clearance). */
+  function _readLayoutPx(prop, fallback) {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue(prop).trim();
+    const n = parseFloat(raw);
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  }
+
   function _updateChatHeight(vvHeight) {
-    const safeTop = parseInt(getComputedStyle(document.documentElement)
-      .getPropertyValue('--sat') || '0') || 0;
-    const safeBottom = parseInt(getComputedStyle(document.documentElement)
-      .getPropertyValue('--sab') || '0') || 0;
-    const chatH = vvHeight - TOP_BAR_H - BOTTOM_NAV_H - safeTop - safeBottom;
+    const topH = _readLayoutPx('--ze-topbar-h', 56);
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const bottomH = isMobile ? _readLayoutPx('--ze-bottom-nav-clearance', 48) : 0;
+    const chatH = vvHeight - topH - bottomH;
     document.documentElement.style.setProperty('--chat-h', Math.max(chatH, 200) + 'px');
   }
 
   window.visualViewport.addEventListener('resize', () => {
     const vvHeight = window.visualViewport.height;
     const keyboardOpen = vvHeight < _lastVVHeight - 50;
-    const keyboardClosed = vvHeight > _lastVVHeight + 50;
     _lastVVHeight = vvHeight;
 
-    // 1. Actualizar variable CSS --chat-h
+    // 1. Actualizar variable CSS --chat-h (topbar/bottom nav medidos en core.js)
     _updateChatHeight(vvHeight);
 
-    // 2. Ajustar sección activa (solo secciones que NO son el chat,
-    //    para que el chat use --chat-h en lugar de maxHeight)
-    const activeSection = document.querySelector('.section.active');
-    if (activeSection && !activeSection.id?.includes('Chat')) {
-      if (keyboardOpen) {
-        activeSection.style.maxHeight = vvHeight + 'px';
-      } else if (keyboardClosed) {
-        activeSection.style.maxHeight = '';
-      }
-    }
+    // 2. No tocar maxHeight de secciones no-chat: asignar vvHeight completo dejaba
+    //    un hueco enorme bajo el contenido al abrir el teclado (viewport ≠ alto útil).
 
     // 3. Desplazar sección de chat si el teclado cubre contenido
     // FIX: eliminado translateY en el contenedor padre del chat. Aplicarlo aquí
