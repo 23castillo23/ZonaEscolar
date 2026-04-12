@@ -6505,7 +6505,7 @@ header.topbar {
 
 .dvd-shell {
   padding: 20px 16px 100px;
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -8495,7 +8495,7 @@ header.topbar {
     box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
     flex-shrink: 0;
   }
-
+  
   .chat-compose {
     padding: 0;
     max-width: 100%;

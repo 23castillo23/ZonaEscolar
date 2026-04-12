@@ -2,7 +2,7 @@
 
 Tu espacio escolar privado — apuntes, chat, tareas y dinámicas con tu grupo.
 
-> **Versión actual:** 1.6.2  
+> **Versión actual:** 1.7.0  
 > **Stack:** Firebase (Auth + Firestore) · Cloudinary · PWA  
 > **Sin backend propio** — todo corre en Firebase + Cloudinary
 
@@ -19,11 +19,11 @@ zonaescolar/
 │   └── style.css           ← Estilos globales (tema oscuro/claro)
 ├── js/
 │   ├── core.js             ← Estado global, auth, utilidades
-│   ├── grupos.js           ← Grupos, miembros, sidebar
+│   ├── grupos.js           ← Grupos, miembros, sidebar, navegación
 │   ├── tableros.js         ← Feed, tableros temáticos, tarjetas
 │   ├── muro.js             ← Muro personal, álbumes de fotos
 │   ├── chat.js             ← Chat en tiempo real, salas
-│   ├── tareas.js           ← Tareas, subtareas, calendario
+│   ├── tareas.js           ← Tareas, subtareas, filtros
 │   ├── biblioteca.js       ← Biblioteca de archivos
 │   ├── apuntes.js          ← Apuntes por semestre y materia
 │   ├── dinamicas.js        ← Ruleta, votación, trivia, puntos
@@ -120,7 +120,6 @@ service cloud.firestore {
     }
     match /ec_muro_fotos/{docId} {
       allow get, list, create: if isAuth();
-      /* update: p. ej. quitar albumId al eliminar un álbum (Mis aportes) */
       allow update: if isAuth() && request.auth.uid == resource.data.authorUid;
       allow delete: if isAuth();
     }
@@ -172,9 +171,12 @@ service cloud.firestore {
 ## Flujo de uso
 
 1. **Admin crea grupo** → le aparece en el selector de "Grupo activo"
-2. **Admin invita miembros** → botón `+ Invitar` en la topbar → escribe correo Gmail + nombre del compañero
+2. **Admin invita miembros** → botón `+ Invitar` en la topbar → escribe correo Gmail exacto + nombre del compañero
 3. **Compañero entra con su cuenta Google** → el grupo aparece automáticamente en su selector
-4. **Cada quien interactúa solo dentro de su grupo activo** — pueden pertenecer a varios grupos y cambiar con el selector
+4. **Si el admin expulsa y reingresa a alguien**, el grupo vuelve a aparecer automáticamente sin recargar la página
+5. **Cada quien interactúa solo dentro de su grupo activo** — pueden pertenecer a varios grupos y cambiar con el selector
+
+> ⚠️ El correo que el admin escribe al invitar debe coincidir **exactamente** con el que usa el compañero para iniciar sesión con Google (incluyendo puntos y mayúsculas).
 
 ---
 
@@ -187,7 +189,7 @@ service cloud.firestore {
 | 📂 **Mis Aportes** | Perfil personal con álbumes de fotos y publicaciones del usuario |
 | 📸 **Apuntes** | Fotos del pizarrón organizadas por semestre y materia (sube a Cloudinary) |
 | 💬 **Chat** | Mensajes en tiempo real con salas. El nombre de la sala activa aparece en la barra superior |
-| ✅ **Tareas** | Tareas con responsable, fecha límite, materia, subtareas y filtros |
+| ✅ **Tareas** | Tareas con responsable, fecha límite, materia, subtareas y filtros (Todas / Pendientes / Completadas) |
 | 🗳️ **Votación** | Encuestas creadas y guardadas. Se publican manualmente en el tablero elegido con 📌 Compartir |
 | 🧠 **Trivia** | Banco de preguntas guardado en Firestore. Se juega desde Dinámicas y se comparte al tablero con 📌 |
 | 🎰 **Ruleta** | Elige al azar quién expone en clase |
@@ -249,6 +251,40 @@ ZonaEscolar es instalable como app nativa en móvil y escritorio.
 
 ## Changelog
 
+### v1.7.0 — Fixes de layout móvil, calendario eliminado y correcciones de miembros
+
+**Cambios principales:**
+
+**1 — Calendario de tareas eliminado (`tareas.js` + `index.html`)**  
+El calendario mensual de tareas fue removido completamente por problemas de adaptación en móvil. Se eliminaron las funciones `renderCalMes`, `calNavegar`, `calVerDia`, `resetVistaCalendario` y las variables `_calTareasCache`, `tareasVistaCalendario`, `calMesOffset` y `calDiaSeleccionado`. El botón `📅 Calendario` fue quitado del HTML. Los filtros Todas / Pendientes / Completadas se mantienen intactos.
+
+**2 — Bug crítico: miembros reingresados no veían el grupo (`grupos.js`)**  
+Cuando el admin expulsaba a un integrante y lo volvía a agregar, el listener de Firestore recibía la actualización en tiempo real pero no llamaba a `activarGrupo` porque ya había pasado el `primerSnapshot`. El usuario veía el grupo en el selector pero la pantalla seguía diciendo "sin grupo". Se agregó el bloque `else if (grupos.length > 0)` en el listener para activar automáticamente el grupo cuando el usuario no tiene ninguno activo y aparece uno nuevo.
+
+**3 — Barra de usuarios online arreglada (`style.css`)**  
+La barra `.chat-online-bar` mostraba una línea verde visible aunque no hubiera nadie conectado, porque tenía `min-height: 26px` y `border-bottom` siempre activos. Ahora tiene `min-height: 0` y el borde/padding solo aparecen cuando la lista interna está en `display:flex` (es decir, cuando hay compañeros conectados). El sistema de presencia no fue modificado.
+
+**4 — Espacio excesivo arriba en móvil (`style.css`)**  
+El `::before` de `.section` usaba `max(56px, calc(...))` que en Android generaba un hueco extra entre el topbar y el contenido. Cambiado a `calc(56px + env(safe-area-inset-top, 0px))` para que sea exactamente el alto del topbar.
+
+**5 — Barra del chat oculta por el bottom nav en móvil (`style.css`)**  
+El `.chat-compose-wrapper` tenía `padding-bottom` calculado solo con `safe-area-inset-bottom`, sin considerar la altura del bottom nav (48px). Cambiado a `var(--ze-bottom-nav-clearance)` que ya incluye ambos valores, igual que el resto de la app.
+
+**6 — VideoTutoriales: espacio vacío a la izquierda (`style.css`)**  
+El `.dvd-shell` tenía `max-width: 900px` con `margin: 0 auto`, dejando espacio en blanco a la izquierda en pantallas anchas. Ampliado a `max-width: 1200px` para aprovechar el ancho disponible igual que las otras secciones.
+
+---
+
+**Archivos modificados en esta versión:**
+| Archivo | Cambio |
+|---|---|
+| `js/tareas.js` | Eliminado calendario completo. Filtros de tareas simplificados |
+| `js/grupos.js` | Fix: auto-activar grupo al ser reingresado después de expulsión |
+| `css/style.css` | Fix barra online, fix spacer móvil, fix chat-compose, fix dvd-shell |
+| `index.html` | Eliminado botón `📅 Calendario` de la sección de tareas |
+
+---
+
 ### v1.6.3 — Refactorización y corrección de bugs críticos
 
 **Bugs críticos corregidos:**
@@ -266,12 +302,7 @@ En `dinamicas.js` se verificaba `typeof triviasUnsub` pero la variable existía 
 Línea vacía: `const btnPublicar = '';` que nunca se usaba. Eliminada.
 
 **Bug 5 — Manejo de errores silencioso (anti-pattern)**  
-Múltiples `.catch()` con funciones vacías que ocultaban errores:
-- `chat.js` línea 95: cargarMuroStats
-- `muro.js` línea 126: loadMuroAlbums  
-- `utils-extra.js` línea 63: mostrarSelectorTablero
-
-Ahora todos tienen logging: `console.error('Error ad hoc:', err)` para facilitar debugging.
+Múltiples `.catch()` con funciones vacías que ocultaban errores. Ahora todos tienen logging con `console.error`.
 
 ---
 
@@ -289,10 +320,10 @@ Ahora todos tienen logging: `console.error('Error ad hoc:', err)` para facilitar
 ### v1.6.2 — Limpieza y caché PWA
 
 **Función huérfana eliminada (`biblioteca.js`)**  
-`renderCalendarioTareas` era la versión vieja del calendario que quedó en el archivo sin llamarse desde ningún lado. Se eliminó para evitar confusión. La función activa es `renderCalMes` (introducida en v1.6.1).
+`renderCalendarioTareas` era la versión vieja del calendario que quedó en el archivo sin llamarse desde ningún lado. Se eliminó.
 
-**Bump de caché del Service Worker (`sw.js` + `index.html`)**  
-Se actualizó `CACHE_NAME` de `v13` a `v14` y las versiones de todos los scripts de `?v=2` a `?v=3`. Esto garantiza que los usuarios con la PWA instalada descarguen los archivos corregidos en v1.6.1 (topbar fija, calendario, calVerDia sin re-fetch) en lugar de servir versiones viejas del caché.
+**Bump de caché del Service Worker**  
+Se actualizó `CACHE_NAME` de `v13` a `v14` y las versiones de todos los scripts de `?v=2` a `?v=3`.
 
 ---
 
@@ -305,25 +336,19 @@ Se actualizó `CACHE_NAME` de `v13` a `v14` y las versiones de todos los scripts
 
 ---
 
-
 ### v1.6.1 — Correcciones móvil (PWA)
 
-Correcciones enfocadas en la experiencia en teléfono:
-
 **Bug 1 — Calendario: mes incorrecto al navegar (`tareas.js`)**  
-El listener de Firestore recalculaba el mes con aritmética manual (`Math.floor` y operador `%`), lo que daba resultados incorrectos al cruzar diciembre/enero o al dispararse mientras `calMesOffset` ya había cambiado. Ahora usa `new Date(año, mes + offset, 1)`, igual que `calNavegar()` en `biblioteca.js`.
+Ahora usa `new Date(año, mes + offset, 1)` en lugar de aritmética manual.
 
 **Bug 2 — Calendario: retardo al tocar un día (`biblioteca.js`)**  
-Cada vez que el usuario tocaba un día del calendario se hacía un nuevo `getDocs` a Firebase, causando un retardo visible. Ahora `renderCalMes` guarda las tareas en la variable `_calTareasCache`, y `calVerDia` filtra desde ese caché local sin ninguna consulta extra a la base de datos. El resultado es instantáneo.
+`renderCalMes` guarda las tareas en `_calTareasCache` y `calVerDia` filtra desde ese caché sin hacer getDocs.
 
-**Bug 3 — Topbar se oculta al hacer scroll en iOS (`style.css` + `grupos.js`)**  
-En iOS, `position: sticky` dentro de un contenedor con `overflow` anidado no se mantiene fijo — la topbar desaparecía al bajar el contenido y había que subir manualmente para cambiar de sección. Solución en dos partes:
-- La topbar pasa a `position: fixed` dentro del media query `≤768px`, asegurando que siempre sea visible.
-- Se agrega `padding-top: calc(56px + env(safe-area-inset-top, 0px) + 12px)` a `.section` para compensar el espacio que ocupa la barra fija.
-- `showSection()` en `grupos.js` hace `el.scrollTop = 0` al activar cada sección, así siempre se empieza desde arriba al cambiar de pantalla.
+**Bug 3 — Topbar se oculta al hacer scroll en iOS**  
+La topbar pasa a `position: fixed` en móvil. `showSection()` hace `scrollTop = 0` al activar cada sección.
 
-**Bug 4 — `calMesOffset` variable global no centralizada (`biblioteca.js` + `tareas.js`)**  
-`calMesOffset` vivía en `biblioteca.js` pero `tareas.js` también la usaba sin declararla. Al quedar en el ámbito global del navegador funciona, pero es frágil ante errores de carga. Documentado para mover a `core.js` en la próxima refactorización mayor (junto a `calDiaSeleccionado` que ya vive ahí).
+**Bug 4 — `calMesOffset` variable global no centralizada**  
+Documentado para mover a `core.js` (ya resuelto en v1.6.3).
 
 ---
 

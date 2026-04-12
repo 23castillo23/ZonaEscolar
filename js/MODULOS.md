@@ -10,11 +10,11 @@ Cada uno depende del anterior (las variables globales de core.js las usan todos)
 | Archivo              | Líneas | Qué hace                                              |
 |----------------------|--------|-------------------------------------------------------|
 | `core.js`            | ~605   | Estado global, utilidades (escHtml, fmtTime…), tema oscuro/claro, Firebase Auth, **uploadToCloudinary** |
-| `grupos.js`          | ~577   | Crear/cambiar/abandonar grupos, invitar miembros, sidebar de integrantes, **navegación global (activarSeccion, setActiveNav)** |
+| `grupos.js`          | ~580   | Crear/cambiar/abandonar grupos, invitar miembros, sidebar de integrantes, **navegación global (activarSeccion, setActiveNav)**, **auto-activar grupo al ser reingresado** |
 | `tableros.js`        | ~1792  | Tableros (galería + feed), tarjetas, comentarios, likes, chinchetas, publicar, quitar votación del tablero |
 | `muro.js`            | ~767   | Muro personal y ajeno, álbumes, fotos, **initMuro**, cargarMuroFotos, publicarFotoMuroAlFeed |
 | `chat.js`            | ~941   | Chat en tiempo real, salas, imágenes, typing, online, burbuja flotante |
-| `tareas.js`          | ~555   | Crear/completar/filtrar tareas, subtareas, **calendario mensual**, calNavegar, calVerDia |
+| `tareas.js`          | ~380   | Crear/completar/filtrar tareas, subtareas. **Calendario eliminado.** |
 | `biblioteca.js`      | ~229   | Biblioteca de archivos, categorías, compartir al tablero |
 | `apuntes.js`         | ~760   | Semestres, materias/galerías, fotos de pizarrón, notas de materia |
 | `dinamicas.js`       | ~1831  | Ruleta, votación (sin autopublicar), trivia (guardada en Firestore), puntos, lightbox, compartir al tablero |
@@ -28,25 +28,31 @@ Cada uno depende del anterior (las variables globales de core.js las usan todos)
 | Qué quieres cambiar | Archivo |
 |---|---|
 | Chat (mensajes, salas, burbuja) | `chat.js` |
+| Barra de online del chat (visual) | `style.css` → `.chat-online-bar` |
 | Muro (fotos, álbumes, perfil) | `muro.js` |
-| Tareas (lista, subtareas, calendario) | `tareas.js` |
+| Tareas (lista, subtareas, filtros) | `tareas.js` |
 | Feed o tarjetas del tablero | `tableros.js` |
 | Variables globales (currentUser, currentGroupId) | `core.js` |
 | Subir archivos a Cloudinary | `core.js` — función `uploadToCloudinary()` |
 | "Compartir al tablero" desde biblioteca/videotutoriales | `utils-extra.js` |
 | Votaciones o trivias | `dinamicas.js` |
 | Navegación entre secciones | `grupos.js` — funciones `activarSeccion()` y `setActiveNav()` |
+| Agregar/reingresar miembros al grupo | `grupos.js` — función `loadGruposDelUsuario()` |
+| Layout responsive móvil | `style.css` → `@media (max-width: 768px)` |
+| Grid de VideoTutoriales | `style.css` → `.dvd-shell` |
 
 ---
 
-## Lo que se reorganizó (vs versión anterior)
+## Lo que se reorganizó / eliminó (historial)
 
-| Qué se movió | De | A | Por qué |
+| Qué se movió / eliminó | De | A | Por qué |
 |---|---|---|---|
-| `initMuro()`, `cargarMuroFotos()`, `cargarMuroStats()`, `cargarMuroPublicaciones()`, `eliminarFotoMuro()`, `publicarFotoMuroAlFeed()` | `chat.js` | `muro.js` | La lógica del muro no tiene nada que ver con el chat |
-| `renderCalMes()`, `calNavegar()`, `calVerDia()`, `resetVistaCalendario()`, `toggleTarea()`, `compartirTarea()`, `eliminarTarea()` | `biblioteca.js` | `tareas.js` | El calendario es parte de Tareas, no de Biblioteca |
-| `uploadToCloudinary()` | `apuntes.js` | `core.js` | La usan 5 módulos distintos (apuntes, muro, chat, tableros, dinámicas) |
-| `window.abrirDetalleDvd = abrirDetalleDvd` | `utils-extra.js` | eliminado | Era una referencia muerta; `abrirDetalleDvd` se llama directamente en `videotutoriales.js` |
+| `initMuro()`, `cargarMuroFotos()`, etc. | `chat.js` | `muro.js` | La lógica del muro no tiene nada que ver con el chat |
+| `renderCalMes()`, `calNavegar()`, `calVerDia()`, `resetVistaCalendario()` | `biblioteca.js` | `tareas.js` | El calendario es parte de Tareas, no de Biblioteca |
+| `uploadToCloudinary()` | `apuntes.js` | `core.js` | La usan 5 módulos distintos |
+| **Calendario de tareas completo** | `tareas.js` + `index.html` | **Eliminado** | El usuario decidió quitarlo por problemas de adaptación en móvil |
+| `_calTareasCache`, `calMesOffset`, `calDiaSeleccionado`, `tareasVistaCalendario` | `tareas.js` / `core.js` | **Eliminadas** | Ya no se necesitan sin el calendario |
+| Botón `📅 Calendario` | `index.html` | **Eliminado** | Acompañó la eliminación del calendario |
 
 ---
 
@@ -56,6 +62,24 @@ Cada uno depende del anterior (las variables globales de core.js las usan todos)
 - **Compartir** (botón 📌) → abre selector de tablero → publica en `ec_feed` con el tablero elegido.
 - **Quitar del tablero** → solo borra el post del feed, la votación/trivia sigue en Dinámicas.
 - **Eliminar definitivamente** → desde Dinámicas → Votaciones/Trivia → botón 🗑️ Eliminar.
+
+---
+
+## Flujo de miembros (invitar / expulsar / reingresar)
+
+- **Invitar** → Admin escribe correo Gmail exacto + nombre → se agrega al array `miembros` del grupo en Firestore.
+- **El correo debe coincidir exactamente** con el que usa el compañero para iniciar sesión con Google.
+- **Expulsar** → botón ✕ en sidebar → se quita del array `miembros` → el listener detecta el cambio y muestra pantalla de expulsado en tiempo real.
+- **Reingresar** → Admin lo vuelve a agregar con el mismo correo → el listener en `loadGruposDelUsuario` detecta el nuevo grupo y lo activa automáticamente sin necesidad de recargar la página.
+
+---
+
+## Barra de usuarios online (Chat)
+
+- La barra `.chat-online-bar` existe en el HTML pero **es invisible cuando no hay compañeros conectados** (height 0, sin borde).
+- Cuando hay otros usuarios en la sala, `chat.js` pone `.chat-online-list` en `display:flex` y la barra aparece con sus píldoras verdes.
+- El sistema de presencia (`ec_online`, heartbeat cada 25s) sigue activo en segundo plano aunque la barra no sea visible.
+- Para modificar el estilo: `style.css` → `.chat-online-bar` y `.chat-online-pill`.
 
 ---
 
@@ -76,12 +100,12 @@ Solo sube el archivo que modificaste + `sw.js` incrementando la versión del cac
 
 ```js
 // sw.js — línea 1
-const CACHE_NAME = 'zonaescolar-shell-v28';  // ← incrementar cada deploy
+const CACHE_NAME = 'zonaescolar-shell-v32';  // ← incrementar cada deploy
 ```
 
 Y actualiza el `?v=` del script correspondiente en `index.html`:
 ```html
-<script src="js/tareas.js?v=2"></script>  ← incrementar versión
+<script src="js/tareas.js?v=32"></script>  ← incrementar versión
 ```
 Esto fuerza al navegador a descargar la versión nueva en lugar de usar el caché.
 
