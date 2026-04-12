@@ -1215,8 +1215,8 @@ function buildFeedCard(p) {
 
   // Card especial para votación inline
   if (p.type === 'votacion' && p.votacionId) {
-    const yaVoto = p.votantes?.includes(currentUser.uid);
-    const miVoto = Number(p?.userVotes?.[currentUser.uid]);
+    const miVoto = parseUserVoteIndex(p?.userVotes?.[currentUser.uid]);
+    const yaVoto = miVoto !== null || (p.votantes?.includes(currentUser.uid) ?? false);
     const activa = p.activa !== false; // true por defecto
     const totalVotos = Object.values(p.votos || {}).reduce((a, b) => a + b, 0);
 
@@ -1225,7 +1225,7 @@ function buildFeedCard(p) {
     const resultadosHtml = (p.opciones || []).map((op, i) => {
       const cnt = p.votos?.[i] || 0;
       const pct = totalVotos ? Math.round((cnt / totalVotos) * 100) : 0;
-      const isMine = Number.isInteger(miVoto) && miVoto === i;
+      const isMine = miVoto !== null && miVoto === i;
       return `
         <div class="feed-votacion-resultado-bar ${isMine ? 'mi-voto' : ''}">
           <div class="feed-votacion-bar-fill" style="width:${pct}%"></div>
@@ -1244,8 +1244,8 @@ function buildFeedCard(p) {
       </div>`;
     } else {
       const botones = (p.opciones || []).map((op, i) =>
-        `<button class="feed-votacion-opcion ${Number.isInteger(miVoto) && miVoto === i ? 'votacion-opcion-seleccionada' : ''}" onclick="votarDesdeFeed('${p.votacionId}',${i},'${p.id}')">
-          ${escHtml(op)}${Number.isInteger(miVoto) && miVoto === i ? ' ✔' : ''}
+        `<button class="feed-votacion-opcion ${miVoto !== null && miVoto === i ? 'votacion-opcion-seleccionada' : ''}" onclick="votarDesdeFeed('${p.votacionId}',${i},'${p.id}')">
+          ${escHtml(op)}${miVoto !== null && miVoto === i ? ' ✔' : ''}
         </button>`
       ).join('');
       pollHtml = `<div class="feed-votacion-opciones-cta">${botones}</div>

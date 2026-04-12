@@ -108,6 +108,8 @@ html {
   font-size: 16px;
   -webkit-tap-highlight-color: transparent;
   height: 100%;
+  /* Evita que el cuerpo “rebote” horizontalmente en iOS al hacer overscroll */
+  overflow-x: clip;
 }
 
 body {
@@ -123,6 +125,8 @@ body {
   overflow-x: hidden;
   line-height: 1.55;
   transition: background-color 0.3s, color 0.3s;
+  /* Comportamiento de scroll predecible en PWA / Safari */
+  overscroll-behavior-y: none;
 }
 
 button {
@@ -315,8 +319,13 @@ a {
 .app-shell {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100svh;
   height: 100dvh;
   min-height: -webkit-fill-available;
+  max-height: 100dvh;
+  max-height: 100svh;
+  overflow: hidden;
 }
 
 /* ── SIDEBAR ── */
@@ -553,11 +562,10 @@ header.topbar {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  height: 100dvh;
+  min-height: 0;
+  height: 100%;
   min-height: -webkit-fill-available;
-  max-height: 100vh;
-  height: 100dvh;
+  max-height: 100%;
   overflow: hidden;
   background: var(--bg0);
   transition: background 0.3s;
@@ -587,8 +595,8 @@ header.topbar {
   overflow: hidden !important;
   padding: 0;
   max-width: 100%;
-  height: calc(100vh - 56px);
-  height: calc(100svh - 56px);
+  height: calc(100% - var(--ze-topbar-h, 56px));
+  min-height: 0;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -4123,6 +4131,9 @@ header.topbar {
   font-weight: 500;
   transition: var(--transition);
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .votacion-opcion-btn:hover {
@@ -6200,6 +6211,9 @@ header.topbar {
   /* Misma altura que las barras */
   display: flex;
   align-items: center;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Efecto al pasar el mouse (o tocar en celular) */
@@ -8420,11 +8434,10 @@ header.topbar {
   .main-content {
     margin-left: 0;
     padding-bottom: 0;
-    min-height: 0;
-    max-height: none;
     flex: 1;
-    min-height: 100vh;
-  height: 100dvh;
+    min-height: 0;
+    height: 100dvh;
+    max-height: 100dvh;
     min-height: -webkit-fill-available;
     overflow: hidden;
     transition: height 0.15s ease, min-height 0.15s ease, max-height 0.15s ease;
@@ -8446,7 +8459,7 @@ header.topbar {
   .section::before {
     content: '';
     display: block;
-    height: calc(56px + env(safe-area-inset-top, 0px));
+    height: var(--ze-topbar-h, calc(56px + env(safe-area-inset-top, 0px)));
     pointer-events: none;
   }
 
@@ -8473,9 +8486,10 @@ header.topbar {
   }
 
 
-  /* Chat: altura fija para que flex:1 de chat-messages funcione en móvil */
+  /* Chat: altura fija. --chat-h la ajusta utils-extra (teclado); si no existe, usa topbar medido */
   #sectionChat.active {
-    height: calc(100dvh - max(56px, calc(56px + env(safe-area-inset-top, 0px))) - 48px - env(safe-area-inset-bottom, 0px));
+    height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - 48px - env(safe-area-inset-bottom, 0px)));
+    max-height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - 48px - env(safe-area-inset-bottom, 0px)));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
@@ -8484,6 +8498,7 @@ header.topbar {
     overflow: hidden;
     display: flex !important;
     flex-direction: column;
+    transition: height 0.15s ease, max-height 0.15s ease;
   }
   #sectionChat:not(.active) {
     display: none !important;
@@ -8680,12 +8695,6 @@ header.topbar {
      estado del iPhone (safe-area-inset-top) */
   .lightbox-close {
     top: max(16px, calc(env(safe-area-inset-top, 0px) + 10px));
-  }
-
-  #sectionChat.active {
-    height: var(--chat-h, calc(100dvh - 56px - 48px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
-    max-height: var(--chat-h, calc(100dvh - 56px - 48px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
-    transition: height 0.15s ease, max-height 0.15s ease;
   }
 }
 

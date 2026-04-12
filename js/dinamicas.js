@@ -317,8 +317,8 @@ function _bindVotacionForm() {
 function _renderTarjetaVotacion(v) {
   const esPropietario = v.authorUid === currentUser.uid;
   const puedeGestionar = isAdmin || esPropietario;
-  const yaVoto = v.votantes?.includes(currentUser.uid);
-  const miVoto = Number(v?.userVotes?.[currentUser.uid]);
+  const miVoto = parseUserVoteIndex(v?.userVotes?.[currentUser.uid]);
+  const yaVoto = miVoto !== null || (v.votantes?.includes(currentUser.uid) ?? false);
   const totalVotos = Object.values(v.votos || {}).reduce((a, b) => a + b, 0);
   const activa = v.activa !== false;
 
@@ -340,7 +340,7 @@ function _renderTarjetaVotacion(v) {
   const opcionesHtml = activa
     ? `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">` +
       v.opciones.map((op, i) => {
-        const selec = yaVoto && Number.isInteger(miVoto) && miVoto === i;
+        const selec = yaVoto && miVoto !== null && miVoto === i;
         return `<button class="votacion-opcion-btn${selec ? ' votacion-opcion-seleccionada' : ''}"
           onclick="votarEnPanel('${v.id}',${i})"
           style="text-align:left;padding:8px 12px;border-radius:8px;font-size:13px">
@@ -351,7 +351,7 @@ function _renderTarjetaVotacion(v) {
   const resultadosHtml = v.opciones.map((op, i) => {
     const cnt = v.votos?.[i] || 0;
     const pct = totalVotos ? Math.round(cnt / totalVotos * 100) : 0;
-    const esMio = yaVoto && Number.isInteger(miVoto) && miVoto === i;
+    const esMio = yaVoto && miVoto !== null && miVoto === i;
     return `<div class="votacion-resultado-item${esMio ? ' mi-voto' : ''}" style="margin-bottom:6px">
       <span class="votacion-bar-label">${escHtml(op)}${esMio ? ' <span style="font-size:10px;opacity:0.7">(tu voto)</span>' : ''}</span>
       <div class="votacion-bar-wrap"><div class="votacion-bar" style="width:${pct}%"></div></div>
@@ -388,35 +388,72 @@ function _renderTarjetaVotacion(v) {
   </div>`;
 }
 
-let _votandoEnProgreso = false;
-window.votarEnPanel = async function (votacionId, opcionIdx) {
-  // Evitar doble clic mientras se procesa el voto
-  if (_votandoEnProgreso) return;
-  _votandoEnProgreso = true;
-  const { doc, getDoc, updateDoc, arrayUnion, increment, collection, query, where, getDocs } = lib();
-  try {
-    const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
-    if (!vSnap.exists()) return;
+/** Una transacción evita doble conteo al cambiar voto (doble toque / carrera). */
+async function _ejecutarVotoTransaccion(votacionId, opcionIdx) {
+  const { runTransaction, doc, increment, arrayUnion } = lib();
+  const uid = currentUser.uid;
+  let status = 'ok';
+  await runTransaction(db(), async (transaction) => {
+    const vRef = doc(db(), 'ec_votaciones', votacionId);
+    const vSnap = await transaction.get(vRef);
+    if (!vSnap.exists()) { status = 'missing'; return; }
     const vData = vSnap.data();
-    if (!vData.activa) { showToast('Esta votación ya cerró.', 'info'); return; }
-    // Leer voto anterior de forma segura — puede ser undefined si nunca ha votado
-    const votoAnteriorRaw = vData?.userVotes?.[currentUser.uid];
-    const votoAnterior = (votoAnteriorRaw !== undefined && votoAnteriorRaw !== null)
-      ? parseInt(votoAnteriorRaw, 10) : null;
-    // Si ya votó por la misma opción, no hacer nada
-    if (votoAnterior !== null && votoAnterior === opcionIdx) return;
-    const patch = { votantes: arrayUnion(currentUser.uid), [`userVotes.${currentUser.uid}`]: opcionIdx };
-    // Quitar voto anterior solo si existía y es un número válido
-    if (votoAnterior !== null && Number.isFinite(votoAnterior)) {
-      patch[`votos.${votoAnterior}`] = increment(-1);
+    if (vData.activa === false) { status = 'cerrada'; return; }
+    const nOpciones = (vData.opciones || []).length;
+    if (!Number.isInteger(opcionIdx) || opcionIdx < 0 || nOpciones === 0 || opcionIdx >= nOpciones) {
+      status = 'invalid';
+      return;
+    }
+    const prev = parseUserVoteIndex(vData.userVotes?.[uid]);
+    if (prev !== null && prev === opcionIdx) { status = 'noop'; return; }
+    const patch = {
+      [`userVotes.${uid}`]: opcionIdx,
+      votantes: arrayUnion(uid)
+    };
+    if (prev !== null && Number.isFinite(prev)) {
+      patch[`votos.${prev}`] = increment(-1);
     }
     patch[`votos.${opcionIdx}`] = increment(1);
-    await updateDoc(doc(db(), 'ec_votaciones', votacionId), patch);
-    // Actualizar también en el feed si está compartida
-    const feedSnap = await getDocs(query(collection(db(), 'ec_feed'), where('votacionId', '==', votacionId)));
-    if (!feedSnap.empty) await updateDoc(doc(db(), 'ec_feed', feedSnap.docs[0].id), patch);
+    transaction.update(vRef, patch);
+  });
+  return status;
+}
+
+async function _syncVotacionFeedCopies(votacionId) {
+  const { doc, getDoc, collection, query, where, getDocs, updateDoc } = lib();
+  const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
+  if (!vSnap.exists()) return;
+  const v = vSnap.data();
+  const payload = {
+    votos: v.votos || {},
+    votantes: v.votantes || [],
+    userVotes: v.userVotes || {},
+    activa: v.activa !== false
+  };
+  // votacionId es único en el proyecto; una sola clave evita índice compuesto
+  const fs = await getDocs(query(collection(db(), 'ec_feed'), where('votacionId', '==', votacionId)));
+  for (const d of fs.docs) {
+    await updateDoc(doc(db(), 'ec_feed', d.id), payload);
+  }
+}
+
+const _votacionVoteLocks = new Set();
+
+window.votarEnPanel = async function (votacionId, opcionIdx) {
+  if (_votacionVoteLocks.has(votacionId)) return;
+  _votacionVoteLocks.add(votacionId);
+  try {
+    const status = await _ejecutarVotoTransaccion(votacionId, opcionIdx);
+    if (status === 'cerrada') { showToast('Esta votación ya cerró.', 'info'); return; }
+    if (status === 'invalid') return;
+    if (status === 'missing' || status === 'noop') return;
+    try {
+      await _syncVotacionFeedCopies(votacionId);
+    } catch (syncErr) {
+      console.error('Sync feed votación:', syncErr);
+    }
   } catch (e) { showToast('No se pudo registrar tu voto. ' + friendlyError(e), 'error'); }
-  finally { _votandoEnProgreso = false; }
+  finally { _votacionVoteLocks.delete(votacionId); }
 };
 window.cerrarVotacionPanel = function (vid) {
   showConfirm({ title:'Cerrar votación', message:'¿Cerrar esta votación?', confirmText:'Cerrar', onConfirm: async () => {
@@ -424,7 +461,7 @@ window.cerrarVotacionPanel = function (vid) {
     try {
       await updateDoc(doc(db(),'ec_votaciones',vid),{activa:false});
       const fs = await getDocs(query(collection(db(),'ec_feed'),where('votacionId','==',vid)));
-      if(!fs.empty) await updateDoc(doc(db(),'ec_feed',fs.docs[0].id),{activa:false});
+      for (const d of fs.docs) await updateDoc(doc(db(),'ec_feed',d.id),{activa:false});
       showToast('Votación cerrada.','success');
     } catch(e){showToast(friendlyError(e),'error');}
   }});
@@ -435,7 +472,7 @@ window.reabrirVotacionPanel = function (vid) {
     try {
       await updateDoc(doc(db(),'ec_votaciones',vid),{activa:true});
       const fs = await getDocs(query(collection(db(),'ec_feed'),where('votacionId','==',vid)));
-      if(!fs.empty) await updateDoc(doc(db(),'ec_feed',fs.docs[0].id),{activa:true});
+      for (const d of fs.docs) await updateDoc(doc(db(),'ec_feed',d.id),{activa:true});
       showToast('¡Votación reabierta!','success');
     } catch(e){showToast(friendlyError(e),'error');}
   }});
@@ -454,61 +491,49 @@ window.eliminarVotacionPanel = function (vid, pregunta) {
 window.votar = async function (votacionId, opcionIdx) { await window.votarEnPanel(votacionId, opcionIdx); };
 
 window.votarDesdeFeed = async function (votacionId, opcionIdx, feedPostId) {
-  const { doc, getDoc, updateDoc, increment, arrayUnion } = lib();
+  if (_votacionVoteLocks.has(votacionId)) return;
+  _votacionVoteLocks.add(votacionId);
+  const { doc, getDoc } = lib();
   try {
-    // 1. Leer estado actual
-    const snap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
-    if (!snap.exists()) return;
-    const data = snap.data();
-    if (!data.activa) { showToast('Esta votación ya cerró.', 'info'); return; }
-
-    const votoAnterior = Number(data?.userVotes?.[currentUser.uid]);
-    if (Number.isInteger(votoAnterior) && votoAnterior === opcionIdx) return; // mismo voto, no hacer nada
-
-    // 2. Calcular nuevo estado local para actualización optimista
-    const nuevosVotos = Object.assign({}, data.votos || {});
-    nuevosVotos[opcionIdx] = (nuevosVotos[opcionIdx] || 0) + 1;
-    if (Number.isInteger(votoAnterior)) {
-      nuevosVotos[votoAnterior] = Math.max(0, (nuevosVotos[votoAnterior] || 1) - 1);
+    const status = await _ejecutarVotoTransaccion(votacionId, opcionIdx);
+    if (status === 'cerrada') { showToast('Esta votación ya cerró.', 'info'); return; }
+    if (status === 'invalid') return;
+    if (status === 'missing' || status === 'noop') return;
+    try {
+      await _syncVotacionFeedCopies(votacionId);
+    } catch (syncErr) {
+      console.error('Sync feed votación:', syncErr);
     }
-    const nuevosVotantes = [...(data.votantes || [])];
-    if (!nuevosVotantes.includes(currentUser.uid)) nuevosVotantes.push(currentUser.uid);
-    const nuevosUserVotes = Object.assign({}, data.userVotes || {});
-    nuevosUserVotes[currentUser.uid] = opcionIdx;
-
-    // 3. Actualizar DOM del card inmediatamente (sin esperar a Firestore)
-    _actualizarCardVotacionDOM(feedPostId, {
+    const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
+    if (!vSnap.exists()) return;
+    const data = vSnap.data();
+    const merged = {
       opciones: data.opciones,
-      votos: nuevosVotos,
-      votantes: nuevosVotantes,
-      userVotes: nuevosUserVotes,
-      activa: true,
+      votos: data.votos || {},
+      votantes: data.votantes || [],
+      userVotes: data.userVotes || {},
+      activa: data.activa !== false,
       votacionId,
       pregunta: data.pregunta,
       authorUid: data.authorUid
-    });
-
-    // 4. También actualizar el cache local del feed
+    };
+    _actualizarCardVotacionDOM(feedPostId, merged);
     if (window._feedPostsCache) {
       window._feedPostsCache = window._feedPostsCache.map(p => {
-        if (p.id === feedPostId) {
-          return { ...p, votos: nuevosVotos, votantes: nuevosVotantes, userVotes: nuevosUserVotes };
+        if (p.votacionId === votacionId && p.type === 'votacion') {
+          return {
+            ...p,
+            votos: merged.votos,
+            votantes: merged.votantes,
+            userVotes: merged.userVotes,
+            activa: merged.activa
+          };
         }
         return p;
       });
     }
-
-    // 5. Persistir en Firestore
-    const patch = {
-      [`votos.${opcionIdx}`]: increment(1),
-      votantes: arrayUnion(currentUser.uid),
-      [`userVotes.${currentUser.uid}`]: opcionIdx
-    };
-    if (Number.isInteger(votoAnterior)) patch[`votos.${votoAnterior}`] = increment(-1);
-    await updateDoc(doc(db(), 'ec_votaciones', votacionId), patch);
-    if (feedPostId) await updateDoc(doc(db(), 'ec_feed', feedPostId), patch);
-
   } catch (e) { showToast(friendlyError(e), 'error'); }
+  finally { _votacionVoteLocks.delete(votacionId); }
 };
 
 /* Actualiza el DOM del card de votación en el feed sin re-renderizar todo */
@@ -516,13 +541,13 @@ function _actualizarCardVotacionDOM(feedPostId, v) {
   const contenedor = document.getElementById('fv-' + feedPostId);
   if (!contenedor) return;
 
-  const yaVoto = v.votantes?.includes(currentUser.uid);
-  const miVoto = Number(v.userVotes?.[currentUser.uid]);
+  const miVoto = parseUserVoteIndex(v.userVotes?.[currentUser.uid]);
+  const yaVoto = miVoto !== null || (v.votantes?.includes(currentUser.uid) ?? false);
   const totalVotos = Object.values(v.votos || {}).reduce((a, b) => a + b, 0);
 
   // Botones de opciones
   const botonesHtml = (v.opciones || []).map((op, i) => {
-    const selec = yaVoto && Number.isInteger(miVoto) && miVoto === i;
+    const selec = yaVoto && miVoto !== null && miVoto === i;
     return `<button class="feed-votacion-opcion${selec ? ' votacion-opcion-seleccionada' : ''}"
       onclick="votarDesdeFeed('${v.votacionId}',${i},'${feedPostId}')">
       ${escHtml(op)}${selec ? ' ✔' : ''}
@@ -533,7 +558,7 @@ function _actualizarCardVotacionDOM(feedPostId, v) {
   const resultadosHtml = (v.opciones || []).map((op, i) => {
     const cnt = v.votos?.[i] || 0;
     const pct = totalVotos ? Math.round(cnt / totalVotos * 100) : 0;
-    const isMine = yaVoto && Number.isInteger(miVoto) && miVoto === i;
+    const isMine = yaVoto && miVoto !== null && miVoto === i;
     return `<div class="feed-votacion-resultado-bar${isMine ? ' mi-voto' : ''}">
       <div class="feed-votacion-bar-fill" style="width:${pct}%"></div>
       <div class="feed-votacion-bar-text">

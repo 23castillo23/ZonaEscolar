@@ -1,20 +1,20 @@
-const CACHE_NAME = 'zonaescolar-shell-v32';
+const CACHE_NAME = 'zonaescolar-shell-v34';
 const APP_SHELL = [
   './',
   './index.html',
-  './css/style.css?v=32',
+  './css/style.css?v=34',
   './manifest.webmanifest',
-  './js/core.js?v=32',
-  './js/grupos.js?v=32',
-  './js/tableros.js?v=32',
-  './js/muro.js?v=32',
-  './js/chat.js?v=32',
-  './js/tareas.js?v=32',
-  './js/biblioteca.js?v=32',
-  './js/apuntes.js?v=32',
-  './js/dinamicas.js?v=32',
-  './js/videotutoriales.js?v=32',
-  './js/utils-extra.js?v=32'
+  './js/core.js?v=34',
+  './js/grupos.js?v=34',
+  './js/tableros.js?v=34',
+  './js/muro.js?v=34',
+  './js/chat.js?v=34',
+  './js/tareas.js?v=34',
+  './js/biblioteca.js?v=34',
+  './js/apuntes.js?v=34',
+  './js/dinamicas.js?v=34',
+  './js/videotutoriales.js?v=34',
+  './js/utils-extra.js?v=34'
 ];
 
 self.addEventListener('install', event => {

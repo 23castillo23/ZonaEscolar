@@ -175,6 +175,13 @@ function waitForFirebase(cb) {
 function db() { return window._db; }
 function lib() { return window._fbLib; }
 
+/** Índice de opción en userVotes de votaciones (0 es válido; undefined → null). */
+function parseUserVoteIndex(raw) {
+  if (raw === undefined || raw === null) return null;
+  const n = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+  return Number.isFinite(n) ? n : null;
+}
+
 // Función para convertir links de Drive a links directos de previsualización
 function limpiarLinkDrive(url) {
   if (url.includes('drive.google.com')) {
