@@ -207,8 +207,8 @@ a {
 }
 
 @keyframes orbFloat {
-
-  0%,
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
 }
 
 .orb3 {
@@ -216,8 +216,8 @@ a {
 }
 
 @keyframes orbFloat3 {
-
-  0%,
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-15px, 15px); }
 }
 
 .login-card {
@@ -241,6 +241,8 @@ a {
 }
 
 @keyframes loginFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .login-logo {
@@ -1205,6 +1207,8 @@ header.topbar {
   overflow: hidden;
 }
 @keyframes popupIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
 }
 .pin-color-dot {
   width: 20px;
@@ -1406,6 +1410,8 @@ header.topbar {
 }
 
 @keyframes cardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .feed-card-header {
@@ -1623,6 +1629,8 @@ header.topbar {
   overflow: hidden;
 }
 @keyframes commentModalIn {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .comments-modal-header {
   display: flex;
@@ -3836,6 +3844,8 @@ header.topbar {
 }
 
 @keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 
@@ -4825,6 +4835,7 @@ header.topbar {
 }
 
 @keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Botón borrar semestre */
