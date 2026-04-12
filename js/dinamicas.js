@@ -666,8 +666,9 @@ window.jugarTrivia = function (triviaId) {
   const cached = window._triviasCache?.find(t => t.id === triviaId);
   const _iniciar = (data) => {
     _triviaJugandoData = data;
-    // Hacer copia profunda del array de preguntas para no mutar el caché original
-    triviaBanco = (data.preguntas || []).map(p => ({ ...p, respuestas: [...(p.respuestas || [])] }));
+    // Hacer copia profunda del array de preguntas para no mutar el caché original.
+    // Las respuestas se conservan en el orden exacto en que fueron creadas (sin shuffle).
+    triviaBanco = (data.preguntas || []).map(p => ({ ...p, respuestas: [...(p.respuestas || [])], _correcta: (p.respuestas || [])[0] }));
     // Siempre resetear estado — permite volver a jugar sin problemas
     triviaIdx = 0;
     triviaScore = 0;
@@ -860,17 +861,15 @@ function mostrarPreguntaTrivia() {
   }
   const p = triviaBanco[triviaIdx];
 
-  // Deduplicar por si los datos en Firestore ya tienen duplicados (compatibilidad con trivias antiguas)
+  // Usar las respuestas en el orden exacto en que fueron creadas (sin shuffle).
+  // La correcta siempre es índice 0 según el diseño del formulario de creación.
   const seen = new Set();
-  const opciones = (p.respuestas || []).filter(r => {
+  const shuffled = (p.respuestas || []).filter(r => {
     const k = (r || '').toLowerCase();
     if (seen.has(k)) return false;
     seen.add(k); return true;
   });
-
-  // BUG-21: Shuffle opciones para que la correcta no sea siempre la primera
-  const correcta = opciones[0]; // La correcta siempre es el índice 0 según el diseño
-  const shuffled = [correcta, ...opciones.slice(1)].sort(() => Math.random() - 0.5);
+  const correcta = p._correcta ?? shuffled[0];
 
   // Guardar en variables de módulo — la respuesta correcta NO aparece en el HTML
   _triviaCorrectaActual   = correcta;
