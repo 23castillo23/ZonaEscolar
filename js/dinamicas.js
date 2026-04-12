@@ -165,6 +165,7 @@ function dibujarRuleta() {
 /* ─────────────── VOTACIÓN — vista inline ─────────────── */
 
 let votacionesUnsub = null;
+let _votacionesCache = {}; // caché local para optimistic UI
 
 /* Abre la vista inline de votaciones */
 window.abrirVistaVotacion = function () {
@@ -217,7 +218,7 @@ function loadVotacionActiva() {
   );
   votacionesUnsub = onSnapshot(q, snap => {
     const todas = [];
-    snap.forEach(d => todas.push({ id: d.id, ...d.data() }));
+    snap.forEach(d => { const v = { id: d.id, ...d.data() }; todas.push(v); _votacionesCache[v.id] = v; });
     _autoCerrarVencidas(todas);
     renderPanelVotaciones(todas);
   });
@@ -419,22 +420,16 @@ async function _ejecutarVotoTransaccion(votacionId, opcionIdx) {
   return status;
 }
 
-async function _syncVotacionFeedCopies(votacionId) {
+async function _syncVotacionFeedCopies(votacionId, payload) {
   const { doc, getDoc, collection, query, where, getDocs, updateDoc } = lib();
-  const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
-  if (!vSnap.exists()) return;
-  const v = vSnap.data();
-  const payload = {
-    votos: v.votos || {},
-    votantes: v.votantes || [],
-    userVotes: v.userVotes || {},
-    activa: v.activa !== false
-  };
-  // votacionId es único en el proyecto; una sola clave evita índice compuesto
-  const fs = await getDocs(query(collection(db(), 'ec_feed'), where('votacionId', '==', votacionId)));
-  for (const d of fs.docs) {
-    await updateDoc(doc(db(), 'ec_feed', d.id), payload);
+  if (!payload) {
+    const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
+    if (!vSnap.exists()) return;
+    const v = vSnap.data();
+    payload = { votos: v.votos || {}, votantes: v.votantes || [], userVotes: v.userVotes || {}, activa: v.activa !== false };
   }
+  const fs = await getDocs(query(collection(db(), 'ec_feed'), where('votacionId', '==', votacionId)));
+  await Promise.all(fs.docs.map(d => updateDoc(doc(db(), 'ec_feed', d.id), payload)));
 }
 
 const _votacionVoteLocks = new Set();
@@ -442,18 +437,33 @@ const _votacionVoteLocks = new Set();
 window.votarEnPanel = async function (votacionId, opcionIdx) {
   if (_votacionVoteLocks.has(votacionId)) return;
   _votacionVoteLocks.add(votacionId);
+  const uid = currentUser.uid;
+  const vCached = _votacionesCache[votacionId];
+  let optimisticPayload = null;
+  let prevCache = null;
+  if (vCached) {
+    const prev = parseUserVoteIndex(vCached?.userVotes?.[uid]);
+    if (prev !== null && prev === opcionIdx) { _votacionVoteLocks.delete(votacionId); return; }
+    prevCache = { ...vCached, votos: { ...(vCached.votos || {}) }, userVotes: { ...(vCached.userVotes || {}) }, votantes: [...(vCached.votantes || [])] };
+    const newVotos = { ...(vCached.votos || {}) };
+    if (prev !== null && Number.isFinite(prev)) newVotos[prev] = Math.max(0, (newVotos[prev] || 0) - 1);
+    newVotos[opcionIdx] = (newVotos[opcionIdx] || 0) + 1;
+    const newUserVotes = { ...(vCached.userVotes || {}), [uid]: opcionIdx };
+    const newVotantes = vCached.votantes?.includes(uid) ? [...vCached.votantes] : [...(vCached.votantes || []), uid];
+    _votacionesCache[votacionId] = { ...vCached, votos: newVotos, userVotes: newUserVotes, votantes: newVotantes };
+    optimisticPayload = { votos: newVotos, userVotes: newUserVotes, votantes: newVotantes, activa: vCached.activa !== false };
+    renderPanelVotaciones(Object.values(_votacionesCache));
+  }
   try {
     const status = await _ejecutarVotoTransaccion(votacionId, opcionIdx);
-    if (status === 'cerrada') { showToast('Esta votación ya cerró.', 'info'); return; }
+    if (status === 'cerrada') { showToast('Esta votación ya cerró.', 'info'); if (prevCache) { _votacionesCache[votacionId] = prevCache; renderPanelVotaciones(Object.values(_votacionesCache)); } return; }
     if (status === 'invalid') return;
     if (status === 'missing' || status === 'noop') return;
-    try {
-      await _syncVotacionFeedCopies(votacionId);
-    } catch (syncErr) {
-      console.error('Sync feed votación:', syncErr);
-    }
-  } catch (e) { showToast('No se pudo registrar tu voto. ' + friendlyError(e), 'error'); }
-  finally { _votacionVoteLocks.delete(votacionId); }
+    _syncVotacionFeedCopies(votacionId, optimisticPayload).catch(e => console.error('Sync feed:', e));
+  } catch (e) {
+    if (prevCache) { _votacionesCache[votacionId] = prevCache; renderPanelVotaciones(Object.values(_votacionesCache)); }
+    showToast('No se pudo registrar tu voto. ' + friendlyError(e), 'error');
+  } finally { _votacionVoteLocks.delete(votacionId); }
 };
 window.cerrarVotacionPanel = function (vid) {
   showConfirm({ title:'Cerrar votación', message:'¿Cerrar esta votación?', confirmText:'Cerrar', onConfirm: async () => {
@@ -493,47 +503,42 @@ window.votar = async function (votacionId, opcionIdx) { await window.votarEnPane
 window.votarDesdeFeed = async function (votacionId, opcionIdx, feedPostId) {
   if (_votacionVoteLocks.has(votacionId)) return;
   _votacionVoteLocks.add(votacionId);
-  const { doc, getDoc } = lib();
+  const uid = currentUser.uid;
+  let prevFeedPost = null;
+  let optimisticPayload = null;
+  if (window._feedPostsCache) {
+    prevFeedPost = window._feedPostsCache.find(p => p.votacionId === votacionId && p.type === 'votacion');
+  }
+  if (prevFeedPost) {
+    const prev = parseUserVoteIndex(prevFeedPost?.userVotes?.[uid]);
+    if (prev !== null && prev === opcionIdx) { _votacionVoteLocks.delete(votacionId); return; }
+    const newVotos = { ...(prevFeedPost.votos || {}) };
+    if (prev !== null && Number.isFinite(prev)) newVotos[prev] = Math.max(0, (newVotos[prev] || 0) - 1);
+    newVotos[opcionIdx] = (newVotos[opcionIdx] || 0) + 1;
+    const newUserVotes = { ...(prevFeedPost.userVotes || {}), [uid]: opcionIdx };
+    const newVotantes = prevFeedPost.votantes?.includes(uid) ? [...prevFeedPost.votantes] : [...(prevFeedPost.votantes || []), uid];
+    optimisticPayload = { opciones: prevFeedPost.opciones, votos: newVotos, votantes: newVotantes, userVotes: newUserVotes, activa: prevFeedPost.activa !== false, votacionId, pregunta: prevFeedPost.pregunta, authorUid: prevFeedPost.authorUid };
+    _actualizarCardVotacionDOM(feedPostId, optimisticPayload);
+    if (window._feedPostsCache) {
+      window._feedPostsCache = window._feedPostsCache.map(p =>
+        (p.votacionId === votacionId && p.type === 'votacion') ? { ...p, votos: newVotos, votantes: newVotantes, userVotes: newUserVotes } : p
+      );
+    }
+  }
   try {
     const status = await _ejecutarVotoTransaccion(votacionId, opcionIdx);
     if (status === 'cerrada') { showToast('Esta votación ya cerró.', 'info'); return; }
     if (status === 'invalid') return;
     if (status === 'missing' || status === 'noop') return;
-    try {
-      await _syncVotacionFeedCopies(votacionId);
-    } catch (syncErr) {
-      console.error('Sync feed votación:', syncErr);
+    _syncVotacionFeedCopies(votacionId, optimisticPayload ? { votos: optimisticPayload.votos, votantes: optimisticPayload.votantes, userVotes: optimisticPayload.userVotes, activa: optimisticPayload.activa } : null)
+      .catch(e => console.error('Sync feed:', e));
+  } catch (e) {
+    if (prevFeedPost) {
+      _actualizarCardVotacionDOM(feedPostId, prevFeedPost);
+      if (window._feedPostsCache) window._feedPostsCache = window._feedPostsCache.map(p => (p.votacionId === votacionId && p.type === 'votacion') ? prevFeedPost : p);
     }
-    const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
-    if (!vSnap.exists()) return;
-    const data = vSnap.data();
-    const merged = {
-      opciones: data.opciones,
-      votos: data.votos || {},
-      votantes: data.votantes || [],
-      userVotes: data.userVotes || {},
-      activa: data.activa !== false,
-      votacionId,
-      pregunta: data.pregunta,
-      authorUid: data.authorUid
-    };
-    _actualizarCardVotacionDOM(feedPostId, merged);
-    if (window._feedPostsCache) {
-      window._feedPostsCache = window._feedPostsCache.map(p => {
-        if (p.votacionId === votacionId && p.type === 'votacion') {
-          return {
-            ...p,
-            votos: merged.votos,
-            votantes: merged.votantes,
-            userVotes: merged.userVotes,
-            activa: merged.activa
-          };
-        }
-        return p;
-      });
-    }
-  } catch (e) { showToast(friendlyError(e), 'error'); }
-  finally { _votacionVoteLocks.delete(votacionId); }
+    showToast(friendlyError(e), 'error');
+  } finally { _votacionVoteLocks.delete(votacionId); }
 };
 
 /* Actualiza el DOM del card de votación en el feed sin re-renderizar todo */
@@ -601,17 +606,18 @@ window.abrirVistaTrivia = function () {
 function loadTriviasGuardadas() {
   if (!currentGroupId) return;
   if (triviasUnsub) { triviasUnsub(); triviasUnsub = null; }
-  const { collection, query, where, orderBy, onSnapshot } = lib();
+  // Sin orderBy: evita requerir índice compuesto en Firestore para ec_trivias
+  const { collection, query, where, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_trivias'),
-    where('groupId', '==', currentGroupId),
-    orderBy('createdAt', 'desc')
+    where('groupId', '==', currentGroupId)
   );
   const listaEl = $('triviasListaInline');
   if (listaEl) listaEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2);font-size:13px">Cargando…</div>';
   triviasUnsub = onSnapshot(q, snap => {
     const trivias = [];
     snap.forEach(d => trivias.push({ id: d.id, ...d.data() }));
+    trivias.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
     // Guardar en caché global para acceso instantáneo en jugarTrivia
     window._triviasCache = trivias;
     renderTriviasLista(trivias);
@@ -667,9 +673,12 @@ window.jugarTrivia = function (triviaId) {
     triviaScore = 0;
     _triviaCorrectaActual = '';
     _triviaOpcionesActuales = [];
-    // Limpiar el contenedor del juego antes de empezar
-    const juegoEl = $('triviaJuego');
-    if (juegoEl) juegoEl.innerHTML = '';
+    // NO limpiar triviaJuego — contiene los elementos estáticos del HTML
+    // Solo resetear el feedback y opciones que puedan tener contenido viejo
+    const feedbackEl = $('triviaFeedback');
+    if (feedbackEl) { feedbackEl.textContent = ''; feedbackEl.style.color = ''; }
+    const opcionesEl = $('triviaOpciones');
+    if (opcionesEl) opcionesEl.innerHTML = '';
     $('dinamicasVistaTrivia').style.display = 'none';
     $('dinamicasJuegoTrivia').style.display = 'block';
     if ($('triviaJuegoTitulo')) $('triviaJuegoTitulo').textContent = `🧠 ${_triviaJugandoData.nombre}`;
@@ -832,15 +841,21 @@ let _triviaOpcionesActuales = [];
 function mostrarPreguntaTrivia() {
   if (triviaIdx >= triviaBanco.length) {
     const triviaIdActual = _triviaJugandoData?.id || '';
-    $('triviaJuego').innerHTML = `<div style="text-align:center;padding:20px">
-      <div style="font-size:40px;margin-bottom:12px">🏆</div>
-      <h3 style="font-family:var(--font-display);font-size:22px;margin-bottom:8px">¡Trivia terminada!</h3>
-      <p style="color:var(--text1)">Puntuación: <strong>${triviaScore} / ${triviaBanco.length}</strong></p>
-      <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap">
-        <button class="btn-primary" onclick="jugarTrivia('${triviaIdActual}')">🔄 Jugar de nuevo</button>
-        <button class="btn-sm" onclick="volverAListaTrivias()">← Volver a trivias</button>
-      </div>
-    </div>`;
+    // Usar los elementos estáticos del HTML en lugar de reemplazar el contenedor
+    if ($('triviaProgreso')) $('triviaProgreso').textContent = '';
+    if ($('triviaPreguntaText')) $('triviaPreguntaText').textContent = '🏆 ¡Trivia terminada!';
+    if ($('triviaOpciones')) $('triviaOpciones').innerHTML = `
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:40px;margin-bottom:12px">🏆</div>
+        <p style="color:var(--text1);font-size:16px;margin-bottom:20px">
+          Puntuación: <strong>${triviaScore} / ${triviaBanco.length}</strong>
+        </p>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button class="btn-primary" onclick="jugarTrivia('${triviaIdActual}')">🔄 Jugar de nuevo</button>
+          <button class="btn-sm" onclick="volverAListaTrivias()">← Volver a trivias</button>
+        </div>
+      </div>`;
+    if ($('triviaFeedback')) { $('triviaFeedback').textContent = ''; }
     return;
   }
   const p = triviaBanco[triviaIdx];

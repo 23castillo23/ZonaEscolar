@@ -6573,7 +6573,7 @@ header.topbar {
 ═══════════════════════════════════════════════════════ */
 
 .dvd-shell {
-  padding: 20px 16px 100px;
+  padding: 20px 16px 16px;
   max-width: 900px;
   margin: 0 auto;
 }
@@ -8570,7 +8570,7 @@ header.topbar {
   .chat-compose-wrapper {
     width: 100%;
     margin: 0;
-    padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px)) 12px;
+    padding: 8px 12px 10px 12px;
     border-radius: 0;
     border-left: none;
     border-right: none;
