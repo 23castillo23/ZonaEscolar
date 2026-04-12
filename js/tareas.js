@@ -6,16 +6,14 @@
    Colecciones: ec_tareas
    
    REGLA: Todo lo de tareas va aquí.
-   renderCalMes, calNavegar, calVerDia, toggleTarea,
+   toggleTarea,
    compartirTarea y eliminarTarea viven aquí,
    NO en biblioteca.js.
 ═══════════════════════════════════════════════════ */
 /* ═══════════════════════════════════════════════════
    TAREAS
 ═══════════════════════════════════════════════════ */
-// FIX #3: Declarar _calTareasCache aquí para evitar variable global implícita
-// que falla en strict mode y hace el código frágil.
-let _calTareasCache = [];
+
 function initTareas() {
     if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
 
@@ -26,25 +24,12 @@ function initTareas() {
         orderBy('createdAt', 'desc')
     );
 
-    // En lugar de limpiar TODO el contenedor, solo ponemos el loading en la parte de la lista
-    // Si la vista es calendario, mantenemos la estructura.
-    if (!tareasVistaCalendario) {
-        $('tareasList').innerHTML = '<div class="feed-loading">Cargando tareas…</div>';
-    }
+    $('tareasList').innerHTML = '<div class="feed-loading">Cargando tareas…</div>';
 
     tareasUnsub = onSnapshot(q, snap => {
         const tareas = [];
         snap.forEach(d => tareas.push({ id: d.id, ...d.data() }));
-        
-        if (tareasVistaCalendario) {
-            const hoy = new Date();
-            // FIX Bug 1: usar Date() para calcular año/mes correctamente al cruzar límites de año,
-            // en lugar del cálculo manual que puede desfasarse cuando calMesOffset cruza diciembre.
-            const target = new Date(hoy.getFullYear(), hoy.getMonth() + calMesOffset, 1);
-            renderCalMes(tareas, target.getFullYear(), target.getMonth());
-        } else {
-            renderTareas(tareas);
-        }
+        renderTareas(tareas);
     });
 }
 
@@ -159,156 +144,6 @@ window.toggleSubtarea = async function(tareaId, subIdx, isDone) {
 };
 
 
-/* ═══════════════════════════════════════════════════
-   CALENDARIO DE TAREAS
-   (movido desde biblioteca.js donde estaba mezclado)
-═══════════════════════════════════════════════════ */
-window.calNavegar = function (dir) {
-  calMesOffset += dir;
-  // Rebuscar tareas con el nuevo mes
-  const { collection, query, where, orderBy, getDocs } = lib();
-  getDocs(query(collection(db(), 'ec_tareas'), where('groupId', '==', currentGroupId), orderBy('createdAt', 'desc')))
-    .then(snap => {
-      const tareas = [];
-      snap.forEach(d => tareas.push({ id: d.id, ...d.data() }));
-      const hoy = new Date();
-      const target = new Date(hoy.getFullYear(), hoy.getMonth() + calMesOffset, 1);
-      renderCalMes(tareas, target.getFullYear(), target.getMonth());
-    });
-};
-
-function renderCalMes(tareas, año, mes) {
-  // FIX Bug 2: guardar tareas en caché para que calVerDia las use sin ir a Firebase
-  _calTareasCache = tareas;
-  const container = $('tareasList');
-  const hoy = new Date();
-  const tareasPorDia = {};
-  
-  // 1. Agrupar las tareas del mes
-  // FIX #5: parsear con hora local para evitar desfase UTC en México (UTC-6)
-  tareas.filter(t => t.fecha && !t.done).forEach(t => {
-    const d = new Date(t.fecha + 'T00:00:00');
-    if (d.getFullYear() === año && d.getMonth() === mes) {
-      const key = `${d.getDate()}`;
-      if (!tareasPorDia[key]) tareasPorDia[key] = [];
-      tareasPorDia[key].push(t);
-    }
-  });
-  
-  const primerDia = new Date(año, mes, 1).getDay();
-  const diasMes = new Date(año, mes + 1, 0).getDate();
-  const nombresMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const nombresDia = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  
-  // 2. Construir el Header y los días de la semana
-  let html = `<div class="cal-header">
-    <button class="cal-nav" onclick="calNavegar(-1)">‹</button>
-    <span class="cal-mes-label">${nombresMes[mes]} ${año}</span>
-    <button class="cal-nav" onclick="calNavegar(1)">›</button>
-  </div><div class="cal-grid">
-    ${nombresDia.map(d => `<div class="cal-dia-header">${d}</div>`).join('')}`;
-    
-  // 3. Espacios vacíos antes del día 1
-  for (let i = 0; i < primerDia; i++) {
-    html += `<div class="cal-dia vacio"></div>`;
-  }
-  
-  // 4. Dibujar los números del mes
-  for (let dia = 1; dia <= diasMes; dia++) {
-    const esHoy = dia === hoy.getDate() && mes === hoy.getMonth() && año === hoy.getFullYear();
-    const tsDia = tareasPorDia[String(dia)] || [];
-    
-    html += `<div class="cal-dia ${esHoy ? 'hoy' : ''} ${tsDia.length ? 'tiene-tarea' : ''}"
-      onclick="calVerDia(${dia},${mes},${año})">
-      <span class="cal-num">${dia}</span>
-      ${tsDia.length ? `<span class="cal-punto" data-n="${tsDia.length}"></span>` : ''}
-    </div>`;
-  }
-  
-  // AQUI CERRAMOS EL CALENDARIO CORRECTAMENTE
-  html += `</div>`; 
-
-  // -------------------------------------------------------------------------
-  // 5. EL CONTENEDOR PARA CUANDO HACES CLIC EN UN DÍA (Vacío al principio)
-  // -------------------------------------------------------------------------
-  html += `<div id="calListaTareasAbajo" style="margin-top:20px;"></div>`;
-
-  // -------------------------------------------------------------------------
-  // 6. EL CONTENEDOR DE PRÓXIMAS TAREAS (Visible al principio)
-  // -------------------------------------------------------------------------
-  // FIX #5: parsear con hora local para evitar desfase UTC en México (UTC-6)
-  const proximas = tareas.filter(t => t.fecha && !t.done).sort((a, b) => new Date(a.fecha + 'T00:00:00') - new Date(b.fecha + 'T00:00:00')).slice(0, 8);
-  
-  html += `<div id="contenedorProximasTareas">`;
-  if (proximas.length > 0) {
-    html += `<div class="cal-proximas-label" style="margin-top:20px; margin-bottom:10px;">📋 Próximas tareas</div>`;
-    // Usamos la nueva tarjeta de diseño
-    html += proximas.map(t => buildTareaHTML(t)).join('');
-  }
-  html += `</div>`;
-
-  // Finalmente insertamos todo de golpe sin parpadeos
-  container.innerHTML = html;
-}
-
-window.calVerDia = function (dia, mes, año) {
-    // 1. UI: Resaltar día en el calendario
-    qsa('.cal-dia').forEach(el => el.classList.remove('selected'));
-    const target = qsa('.cal-num').find(el => 
-        parseInt(el.textContent) === dia && !el.closest('.cal-dia').classList.contains('vacio')
-    );
-    if (target) target.closest('.cal-dia').classList.add('selected');
-
-    calDiaSeleccionado = { dia, mes, año };
-
-    // 2. Ocultamos las "Próximas Tareas" generales para que no haya duplicados
-    const proxDiv = $('contenedorProximasTareas');
-    if (proxDiv) proxDiv.style.display = 'none';
-
-    // FIX Bug 2: filtrar desde el caché local en lugar de hacer getDocs a Firebase.
-    // Esto evita el retardo visible al cambiar de día porque los datos ya están en memoria.
-    // FIX #5: parsear con hora local para evitar desfase UTC en México (UTC-6)
-    const filtradas = (_calTareasCache || []).filter(t => {
-        if (!t.fecha) return false;
-        const dTarea = new Date(t.fecha + 'T00:00:00');
-        return dTarea.getDate() === dia && dTarea.getMonth() === mes && dTarea.getFullYear() === año;
-    });
-
-    // 3. Renderizamos el resultado en el contenedor de abajo
-    const listaAbajo = $('calListaTareasAbajo');
-    if (!listaAbajo) return;
-
-    const nombresMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    
-    listaAbajo.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <h4 style="font-size:14px; color:var(--accent2); margin:0;">📌 Tareas del ${dia} de ${nombresMes[mes]}</h4>
-            <button onclick="resetVistaCalendario()" style="background:none; border:none; color:var(--text3); font-size:11px; cursor:pointer; text-decoration:underline;">
-                Ver próximas tareas
-            </button>
-        </div>
-        ${filtradas.length === 0 
-            ? `<div style="padding:20px; text-align:center; background:var(--bg3); border-radius:12px; border:1px dashed var(--border); font-size:13px; color:var(--text2);">No hay tareas para este día.</div>` 
-            : filtradas.map(t => buildTareaHTML(t)).join('')
-        }
-    `;
-};
-
-// Función para volver al estado inicial (Quitar el filtro)
-window.resetVistaCalendario = function() {
-    qsa('.cal-dia').forEach(el => el.classList.remove('selected'));
-    calDiaSeleccionado = null; // Borramos la selección
-    
-    const listaAbajo = $('calListaTareasAbajo');
-    if (listaAbajo) listaAbajo.innerHTML = ''; // Limpiamos el detalle
-    
-    const proxDiv = $('contenedorProximasTareas');
-    if (proxDiv) proxDiv.style.display = 'block'; // Mostramos las próximas de nuevo
-};
-
-// REMOVIDO Bug #7: renderTareasEnListaPrincipal era código muerto (nunca se llamaba).
-// La lógica equivalente ya existe en calVerDia con #calListaTareasAbajo.
-
 window.toggleTarea = async function (id, done) {
   const checkBtn = document.querySelector(`.tarea-check[onclick*="'${id}'"]`) 
                 || document.querySelector(`.tarea-check[onclick*='"${id}"']`);
@@ -405,7 +240,6 @@ window.eliminarTarea = async function (id) {
           onConfirm: async () => {
             try {
               await deleteDoc(doc(db(), 'ec_tareas', id));
-              if (calDiaSeleccionado) calVerDia(calDiaSeleccionado.dia, calDiaSeleccionado.mes, calDiaSeleccionado.año);
             } catch (e) { showToast(friendlyError(e), 'error'); }
           }
         });
@@ -414,54 +248,18 @@ window.eliminarTarea = async function (id) {
     }
 };
 
-// 1. Botones de Filtro (Todas, Pendientes, Completadas)
-
 /* ═══════════════════════════════════════════════════
-   EVENTOS DE UI — Filtros y botón calendario
-   (movido desde biblioteca.js donde estaba mezclado)
+   EVENTOS DE UI — Filtros
 ═══════════════════════════════════════════════════ */
 // 1. Botones de Filtro (Todas, Pendientes, Completadas)
 qsa('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     tareasFilter = btn.dataset.filter;
-    tareasVistaCalendario = false;
-    
-    // --- MAGIA: Limpiar memoria del calendario al salir ---
-    calMesOffset = 0; 
-    calDiaSeleccionado = null; 
-    
     qsa('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    $('btnCalendarioTareas')?.classList.remove('active');
     if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
     initTareas();
   });
-});
-
-// 2. Botón para abrir/cerrar el Calendario
-$('btnCalendarioTareas')?.addEventListener('click', () => {
-  tareasVistaCalendario = !tareasVistaCalendario;
-  $('btnCalendarioTareas').classList.toggle('active', tareasVistaCalendario);
-  
-  if (tareasVistaCalendario) {
-    qsa('.filter-btn').forEach(b => b.classList.remove('active'));
-    $('tareasList').innerHTML = '<div class="feed-loading">Cargando calendario…</div>';
-    
-    calMesOffset = 0; // Asegurar que abra en el mes actual
-    // --- MAGIA: Pre-seleccionar HOY automáticamente al entrar ---
-    const hoy = new Date();
-    calDiaSeleccionado = { dia: hoy.getDate(), mes: hoy.getMonth(), año: hoy.getFullYear() };
-    
-  } else {
-    qsa('.filter-btn')[0]?.classList.add('active');
-    
-    // --- MAGIA: Limpiar memoria al cerrar el calendario ---
-    calMesOffset = 0; 
-    calDiaSeleccionado = null; 
-  }
-  
-  if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
-  initTareas();
 });
 
 // 1. Abrir el modal de nueva tarea y limpiar la lista de temas si había algo escrito antes

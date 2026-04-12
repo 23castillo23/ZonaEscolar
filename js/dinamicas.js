@@ -930,26 +930,52 @@ window.compartirTrivia = async function (triviaId, nombre) {
 function renderPuntos() {
   const marc = $('puntosMarcador');
   if (!puntosMarcador.length) {
-    marc.innerHTML = '<div class="feed-loading" style="padding:20px 0">Agrega jugadores abajo.</div>';
+    marc.innerHTML = `<div class="puntos-empty">
+      <div style="font-size:40px;margin-bottom:8px">🏆</div>
+      <div style="font-size:14px;color:var(--text2)">Agrega jugadores para empezar</div>
+    </div>`;
     return;
   }
+  const maxPts = Math.max(...puntosMarcador.map(j => j.pts), 1);
   const sorted = [...puntosMarcador].sort((a, b) => b.pts - a.pts);
-  marc.innerHTML = sorted.map((j, i) => `
-    <div class="puntos-jugador">
-      <span style="font-size:16px;opacity:0.6">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
-      <span class="puntos-jugador-nombre">${escHtml(j.nombre)}</span>
-      <div class="puntos-btns">
-        <button class="puntos-btn" onclick="cambiarPuntos('${escHtml(j.nombre)}',-1)">−</button>
-        <span class="puntos-num">${j.pts}</span>
-        <button class="puntos-btn" onclick="cambiarPuntos('${escHtml(j.nombre)}',1)">+</button>
+  const medallas = ['🥇','🥈','🥉'];
+  marc.innerHTML = sorted.map((j, i) => {
+    const pct = Math.round((j.pts / maxPts) * 100);
+    const esLider = i === 0 && j.pts > 0;
+    const nombre_safe = escHtml(j.nombre).replace(/'/g, "\'");
+    return `
+    <div class="puntos-jugador ${esLider ? 'puntos-lider' : ''}">
+      <div class="puntos-rank">${medallas[i] || `<span style="font-size:12px;opacity:.5">${i+1}</span>`}</div>
+      <div class="puntos-info">
+        <div class="puntos-jugador-nombre">${escHtml(j.nombre)}</div>
+        <div class="puntos-barra-wrap">
+          <div class="puntos-barra-fill" style="width:${pct}%"></div>
+        </div>
       </div>
-    </div>`).join('');
+      <div class="puntos-controles">
+        <button class="puntos-btn puntos-btn-minus" onclick="cambiarPuntos('${nombre_safe}',-1)" title="-1">−</button>
+        <span class="puntos-num">${j.pts}</span>
+        <button class="puntos-btn puntos-btn-plus" onclick="cambiarPuntos('${nombre_safe}',1)" title="+1">+</button>
+        <button class="puntos-btn puntos-btn-plus5" onclick="cambiarPuntos('${nombre_safe}',5)" title="+5">+5</button>
+        <button class="puntos-btn puntos-btn-del" onclick="eliminarJugador('${nombre_safe}')" title="Eliminar">✕</button>
+      </div>
+    </div>`;
+  }).join('');
 }
+
+window.eliminarJugador = function(nombre) {
+  puntosMarcador = puntosMarcador.filter(j => j.nombre !== nombre);
+  renderPuntos();
+};
+
 $('btnAgregarJugador').addEventListener('click', () => {
   const nombre = $('puntosNombre').value.trim();
   if (!nombre) return;
   if (!puntosMarcador.find(j => j.nombre === nombre)) { puntosMarcador.push({ nombre, pts: 0 }); renderPuntos(); }
   $('puntosNombre').value = '';
+});
+$('puntosNombre').addEventListener('keydown', e => {
+  if (e.key === 'Enter') $('btnAgregarJugador').click();
 });
 $('btnResetPuntos').addEventListener('click', () => {
   showConfirm({

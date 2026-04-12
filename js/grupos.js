@@ -59,6 +59,13 @@ async function loadGruposDelUsuario() {
           _manejarExpulsion();
           return;
         }
+      } else if (grupos.length > 0) {
+        // FIX: El usuario estaba en "sin grupo" y fue reingresado → activar automáticamente
+        const lastId = localStorage.getItem('ze_last_group');
+        const target = lastId && grupos.find(g => g.id === lastId)
+          ? lastId : grupos[0].id;
+        activarGrupo(target);
+        return;
       }
       // Renderizar con los datos ya actualizados
       renderGroupSelector();
