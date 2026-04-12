@@ -303,10 +303,10 @@ window.addEventListener('resize', () => {
   }
 
   function _updateChatHeight(vvHeight) {
-    const topH = _readLayoutPx('--ze-topbar-h', 56);
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
     const bottomH = isMobile ? _readLayoutPx('--ze-bottom-nav-clearance', 48) : 0;
-    const chatH = vvHeight - topH - bottomH;
+    // Móvil: #sectionChat usa padding-top = topbar; la altura del bloque es hasta el borde inferior (sin restar topbar dos veces).
+    const chatH = isMobile ? (vvHeight - bottomH) : (vvHeight - _readLayoutPx('--ze-topbar-h', 56) - bottomH);
     document.documentElement.style.setProperty('--chat-h', Math.max(chatH, 200) + 'px');
   }
 

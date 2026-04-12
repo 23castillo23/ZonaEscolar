@@ -8468,20 +8468,27 @@ header.topbar {
     pointer-events: none;
   }
 
-  /* ── FIX MÓVIL: Headers/toolbars de sección siempre visibles ── */
+  /* Chat: la altura ya va con padding-top = topbar; el ::before duplicaba el hueco */
+  #sectionChat::before {
+    display: none !important;
+    content: none !important;
+    height: 0 !important;
+  }
+
+  /* Barras de módulo: sin sticky en móvil (evita solape con listas y “doble hueco” con el spacer) */
   .tableros-galeria-header,
   .apuntes-toolbar,
   .tareas-toolbar,
   .biblio-header,
   .dvd-header {
-    position: sticky;
-    top: var(--ze-topbar-h, calc(56px + env(safe-area-inset-top, 0px)));
-    z-index: 50;
+    position: relative;
+    top: auto;
+    z-index: 2;
     background: var(--bg0);
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: 8px;
+    padding-bottom: 8px;
     margin-top: 0;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     border-bottom: 1px solid var(--border);
   }
 
@@ -8490,14 +8497,20 @@ header.topbar {
     display: flex;
   }
 
+  .din-vista-header {
+    margin-bottom: 12px;
+    gap: 8px;
+    padding-top: 0;
+  }
 
-  /* Chat: altura fija. --chat-h (teclado); fallback = topbar + bottom nav medidos (sin duplicar safe-area) */
+  /* Chat: altura hasta borde inferior; padding-top = topbar (una sola vez, con --chat-h = vv - bottom) */
   #sectionChat.active {
-    height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
-    max-height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    height: var(--chat-h, calc(100dvh - var(--ze-bottom-nav-clearance, 52px)));
+    max-height: var(--chat-h, calc(100dvh - var(--ze-bottom-nav-clearance, 52px)));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
+    padding-top: var(--ze-topbar-h, calc(56px + env(safe-area-inset-top, 0px)));
     padding-bottom: 0;
     box-sizing: border-box;
     overflow: hidden;
@@ -8592,9 +8605,11 @@ header.topbar {
   }
   
   .tablero-feed-header {
-    top: 0;
+    position: relative;
+    top: auto;
     margin-top: 0;
-    padding-top: 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
   
   /* biblio-header sticky: fondo plano para cubrir contenido al hacer scroll */
@@ -8657,20 +8672,23 @@ header.topbar {
   #vistaSalasChat {
     display: flex;
     flex-direction: column;
-    height: calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px));
-    max-height: calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px));
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    max-height: none;
     overflow: hidden;
+    padding: 0 10px 4px;
   }
 
   #vistaSalasChat .tableros-galeria-header {
-    position: sticky;
-    top: 0;
-    z-index: 55;
+    position: relative;
+    top: auto;
+    z-index: 2;
     background: var(--bg0);
-    padding-top: 14px;
-    padding-bottom: 10px;
+    padding-top: 4px;
+    padding-bottom: 8px;
     margin-top: 0;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
