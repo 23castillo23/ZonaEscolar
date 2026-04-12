@@ -1,4 +1,16 @@
 /* ═══════════════════════════════════════════════════
+   APUNTES — Semestres, materias/galerías,
+   fotos de pizarrón, notas de materia,
+   búsqueda de apuntes.
+   
+   Dependencias: core.js, grupos.js
+   Colecciones: ec_semestres, ec_galerias,
+                ec_fotos, ec_notas
+   
+   REGLA: Solo lógica de apuntes aquí.
+   uploadToCloudinary está en core.js (compartida).
+═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
    APUNTES
 ═══════════════════════════════════════════════════ */
 
@@ -746,36 +758,3 @@ document.addEventListener('click', async e => {
 /* ═══════════════════════════════════════════════════
    CLOUDINARY UPLOAD
 ═══════════════════════════════════════════════════ */
-async function uploadToCloudinary(file, tag = '') {
-  if (file.size > 10 * 1024 * 1024) {
-    showToast('El archivo es muy pesado. Máximo 10 MB.', 'info');
-    return null;
-  }
-
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('upload_preset', CLOUDINARY_PRESET);
-
-  if (tag) {
-    fd.append('tags', tag);
-    fd.append('folder', `ZonaEscolar/${tag}`);
-    fd.append('asset_folder', `ZonaEscolar/${tag}`);
-  }
-  
-
-  try {
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
-      method: 'POST', body: fd
-    });
-    const data = await res.json();
-    if (data.error) {
-      console.error('Error exacto de Cloudinary:', data.error.message);
-      return null;
-    }
-    return data.secure_url || null;
-  } catch (e) {
-    console.error('Fallo de conexión con Cloudinary:', e);
-    return null;
-  }
-}
-

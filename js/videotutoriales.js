@@ -1,3 +1,13 @@
+/* ═══════════════════════════════════════════════════
+   VIDEOTUTORIALES — Cajas DVD, comentarios de video,
+   categorías, favoritos, compartir al tablero.
+   
+   Dependencias: core.js, grupos.js, utils-extra.js
+   Colecciones: ec_videotutoriales
+   
+   REGLA: abrirDetalleDvd() vive aquí.
+   utils-extra.js lo expone vía onclick directo.
+═══════════════════════════════════════════════════ */
 /* ═══════════════════════════════════════════════════════
    VIDEOTUTORIALES — Cajas de DVD con thumbnails de YouTube
 ═══════════════════════════════════════════════════════ */

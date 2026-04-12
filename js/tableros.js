@@ -1,4 +1,15 @@
 /* ═══════════════════════════════════════════════════
+   TABLEROS — Galería + feed, tarjetas, comentarios,
+   likes, chinchetas, publicar, quitar del tablero.
+   
+   Dependencias: core.js, grupos.js
+   Colecciones: ec_feed, ec_comentarios, ec_tableros
+   
+   REGLA: Todo lo del feed/tablero va aquí.
+   buildFeedCard, renderFeed, bindFeedCard, etc.
+   Si tocas tarjetas o comentarios, edita este archivo.
+═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
    TABLEROS TEMÁTICOS — GALERÍA
 ═══════════════════════════════════════════════════ */
 
@@ -130,6 +141,7 @@ function renderGaleriaTableros(tableros) {
           <div class="tablero-card-nombre">${escHtml(t.nombre)}</div>
         </div>
       </div>
+      ${delBtn}
     </button>`;
   });
 
@@ -546,7 +558,7 @@ function abrirModalComentariosConId(commentPostId, cardEl, feedPostId, toggleBtn
         if (list.querySelector(`[data-comment-id="${c.id}"]`)) return;
         const esMio = c.authorUid === currentUser.uid;
         const btnDel = (esMio || isAdmin)
-          ? `<button class="comment-del-btn" onclick="eliminarComentarioDvd('${c.id}','${commentPostId}')" title="Eliminar">🗑️</button>`
+          ? `<button class="comment-del-btn" onclick="(typeof eliminarComentarioDvd==='function'?eliminarComentarioDvd:eliminarComentarioModal)('${c.id}','${commentPostId}')" title="Eliminar">🗑️</button>`
           : '';
         const items = list.querySelectorAll('.feed-comment-item');
         const lastItem = items.length ? items[items.length - 1] : null;
@@ -895,9 +907,9 @@ function renderFeed(posts) {
 
 
 /* ── CHINCHETA SVG ── */
-const PIN_COLORS = ['red','yellow','green','blue','purple','pink','orange','cyan'];
-const PIN_HEX = { red:'#ef4444', yellow:'#f59e0b', green:'#10b981', blue:'#3b82f6', purple:'#8b5cf6', pink:'#ec4899', orange:'#f97316', cyan:'#06b6d4' };
-const PIN_DARK = { red:'#b91c1c', yellow:'#d97706', green:'#047857', blue:'#1d4ed8', purple:'#6d28d9', pink:'#be185d', orange:'#c2410c', cyan:'#0e7490' };
+const PIN_COLORS = ['red','yellow','green','blue','purple','pink','orange','cyan','white','black'];
+const PIN_HEX = { red:'#ef4444', yellow:'#f59e0b', green:'#10b981', blue:'#3b82f6', purple:'#8b5cf6', pink:'#ec4899', orange:'#f97316', cyan:'#06b6d4', 'gray-shape':'#9ca3af', white:'#f8fafc', black:'#1e1e2e' };
+const PIN_DARK = { red:'#b91c1c', yellow:'#d97706', green:'#047857', blue:'#1d4ed8', purple:'#6d28d9', pink:'#be185d', orange:'#c2410c', cyan:'#0e7490', 'gray-shape':'#6b7280', white:'#cbd5e1', black:'#000000' };
 
 function makePinSvg(color, shape) {
   if (shape === 'tilted') return makePinSvgTilted(color);
@@ -971,6 +983,7 @@ function openPinColorPopup(card, currentColor, currentShape) {
   ['flat','tilted'].forEach(sh => {
     const btn = document.createElement('div');
     btn.className = 'pin-shape-btn' + (sh === currentShape ? ' active' : '');
+    btn.dataset.shape = sh;
     btn.title = sh === 'flat' ? 'Clásico' : 'Inclinado';
     btn.innerHTML = sh === 'flat'
       ? makePinSvg(previewColor, 'flat')
@@ -1013,10 +1026,15 @@ function openPinColorPopup(card, currentColor, currentShape) {
       dotsRow.querySelectorAll('.pin-color-dot').forEach(d => d.classList.remove('active'));
       dot.classList.add('active');
       injectPin(card, c, currentShape);
-      // update shape buttons preview color
-      popup.querySelectorAll('.pin-shape-btn svg').forEach((svg, i) => {
-        const sh = i === 0 ? 'flat' : 'tilted';
-        svg.outerHTML; // can't easily update, just re-render buttons
+      // Actualizar shape buttons con el nuevo color seleccionado
+      popup.querySelectorAll('.pin-shape-btn').forEach(btn => {
+        const sh = btn.dataset.shape || 'flat';
+        const oldSvg = btn.querySelector('svg');
+        const tmp = document.createElement('span');
+        tmp.innerHTML = makePinSvg(c, sh);
+        const newSvg = tmp.firstElementChild;
+        newSvg.style.cssText = 'width:24px;height:34px;pointer-events:none;display:block;margin:auto;';
+        if (oldSvg) oldSvg.replaceWith(newSvg);
       });
       const postId = card.dataset.id;
       if (!postId) return;
@@ -1183,6 +1201,7 @@ function buildFeedCard(p) {
     tarea: ['badge-tarea', '✅ Tarea'],
     votacion: ['badge-votacion', '🗳️ Votación'],
     trivia: ['badge-trivia', '🧠 Trivia'],
+    trivia_compartida: ['badge-trivia', '🧠 Trivia'],
     texto: ['badge-texto', '💬 Texto']
   };
   const [badgeTipo, badgeLabel] = badgeMap[p.type] || badgeMap.texto;
@@ -1268,8 +1287,9 @@ function buildFeedCard(p) {
     </div>`;
   }
 
-  // Card especial para trivia
-  if (p.type === 'trivia') {
+  // Card especial para trivia (tipo 'trivia' legacy O 'trivia_compartida')
+  if (p.type === 'trivia' || p.type === 'trivia_compartida') {
+    const puedeQuitarTrivia = isAdmin || (p.authorUid === currentUser.uid);
     return `<div class="feed-card" data-id="${p.id}">
       <div class="feed-card-header">
         <img class="feed-card-avatar" src="${escHtml(p.authorAvatar || '')}" alt="" onerror="this.style.display='none'">
@@ -1286,7 +1306,9 @@ function buildFeedCard(p) {
         </button>
       </div>
       <div class="feed-card-actions">
-        ${canDelete ? `<button class="feed-action-btn" style="margin-left:auto" onclick="eliminarPost('${p.id}')"><span>🗑️</span></button>` : ''}
+        ${puedeQuitarTrivia
+          ? `<button class="feed-action-btn" style="margin-left:auto" onclick="quitarTriviaDelTablero('${p.id}')"><span>🗑️</span></button>`
+          : ''}
       </div>
     </div>`;
   }
@@ -1542,6 +1564,24 @@ window.quitarVotacionDelTablero = function (feedPostId, pregunta) {
   });
 };
 
+// Quita la publicación de la trivia del tablero SIN borrar la trivia de Dinámicas
+window.quitarTriviaDelTablero = function (feedPostId) {
+  showConfirm({
+    title: 'Quitar del tablero',
+    message: '¿Quitar esta trivia del tablero? La trivia seguirá disponible en Dinámicas → Trivia.',
+    confirmText: 'Quitar',
+    danger: false,
+    onConfirm: async () => {
+      const { doc, deleteDoc } = lib();
+      try {
+        // Solo borra el post del feed — ec_trivias NO se toca
+        await deleteDoc(doc(db(), 'ec_feed', feedPostId));
+        showToast('Trivia quitada del tablero. Sigue disponible en Dinámicas.', 'success');
+      } catch (e) { showToast('No se pudo quitar. ' + friendlyError(e), 'error'); }
+    }
+  });
+};
+
 window.eliminarPost = async function (postId) {
   const { doc, deleteDoc, getDoc } = lib();
   try {
@@ -1702,9 +1742,17 @@ function updateComposePinPreview(color, shape) {
   $('composePinDropdown').querySelectorAll('.compose-pin-option').forEach(dot => {
     dot.classList.toggle('active', dot.dataset.color === color);
   });
-  // Mark active shape btn
+
+  // Mark active shape btn — se actualizan con el color seleccionado
   $('composePinDropdown').querySelectorAll('.compose-shape-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.shape === shape);
+    const oldBtnSvg = btn.querySelector('svg');
+    const newBtnStr = makePinSvg(color, btn.dataset.shape);
+    const tmpBtn = document.createElement('span');
+    tmpBtn.innerHTML = newBtnStr;
+    const newBtnSvg = tmpBtn.firstElementChild;
+    newBtnSvg.style.cssText = 'width:18px;height:26px;pointer-events:none';
+    if (oldBtnSvg) oldBtnSvg.replaceWith(newBtnSvg);
   });
 }
 
@@ -1739,15 +1787,18 @@ buildComposePinDropdown();
 
 $('composePinPicker').addEventListener('click', e => {
   e.stopPropagation();
+  // No hacer toggle si el clic viene de un dot de color o un shape button
+  if (e.target.closest('.compose-pin-option') || e.target.closest('.compose-shape-btn')) return;
   $('composePinDropdown').classList.toggle('open');
 });
 
-$('composePinDropdown').querySelectorAll('.compose-pin-option').forEach(dot => {
-  dot.addEventListener('click', e => {
+$('composePinDropdown').addEventListener('click', e => {
+  const dot = e.target.closest('.compose-pin-option');
+  if (dot) {
     e.stopPropagation();
     updateComposePinPreview(dot.dataset.color, null);
     $('composePinDropdown').classList.remove('open');
-  });
+  }
 });
 
 document.addEventListener('click', () => {

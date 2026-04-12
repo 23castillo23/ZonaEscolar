@@ -1,4 +1,15 @@
 /* ═══════════════════════════════════════════════════
+   DINÁMICAS — Ruleta, votación, trivia, puntos,
+   lightbox, compartir al tablero.
+   
+   Dependencias: core.js, grupos.js, utils-extra.js
+   Colecciones: ec_votaciones, ec_trivias
+   
+   REGLA: Votaciones y trivias NO se autopublican.
+   Para compartir → botón 📌 → selector de tablero.
+   Para eliminar definitivamente → botón 🗑️ aquí.
+═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
    LIGHTBOX
 ═══════════════════════════════════════════════════ */
 window.openLightbox = function (idx) {
@@ -169,6 +180,8 @@ window.abrirFormNuevaVotacion = function () {
   }
   const fechaEl = $('votacionFechaCierre');
   if (fechaEl) fechaEl.value = '';
+  const horaEl = $('votacionHoraCierre');
+  if (horaEl) horaEl.value = '';
   openModal('modalNuevaVotacion');
   _bindVotacionForm();
 };
@@ -255,9 +268,11 @@ function _bindVotacionForm() {
       const opciones = [...($('votacionOpcionesInputs')?.querySelectorAll('.opcion-input') || [])].map(i => i.value.trim()).filter(Boolean);
       if (!pregunta || opciones.length < 2) { showToast('Agrega una pregunta y al menos 2 opciones.', 'warning'); return; }
       const fechaCierreInput = $('votacionFechaCierre')?.value || '';
+      const horaCierreInput = $('votacionHoraCierre')?.value || '';
       let cierreTimestamp = null;
       if (fechaCierreInput) {
-        const d = new Date(fechaCierreInput);
+        const hora = horaCierreInput || '23:59';
+        const d = new Date(fechaCierreInput + 'T' + hora + ':00');
         if (!isNaN(d.getTime())) cierreTimestamp = d.toISOString();
       }
       btnLanzar.disabled = true; btnLanzar.textContent = '⏳';
@@ -272,6 +287,7 @@ function _bindVotacionForm() {
         });
         $('votacionPregunta').value = '';
         if ($('votacionFechaCierre')) $('votacionFechaCierre').value = '';
+        if ($('votacionHoraCierre')) $('votacionHoraCierre').value = '';
         const wrap = $('votacionOpcionesInputs');
         [...wrap.querySelectorAll('.opcion-input')].slice(2).forEach(e => e.remove());
         wrap.querySelectorAll('.opcion-input').forEach(i => i.value = '');
@@ -689,7 +705,16 @@ document.addEventListener('click', e => {
       .map(i => i.value.trim()).filter(Boolean);
     if (!pregunta) { showToast('Escribe la pregunta.', 'warning'); return; }
     if (resps.length < 2) { showToast('Agrega al menos la respuesta correcta y una opción incorrecta.', 'warning'); return; }
-    _triviaBancoModal.push({ pregunta, respuestas: resps });
+    // Deduplicar: eliminar respuestas repetidas (case-insensitive) antes de guardar
+    const seen = new Set();
+    const respsSinDuplicados = resps.filter(r => {
+      const key = r.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (respsSinDuplicados.length < 2) { showToast('Las opciones no pueden ser iguales.', 'warning'); return; }
+    _triviaBancoModal.push({ pregunta, respuestas: respsSinDuplicados });
     $('mt_pregunta').value = '';
     document.querySelectorAll('#mt_respuestasWrap .mt-resp-input').forEach(i => i.value = '');
     _renderBancoModal();
@@ -741,14 +766,22 @@ function mostrarPreguntaTrivia() {
   }
   const p = triviaBanco[triviaIdx];
 
-  // Fisher-Yates: mezcla uniforme y sin sesgos (sort() con random es impredecible)
-  const opciones = [...p.respuestas];
+  // Deduplicar por si los datos en Firestore ya tienen duplicados (compatibilidad con trivias antiguas)
+  const seen = new Set();
+  const unicas = (p.respuestas || []).filter(r => {
+    const k = (r || '').toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  // Fisher-Yates shuffle — mezcla uniforme
+  const opciones = [...unicas];
   for (let i = opciones.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [opciones[i], opciones[j]] = [opciones[j], opciones[i]];
   }
 
-  // Guardar en variables de módulo — NO se escriben en el HTML
+  // Guardar en variables de módulo — la respuesta correcta NO aparece en el HTML
   _triviaCorrectaActual   = p.respuestas[0];
   _triviaOpcionesActuales = opciones;
 
@@ -756,7 +789,7 @@ function mostrarPreguntaTrivia() {
   $('triviaPreguntaText').textContent = p.pregunta;
   $('triviaFeedback').textContent = '';
 
-  // Solo se pasa el índice numérico — la respuesta correcta no aparece en ningún atributo
+  // Solo índice numérico en onclick — nada de texto de respuesta en el DOM
   $('triviaOpciones').innerHTML = opciones.map((op, i) =>
     `<button class="trivia-opcion" data-idx="${i}" onclick="responderTrivia(${i},this)">
       ${escHtml(op)}
@@ -774,7 +807,6 @@ window.responderTrivia = function (idx, btn) {
     $('triviaFeedback').style.color = 'var(--green)';
   } else {
     btn.classList.add('incorrecto');
-    // Marca la correcta por índice — sin comparar textContent (evita fallos con caracteres especiales)
     qsa('.trivia-opcion').forEach(b => {
       if (_triviaOpcionesActuales[parseInt(b.dataset.idx)] === correcta) b.classList.add('correcto');
     });
@@ -1495,6 +1527,8 @@ function resetBurbujaUnread() {
   const badge = $('chatFabBadge');
   if (badge) { badge.style.display = 'none'; badge.textContent = '0'; }
 }
+// Exponer globalmente — grupos.js las llama desde activarSeccion()
+window.resetBurbujaUnread = resetBurbujaUnread;
 
 function setBurbujaUnreadCount(n) {
   const count = Math.max(0, Number(n) || 0);
@@ -1524,6 +1558,8 @@ async function markChatAsRead() {
     }, { merge: true });
   } catch (_) { /* silencioso */ }
 }
+// Exponer globalmente — grupos.js la llama desde activarSeccion()
+window.markChatAsRead = markChatAsRead;
 
 // Reconectar burbuja y activar Notificaciones Globales
 let globalNotifUnsub = null;

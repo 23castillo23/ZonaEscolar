@@ -17,7 +17,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Sora:wght@400;600;700&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=3">
+  <link rel="stylesheet" href="css/style.css?v=29">
 </head>
 
 <body>
@@ -238,6 +238,8 @@
                     <div class="compose-pin-option" data-color="pink" style="background:#ec4899"></div>
                     <div class="compose-pin-option" data-color="orange" style="background:#f97316"></div>
                     <div class="compose-pin-option" data-color="cyan" style="background:#06b6d4"></div>
+                    <div class="compose-pin-option" data-color="white" style="background:#f8fafc; border: 1px solid #94a3b8;"></div>
+                    <div class="compose-pin-option" data-color="black" style="background:#1e1e2e;"></div>
                   </div>
                 </div>
               </div>
@@ -781,7 +783,11 @@
       <label class="modal-label">Responsable</label>
       <input type="text" id="tareaResponsable" class="modal-input" placeholder="¿Quién la entrega?">
       <label class="modal-label">Fecha límite</label>
-      <input type="datetime-local" id="tareaFecha" class="modal-input">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="date" id="tareaFecha" class="modal-input" style="flex:1; margin:0;">
+        <input type="time" id="tareaHora" class="modal-input" style="flex:0 0 110px; margin:0;">
+      </div>
+      <p style="font-size:10px; color:var(--text3); margin-top:4px; margin-bottom:0;">La hora es opcional.</p>
       <label class="modal-label">Materia</label>
       <input type="text" id="tareaMateria" class="modal-input" placeholder="Ej: Cálculo, Historia…">
       <div class="modal-actions">
@@ -952,26 +958,26 @@
 
       <label class="modal-label" style="margin-top:12px">Color</label>
       <div class="dvd-color-picker" id="salaChatColorPicker">
-        <button class="dvd-color-opt selected" data-color="#1a237e" style="background:#1a237e" title="Azul oscuro"></button>
-        <button class="dvd-color-opt" data-color="#1565c0" style="background:#1565c0" title="Azul"></button>
-        <button class="dvd-color-opt" data-color="#0097a7" style="background:#0097a7" title="Cian"></button>
-        <button class="dvd-color-opt" data-color="#00796b" style="background:#00796b" title="Teal"></button>
-        <button class="dvd-color-opt" data-color="#1b5e20" style="background:#1b5e20" title="Verde oscuro"></button>
-        <button class="dvd-color-opt" data-color="#33691e" style="background:#33691e" title="Verde lima"></button>
-        <button class="dvd-color-opt" data-color="#f57f17" style="background:#f57f17" title="Amarillo"></button>
-        <button class="dvd-color-opt" data-color="#e65100" style="background:#e65100" title="Naranja"></button>
-        <button class="dvd-color-opt" data-color="#b71c1c" style="background:#b71c1c" title="Rojo"></button>
-        <button class="dvd-color-opt" data-color="#880e4f" style="background:#880e4f" title="Rosa oscuro"></button>
-        <button class="dvd-color-opt" data-color="#e91e63" style="background:#e91e63" title="Rosa"></button>
-        <button class="dvd-color-opt" data-color="#4a148c" style="background:#4a148c" title="Morado oscuro"></button>
-        <button class="dvd-color-opt" data-color="#7b1fa2" style="background:#7b1fa2" title="Morado"></button>
-        <button class="dvd-color-opt" data-color="#6d4c41" style="background:#6d4c41" title="Café"></button>
-        <button class="dvd-color-opt" data-color="#004d40" style="background:#004d40" title="Verde azulado"></button>
-        <button class="dvd-color-opt" data-color="#263238" style="background:#263238" title="Gris azulado"></button>
-        <button class="dvd-color-opt" data-color="#37474f" style="background:#37474f" title="Gris"></button>
-        <button class="dvd-color-opt" data-color="#212121" style="background:#212121" title="Negro"></button>
-        <button class="dvd-color-opt" data-color="#bf360c" style="background:#bf360c" title="Terracota"></button>
-        <button class="dvd-color-opt" data-color="#0d47a1" style="background:#0d47a1" title="Marino"></button>
+        <button class="dvd-color-opt selected" data-color="#3b82f6" style="background:#3b82f6" title="Azul"></button>
+        <button class="dvd-color-opt" data-color="#6366f1" style="background:#6366f1" title="Índigo"></button>
+        <button class="dvd-color-opt" data-color="#8b5cf6" style="background:#8b5cf6" title="Violeta"></button>
+        <button class="dvd-color-opt" data-color="#a855f7" style="background:#a855f7" title="Morado"></button>
+        <button class="dvd-color-opt" data-color="#ec4899" style="background:#ec4899" title="Rosa"></button>
+        <button class="dvd-color-opt" data-color="#ef4444" style="background:#ef4444" title="Rojo"></button>
+        <button class="dvd-color-opt" data-color="#f97316" style="background:#f97316" title="Naranja"></button>
+        <button class="dvd-color-opt" data-color="#eab308" style="background:#eab308" title="Amarillo"></button>
+        <button class="dvd-color-opt" data-color="#22c55e" style="background:#22c55e" title="Verde"></button>
+        <button class="dvd-color-opt" data-color="#10b981" style="background:#10b981" title="Esmeralda"></button>
+        <button class="dvd-color-opt" data-color="#14b8a6" style="background:#14b8a6" title="Teal"></button>
+        <button class="dvd-color-opt" data-color="#06b6d4" style="background:#06b6d4" title="Cian"></button>
+        <button class="dvd-color-opt" data-color="#0ea5e9" style="background:#0ea5e9" title="Celeste"></button>
+        <button class="dvd-color-opt" data-color="#f43f5e" style="background:#f43f5e" title="Rosa fuerte"></button>
+        <button class="dvd-color-opt" data-color="#d946ef" style="background:#d946ef" title="Fucsia"></button>
+        <button class="dvd-color-opt" data-color="#64748b" style="background:#64748b" title="Gris azulado"></button>
+        <button class="dvd-color-opt" data-color="#78716c" style="background:#78716c" title="Café gris"></button>
+        <button class="dvd-color-opt" data-color="#84cc16" style="background:#84cc16" title="Lima"></button>
+        <button class="dvd-color-opt" data-color="#fb7185" style="background:#fb7185" title="Coral"></button>
+        <button class="dvd-color-opt" data-color="#c084fc" style="background:#c084fc" title="Lila"></button>
       </div>
 
       <div class="modal-actions">
@@ -1214,8 +1220,12 @@
       </div>
       <button class="btn-sm" id="btnAgregarOpcion" style="margin-bottom:16px">+ Agregar opción</button>
 
-      <label class="modal-label">⏰ Fecha y hora de cierre <span style="opacity:.6;font-weight:400">(opcional)</span></label>
-      <input type="datetime-local" id="votacionFechaCierre" class="modal-input" style="margin-bottom:20px">
+      <label class="modal-label">⏰ Fecha de cierre <span style="opacity:.6;font-weight:400">(opcional)</span></label>
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;">
+        <input type="date" id="votacionFechaCierre" class="modal-input" style="flex:1; margin:0;">
+        <input type="time" id="votacionHoraCierre" class="modal-input" style="flex:0 0 110px; margin:0;">
+      </div>
+      <p style="font-size:10px; color:var(--text3); margin-bottom:20px;">Si no pones hora, cierra a medianoche de ese día.</p>
 
       <div class="modal-actions">
         <button class="btn-cancel" data-close="modalNuevaVotacion">Cancelar</button>
@@ -1462,17 +1472,17 @@
     </div>
   </div>
 
-  <script src="js/core.js?v=27"></script>
-  <script src="js/grupos.js?v=27"></script>
-  <script src="js/tableros.js?v=27"></script>
-  <script src="js/muro.js?v=27"></script>
-  <script src="js/chat.js?v=27"></script>
-  <script src="js/tareas.js?v=27"></script>
-  <script src="js/biblioteca.js?v=27"></script>
-  <script src="js/apuntes.js?v=27"></script>
-  <script src="js/dinamicas.js?v=27"></script>
-  <script src="js/videotutoriales.js?v=27"></script>
-  <script src="js/utils-extra.js?v=27"></script>
+  <script src="js/core.js?v=31"></script>
+  <script src="js/grupos.js?v=31"></script>
+  <script src="js/tableros.js?v=31"></script>
+  <script src="js/muro.js?v=31"></script>
+  <script src="js/chat.js?v=31"></script>
+  <script src="js/tareas.js?v=31"></script>
+  <script src="js/biblioteca.js?v=31"></script>
+  <script src="js/apuntes.js?v=31"></script>
+  <script src="js/dinamicas.js?v=31"></script>
+  <script src="js/videotutoriales.js?v=31"></script>
+  <script src="js/utils-extra.js?v=31"></script>
 </body>
 
 </html>

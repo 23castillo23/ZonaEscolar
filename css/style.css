@@ -158,14 +158,16 @@ a {
 /* ═══════════════════════════════════════════════════════
    LOGIN SCREEN
 ═══════════════════════════════════════════════════════ */
+
 .login-screen {
-  min-height: 100dvh;
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
   background: var(--bg0);
+  overflow: hidden;
+  z-index: 9999;
 }
 
 .login-bg-orb {
@@ -194,26 +196,9 @@ a {
   animation-delay: -3s;
 }
 
-.orb3 {
-  width: 200px;
-  height: 200px;
-  background: #2563eb;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  animation-delay: -6s;
-}
-
 @keyframes orbFloat {
 
   0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-
-  50% {
-    transform: translate(20px, -20px) scale(1.05);
-  }
 }
 
 .orb3 {
@@ -223,13 +208,6 @@ a {
 @keyframes orbFloat3 {
 
   0%,
-  100% {
-    transform: translate(-50%, -50%) scale(1);
-  }
-
-  50% {
-    transform: translate(-45%, -55%) scale(1.08);
-  }
 }
 
 .login-card {
@@ -252,15 +230,6 @@ a {
 }
 
 @keyframes loginFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .login-logo {
@@ -343,21 +312,6 @@ a {
 }
 
 /* ── SIDEBAR ── */
-.sidebar {
-  width: 260px;
-  background: var(--bg1);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100dvh;
-  z-index: 200;
-  transform: translateX(0);
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;
-}
 
 .sidebar-header {
   padding: 20px 20px 16px;
@@ -418,12 +372,6 @@ a {
   display: block;
 }
 
-.sidebar-nav {
-  flex: 1;
-  padding: 8px;
-  overflow-y: auto;
-}
-
 .nav-item {
   display: flex;
   align-items: center;
@@ -452,11 +400,6 @@ a {
   font-size: 16px;
   width: 20px;
   text-align: center;
-}
-
-.sidebar-footer {
-  padding: 12px 16px;
-  border-top: 1px solid var(--border);
 }
 
 .group-selector-label {
@@ -496,18 +439,17 @@ a {
 }
 
 /* ── TOPBAR ── */
-.topbar {
+
+header.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
   height: 56px;
   background: var(--bg1);
   border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  gap: 12px;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 100;
-  transition: background 0.3s;
 }
 
 .topbar-menu {
@@ -528,32 +470,51 @@ a {
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  margin-left: auto;
 }
 
 .topbar-group-badge {
   font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
   color: var(--accent2);
-  background: rgba(124, 106, 247, 0.12);
-  padding: 3px 10px;
+  background: rgba(124, 106, 247, 0.14);
+  padding: 5px 12px;
   border-radius: 20px;
-  border: 1px solid rgba(124, 106, 247, 0.25);
-  max-width: 120px;
+  border: 1px solid rgba(124, 106, 247, 0.32);
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  box-shadow: 0 0 10px rgba(124, 106, 247, 0.12);
+  backdrop-filter: blur(4px);
+  transition: var(--transition);
+}
+.topbar-group-badge:hover {
+  background: rgba(124, 106, 247, 0.22);
+  border-color: rgba(124, 106, 247, 0.5);
 }
 
 .topbar-avatar {
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
   border-radius: 50%;
   object-fit: cover;
   background: var(--bg4);
   flex-shrink: 0;
   overflow: hidden;
+  border: 2px solid rgba(124, 106, 247, 0.5);
+  box-shadow: 0 0 8px rgba(124, 106, 247, 0.25);
+  transition: var(--transition);
+  cursor: pointer;
+}
+.topbar-avatar:hover {
+  border-color: var(--accent2);
+  box-shadow: 0 0 14px rgba(124, 106, 247, 0.45);
+  transform: scale(1.06);
 }
 
 /* Botón modo oscuro/claro */
@@ -580,7 +541,7 @@ a {
 /* ── MAIN CONTENT ── */
 .main-content {
   flex: 1;
-  margin-left: 260px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
@@ -872,10 +833,6 @@ a {
 /* ═══════════════════════════════════════════════════════
    TABLEROS — VISTA FEED DESPLEGADO
 ═══════════════════════════════════════════════════════ */
-#vistaFeedTablero {
-  width: 100%;
-  animation: cardIn 0.2s ease-out;
-}
 
 /* ── Vista interna del tablero abierto: fondo de puntitos ── */
 #vistaFeedTablero {
@@ -1159,17 +1116,6 @@ a {
 }
 
 /* ── CHINCHETA: se inyecta como SVG desde JS (.feed-pin) ── */
-.feed-pin {
-  position: absolute;
-  top: -28px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 28px;
-  height: 42px;
-  z-index: 4;
-  pointer-events: none;
-  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
-}
 
 /* ── COLORES POST-IT ── */
 .feed-card.pin-red    { border-top: 3px solid #ef4444; }
@@ -1186,14 +1132,40 @@ a {
   cursor: pointer;
   pointer-events: all !important;
   transition: transform 0.15s ease;
+  display: block;
+  width: 28px;
+  height: 42px;
 }
 .feed-pin:hover { transform: translateX(-50%) scale(1.18); }
 .feed-pin.feed-pin-tilted {
   width: 36px;
   height: 48px;
+}
+
+/* Pin posicionado dentro de una tarjeta del feed */
+.feed-card > .feed-pin,
+.feed-card > .feed-pin.feed-pin-tilted {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: -28px;
+  z-index: 2;
+}
+.feed-card > .feed-pin.feed-pin-tilted {
   top: -32px;
 }
-.feed-pin.feed-pin-tilted:hover { transform: translateX(-50%) scale(1.15); }
+
+/* Pin dentro del popup selector — no debe tener position absolute */
+.pin-shape-btn .feed-pin {
+  position: static !important;
+  transform: none !important;
+  top: auto !important;
+  left: auto !important;
+  width: 24px !important;
+  height: 34px !important;
+  margin: auto;
+  pointer-events: none;
+}
 
 .pin-color-popup {
   position: fixed;
@@ -1211,8 +1183,6 @@ a {
   overflow: hidden;
 }
 @keyframes popupIn {
-  from { opacity: 0; transform: scale(0.88); }
-  to   { opacity: 1; transform: scale(1); }
 }
 .pin-color-dot {
   width: 20px;
@@ -1414,14 +1384,6 @@ a {
 }
 
 @keyframes cardIn {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .feed-card-header {
@@ -1564,38 +1526,6 @@ a {
 }
 
 /* Ajuste a la vista previa de fotos ANTES de publicar */
-.compose-preview {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding-left: 52px; 
-  margin-top: 8px;
-}
-.compose-preview-item {
-  width: 75px;
-  height: 75px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  border: none; 
-}
-.compose-preview-remove {
-  background: rgba(239, 68, 68, 0.9) !important; 
-  width: 22px;
-  height: 22px;
-  font-size: 12px;
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 /* ── ACCIONES INFERIORES DE LA TARJETA (Tus estilos originales intactos) ── */
 .feed-card-actions {
@@ -1670,8 +1600,6 @@ a {
   overflow: hidden;
 }
 @keyframes commentModalIn {
-  from { opacity: 0; transform: scale(0.88) translateY(20px); }
-  to   { opacity: 1; transform: scale(1)   translateY(0);     }
 }
 .comments-modal-header {
   display: flex;
@@ -1989,40 +1917,8 @@ a {
 }
 
 /* Fallback: inicial o emoji cuando no hay foto */
-.muro-avatar-fallback {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  border: 2px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-  user-select: none;
-}
 
 /* Botón pequeño editar avatar */
-.muro-avatar-edit-btn {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--bg3);
-  border: 1px solid var(--border-hover);
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: var(--transition);
-  line-height: 1;
-}
 
 .muro-avatar-edit-btn:hover {
   background: var(--accent);
@@ -2259,7 +2155,6 @@ a {
 .muro-album-back:hover { text-decoration: underline; }
 
 
-
 .apuntes-toolbar {
   display: flex;
   gap: 10px;
@@ -2327,6 +2222,7 @@ a {
   /* Vertical por defecto */
   position: relative;
   overflow: hidden;
+  isolation: isolate;
 }
 
 .group-accordion.open .group-header {
@@ -2339,14 +2235,6 @@ a {
 }
 
 /* Zona visual superior (Fondo difuminado + Icono) */
-.group-card-top {
-  height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--bg3) 0%, var(--bg1) 100%);
-  position: relative;
-}
 
 .group-accordion.open .group-card-top {
   height: auto;
@@ -2361,6 +2249,8 @@ a {
   background-position: center;
   opacity: 0.3;
   transition: opacity 0.3s;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .group-header:hover .group-header-bg {
@@ -2397,6 +2287,8 @@ a {
   flex-direction: column;
   gap: 4px;
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
 .group-accordion.open .group-card-info {
@@ -2423,6 +2315,8 @@ a {
   display: flex;
   gap: 8px;
   padding: 0 16px 16px;
+  position: relative;
+  z-index: 2;
 }
 
 .group-accordion.open .group-mini-actions {
@@ -2446,16 +2340,6 @@ a {
   background: var(--bg4);
 }
 
-.group-mini-btn.primary {
-  background: var(--accent);
-  color: white;
-  border-color: transparent;
-}
-
-.group-mini-btn.primary:hover {
-  background: var(--accent2);
-}
-
 /* Elementos exclusivos del modo abierto */
 .group-chevron {
   width: 20px;
@@ -2464,6 +2348,8 @@ a {
   transition: transform 0.3s ease;
   margin-left: 12px;
   display: none;
+  position: relative;
+  z-index: 2;
 }
 
 .group-accordion.open .group-chevron {
@@ -2471,6 +2357,8 @@ a {
 }
 
 .group-delete {
+  position: relative;
+  z-index: 2;
   background: transparent;
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: var(--red);
@@ -2701,8 +2589,6 @@ a {
 }
 
 
-
-
 .group-card-top {
   height: 170px;
 }
@@ -2811,7 +2697,6 @@ a {
 }
 
 
-
 /* ── Color picker (modal semestre) ── */
 .color-picker-grid {
   display: grid;
@@ -2895,47 +2780,8 @@ a {
 }
 
 /* ── Galería header ── */
-.galeria-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.galeria-title {
-  flex: 1;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 18px;
-}
 
 /* ── Grid de fotos ── */
-.photos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-}
-
-.photo-thumb {
-  position: relative;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--bg3);
-  aspect-ratio: 1;
-  cursor: zoom-in;
-}
-
-.photo-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s;
-}
-
-.photo-thumb:hover img {
-  transform: scale(1.05);
-}
 
 .photo-thumb-overlay {
   position: absolute;
@@ -2950,11 +2796,6 @@ a {
 
 .photo-thumb:hover .photo-thumb-overlay {
   opacity: 1;
-}
-
-.photo-thumb-caption {
-  font-size: 11px;
-  color: white;
 }
 
 /* ── Botón publicar foto en feed ── */
@@ -3086,10 +2927,6 @@ a {
 .semestre-toggle {
   color: var(--text2);
   transition: var(--transition);
-}
-
-.materias-grid {
-  display: none;
 }
 
 .materia-card-icon {
@@ -3225,7 +3062,7 @@ a {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 4px;
   background: var(--bg0);
   max-width: 720px;
@@ -3233,6 +3070,12 @@ a {
   margin: 0 auto;
   box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Empuja los mensajes hacia abajo cuando hay pocos (efecto "anclado al fondo") */
+.chat-messages::before {
+  content: '';
+  flex: 1;
 }
 
 /* Agrupación de mensajes del mismo autor */
@@ -3302,15 +3145,6 @@ a {
 }
 
 @keyframes msgIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .chat-msg.mine {
@@ -3422,9 +3256,6 @@ a {
 
   0%,
   60%,
-  100% {
-    transform: translateY(0);
-  }
 
   30% {
     transform: translateY(-5px);
@@ -3447,14 +3278,6 @@ a {
 }
 
 /* Tu barra original, pero ahora transparente y sin bordes porque el wrapper ya los tiene */
-.chat-compose {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  padding: 0;
-  background: transparent;
-  border-top: none;
-}
 
 /* La nueva caja de los emojis - Emoji Picker */
 .chat-quick-emojis {
@@ -3470,14 +3293,6 @@ a {
 }
 
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    max-height: 0;
-  }
-  to {
-    opacity: 1;
-    max-height: 200px;
-  }
 }
 
 /* El diseño de cada emoji individual */
@@ -3958,15 +3773,6 @@ a {
 }
 
 @keyframes modalIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
 }
 
 
@@ -4049,32 +3855,6 @@ a {
   background: var(--bg3);
   border-radius: 10px;
   border: 1px solid var(--border);
-}
-
-.album-emoji-btn {
-  font-size: 22px;
-  line-height: 1;
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-  background: transparent;
-  border: 2px solid transparent;
-  border-radius: 8px;
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
-}
-
-.album-emoji-btn:hover {
-  background: var(--bg2);
-  transform: scale(1.15);
-}
-
-.album-emoji-btn.selected {
-  border-color: var(--accent);
-  background: var(--accent-subtle, rgba(99,102,241,0.12));
 }
 
 .album-emoji-preview {
@@ -4540,20 +4320,6 @@ a {
 }
 
 .lightbox-prev,
-.lightbox-next {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  color: white;
-  font-size: 32px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 .lightbox-prev {
   left: 16px;
@@ -4647,9 +4413,6 @@ a {
 }
 
 
-
-
-
 /* ── Tema claro — ajustes burbuja ── */
 [data-theme="light"] .chat-burbuja-panel {
   box-shadow: 0 16px 56px rgba(0, 0, 0, 0.18);
@@ -4673,10 +4436,6 @@ a {
     padding-left: max(16px, env(safe-area-inset-left));
     padding-right: max(16px, env(safe-area-inset-right));
     }
-
-  .sidebar {
-    padding-top: env(safe-area-inset-top, 0);
-  }
   
   .login-screen {
     padding-top: env(safe-area-inset-top, 0);
@@ -4739,7 +4498,6 @@ a {
 }
 
 
-
 /* ── Lista de miembros en modal ── */
 .miembro-list-item {
   display: flex;
@@ -4776,10 +4534,10 @@ a {
    SIDEBAR MIEMBROS
 ═══════════════════════════════════════════════════════ */
 .sidebar-members {
-  flex: 1;
+  flex-shrink: 0;
   overflow-y: auto;
   padding: 0 12px 8px;
-  min-height: 0;
+  max-height: 220px;
 }
 
 .sidebar-members-label {
@@ -4874,16 +4632,31 @@ a {
 
 /* Sidebar necesita flex column para que los miembros ocupen el espacio disponible */
 .sidebar {
-  display: flex !important;
+  width: 260px;
+  min-width: 260px;
+  flex-shrink: 0;
+  height: 100dvh;
+  height: -webkit-fill-available;
+  min-height: 100dvh;
+  position: sticky;
+  top: 0;
+  display: flex;
   flex-direction: column;
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  z-index: 100;
 }
 
 .sidebar-nav {
-  flex-shrink: 0;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .sidebar-footer {
   flex-shrink: 0;
+  margin-top: auto;
 }
 
 /* ── Spinner de carga inicial ── */
@@ -4898,9 +4671,6 @@ a {
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* Botón borrar semestre */
@@ -4921,22 +4691,6 @@ a {
 }
 
 /* Botón borrar materia */
-.btn-mat-del {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  background: var(--bg4);
-  color: var(--red);
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  z-index: 10;
-}
 
 .btn-mat-del:hover {
   background: var(--red);
@@ -5088,12 +4842,17 @@ a {
 /* ═══════════════════════════════════════════════════════
    VISTA CALENDARIO DE TAREAS
 ═══════════════════════════════════════════════════════ */
+
+/* ── CALENDARIO — Rediseño completo ── */
 .cal-header {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px 14px 0 0;
+  border-bottom: none;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  padding: 0 4px;
 }
 
 .cal-mes-label {
@@ -5125,111 +4884,140 @@ a {
 }
 
 .cal-grid {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 0 0 14px 14px;
+  padding: 8px 8px 10px;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  margin-bottom: 16px;
+  gap: 3px;
 }
 
 .cal-dia-header {
   text-align: center;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--text3);
-  padding: 4px 0;
+  padding: 6px 0 8px;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .cal-dia {
-  min-height: 42px;
+  min-height: 48px;
   border-radius: 8px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: 6px;
   cursor: pointer;
-  position: relative;
-  transition: var(--transition);
-  gap: 2px;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .cal-dia:hover {
-  border-color: var(--accent);
   background: var(--bg3);
+  border-color: var(--border-hover);
 }
 
 .cal-dia.vacio {
   background: transparent;
   border-color: transparent;
   cursor: default;
+  pointer-events: none;
 }
 
-.cal-dia.hoy {
-  border-color: var(--accent);
-  background: rgba(124, 106, 247, 0.12);
-}
-
+/* Hoy: número con fondo accent */
 .cal-dia.hoy .cal-num {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* Día seleccionado */
+.cal-dia.selected {
+  background: rgba(124, 106, 247, 0.18);
+  border-color: var(--accent);
+}
+
+.cal-dia.selected .cal-num {
   color: var(--accent2);
   font-weight: 700;
 }
 
-.cal-dia.tiene-tarea {
-  border-color: var(--amber);
-}
-
-.cal-dia.selected {
-    background: var(--accent) !important; /* El morado de tu app */
-    border-color: var(--accent2) !important;
-    box-shadow: 0 0 15px rgba(110, 86, 240, 0.3);
-    transform: scale(1.05);
-    z-index: 2;
-}
-
-.cal-dia.selected .cal-num {
-    color: #fff !important;
-    font-weight: bold;
+/* Hoy + seleccionado */
+.cal-dia.hoy.selected .cal-num {
+  background: var(--accent2);
+  color: #fff;
 }
 
 /* Animación para que la lista de abajo no aparezca de golpe */
 #tareasList {
-    transition: all 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .cal-num {
   font-size: 13px;
   color: var(--text1);
   line-height: 1;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Indicador numérico de tareas (el circulito amarillo) */
+/* Día con tarea pendiente */
+.cal-dia.tiene-tarea {
+  background: rgba(251, 191, 36, 0.07);
+}
+
+/* Punto indicador de tareas — bolita ámbar debajo del número */
 .cal-punto {
-    position: absolute;
-    bottom: 4px;
-    right: 4px;
-    background: var(--amber);
-    color: #000;
-    font-size: 9px;
-    font-weight: 800;
-    min-width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid var(--bg2);
+  width: 6px;
+  height: 6px;
+  background: var(--amber);
+  border-radius: 50%;
+  margin-top: 3px;
+  flex-shrink: 0;
 }
 
-/* Lista de próximas tareas en el calendario */
+/* Si hay más de 1 tarea: mostrar el número */
+.cal-punto[data-n]:not([data-n="1"])::after {
+  content: attr(data-n);
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  background: var(--amber);
+  color: #000;
+  font-size: 8px;
+  font-weight: 800;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+/* Lista de próximas tareas */
 .cal-proximas-label {
   font-size: 12px;
   font-weight: 700;
   color: var(--text3);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin: 8px 0 8px;
+  margin: 8px 0;
 }
 
 .cal-tarea-item {
@@ -5279,32 +5067,6 @@ a {
   font-weight: 600;
   color: var(--text0);
   flex: 1;
-}
-
-.cal-header {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 10px 12px;
-}
-
-.cal-grid {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 10px;
-}
-
-.cal-dia {
-  min-height: 50px;
-  border-radius: 12px;
-}
-
-/* Día con tarea: un borde más elegante y resplandor */
-.cal-dia.tiene-tarea {
-    border: 1.5px solid var(--amber) !important;
-    background: rgba(251, 191, 36, 0.05);
-    box-shadow: 0 0 10px rgba(251, 191, 36, 0.1);
 }
 
 /* Biblioteca (Tareas) */
@@ -5396,8 +5158,6 @@ a {
   font-size: 11px;
   color: var(--text2);
 }
-
-
 
 
 /* Adaptador para iniciales en Feed y Chat */
@@ -5692,9 +5452,13 @@ a {
   color: white;
 }
 
-/* Ajuste del compose con el nuevo botón */
+/* Compose del chat: fila horizontal con botones alineados */
 .chat-compose {
+  display: flex;
+  flex-direction: row;
   align-items: flex-end;
+  gap: 8px;
+  width: 100%;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -5807,15 +5571,6 @@ a {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: 6px;
-}
-
-.photo-thumb {
-  position: relative;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--bg3);
-  aspect-ratio: 1;
-  cursor: zoom-in;
 }
 
 .photo-thumb img {
@@ -6209,13 +5964,6 @@ a {
   transform: scale(1.05);
 }
 
-.upload-preview-list2 {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 16px;
-}
-
 /* ═══════════════════════════════════════════════════════
    MINIATURAS PREVIAS AL SUBIR (APUNTES)
 ═══════════════════════════════════════════════════════ */
@@ -6512,14 +6260,6 @@ a {
   justify-content: flex-start;
   align-items: flex-end;
   /* Alinea los libros a la base */
-}
-
-.book-wrapper {
-  display: flex;
-  justify-content: center;
-  position: relative;
-  padding-bottom: 10px;
-  /* Espacio para que la repisa no pise el libro */
 }
 
 /* La tabla de la repisa que se conecta perfectamente con la de al lado */
@@ -6926,13 +6666,7 @@ a {
 .dvd-fav-toggle.active { color: var(--amber); }
 
 
-
 /* ── GRID DE DVDs ── */
-.dvd-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 20px 16px;
-}
 
 /* ── CAJA DVD INDIVIDUAL ── */
 .dvd-item {
@@ -7247,9 +6981,17 @@ a {
   border-radius: 3px;
 }
 
-/* ══════════════════════════════════════════════
-   NUEVOS ESTILOS v1.5.0
-══════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════
+   NUEVOS COMPONENTES
+   ─────────────────────────────────────────────────────
+   Estilos agregados después de la versión inicial:
+   DVD tarjetas rect · Libro modal · Selector de tablero
+   Muro compartido · Álbum modal · DVD detalle
+   Modal de confirmación · Dinámicas inline · Chat topbar
+   Pantalla de expulsado
+═══════════════════════════════════════════════════════ */
+
 
 /* ── DVD / VIDEO TUTORIALES — Tarjetas rectangulares ── */
 .dvd-grid {
@@ -7590,493 +7332,19 @@ a {
 }
 
 
-
-
-
-
-
-
-
-
 /* Adaptación responsive de las columnas */
-@media (max-width: 1200px) {
-  .feed-list { gap: 12px; }
-}
-@media (max-width: 900px) {
-  .feed-list { gap: 10px; }
-}
-@media (max-width: 600px) {
-  .feed-list {
-    flex-direction: column;
-    gap: 0;
-  }
-  .feed-col {
-    width: 100%;
-    flex-direction: column;
-  }
-  /* Galería de tableros: 2 columnas en mobile */
-  .tableros-galeria {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .tablero-card {
-    aspect-ratio: 3/2;
-    padding: 10px;
-  }
-  .tablero-card-icon { font-size: 22px; margin-bottom: 4px; }
-  .tablero-card-nombre { font-size: 13px; }
-}
-
-/* ═══════════════════════════════════════════════════════
-   RESPONSIVE — Tablets y Móviles (769px)
-═══════════════════════════════════════════════════════ */
 
 
 /* ── Responsive — ocultar FAB en pantallas grandes sin bottom nav ── */
-@media (min-width: 769px) {
-  .chat-fab {
-    bottom: 24px;
-  }
-
-  .chat-burbuja-panel {
-    bottom: 86px;
-  }
-}
-
-
-/* ═══════════════════════════════════════════════════
-   FIXES MÓVIL — iOS / Safari
-   ─────────────────────────────────────────────────
-   1. Evita zoom automático al enfocar inputs (iOS
-      hace zoom si font-size < 16px)
-   2. overscroll en overlays para no mover el fondo
-═══════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-  /* Bug 5: Evita zoom automático en iOS al tocar inputs */
-  .modal-input,
-  .modal-textarea,
-  .modal-select,
-  .comments-modal-input,
-  .chat-input,
-  .album-modal-input,
-  .task-input,
-  input[type="text"],
-  input[type="email"],
-  input[type="search"],
-  textarea,
-  select {
-    font-size: 16px !important;
-  }
-
-  /* Bug 4: el overlay completo no debe propagar el scroll */
-  .modal-overlay,
-  .comments-modal-overlay {
-    overscroll-behavior: none;
-    touch-action: none;
-  }
-
-  /* El contenido interno sí puede hacer scroll */
-  .modal-box,
-  .comments-modal-window {
-    touch-action: pan-y;
-    overscroll-behavior: contain;
-  }
-
-  #apuntesGroupsContainer {
-    /* 2 columnas forzadas en tablets/móviles grandes */
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .tareas-toolbar {
-    gap: 8px;
-  }
-
-  .btn-calendario {
-    margin-left: 0;
-  }
-
-  .biblio-item {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  /* Sidebar deslizable */
-  .sidebar {
-    transform: translateX(-100%);
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
-  }
-
-  .sidebar-close {
-    display: block;
-  }
-
-  .sidebar-overlay.show {
-    display: block;
-  }
-
-  .topbar-menu {
-    display: block;
-  }
-
-  /* FIX Bug 3: en iOS, position:sticky dentro de un contenedor con overflow anidado
-     desaparece al hacer scroll. Hacerlo fixed garantiza que siempre sea visible. */
-  .topbar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 200;
-  }
-
-  .main-content {
-    margin-left: 0;
-    padding-bottom: 0;
-    min-height: 0;
-    max-height: none;
-    flex: 1;
-    min-height: 100dvh;
-    min-height: -webkit-fill-available;
-    overflow: hidden;
-    transition: height 0.15s ease, min-height 0.15s ease, max-height 0.15s ease;
-  }
-
-  .section {
-    padding: 12px;
-    /* Reducimos el padding-top: los headers sticky compensan con su propio top */
-    padding-top: 12px;
-    padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
-    overflow-y: auto;
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: none;
-    /* Espacio para la topbar fija usando scroll-padding */
-    scroll-padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px) + 16px));
-  }
-
-  /* Spacer invisible al inicio de cada sección para que el contenido no quede bajo la topbar */
-  .section::before {
-    content: '';
-    display: block;
-    height: max(60px, calc(56px + env(safe-area-inset-top, 0px)));
-    pointer-events: none;
-  }
-
-  /* ── FIX MÓVIL: Headers/toolbars de sección siempre visibles ── */
-  .tableros-galeria-header,
-  .apuntes-toolbar,
-  .tareas-toolbar,
-  .biblio-header,
-  .dvd-header {
-    position: sticky;
-    top: max(60px, calc(56px + env(safe-area-inset-top, 0px)));
-    z-index: 50;
-    background: var(--bg0);
-    padding-top: 10px;
-    padding-bottom: 10px;
-    margin-top: -10px;
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  /* Bottom nav visible */
-  .bottom-nav {
-    display: flex;
-  }
-
-
-  /* Chat: altura fija para que flex:1 de chat-messages funcione en móvil */
-  #sectionChat.active {
-    height: calc(100dvh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-    min-height: 0;
-    flex: 1 1 auto;
-    padding: 0;
-    padding-bottom: 0;
-    box-sizing: border-box;
-    overflow: hidden;
-    display: flex !important;
-    flex-direction: column;
-  }
-  #sectionChat:not(.active) {
-    display: none !important;
-  }
-  
-  #vistaChatSala {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding-bottom: 0;
-    box-sizing: border-box;
-  }
-
-  .chat-messages {
-    padding: 10px 12px;
-    max-width: 100%;
-  }
-
-  .chat-msg {
-    max-width: 88%;
-  }
-
-  /* Ajuste de la nueva barra de chat y emojis en móvil */
-  .chat-compose-wrapper {
-    width: 100%;
-    margin: 8px 0 0 0;
-    padding: 10px 12px 16px 12px;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    border-top: 1px solid var(--border);
-    box-sizing: border-box;
-    overflow: visible;
-    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
-  }
-
-  .chat-compose {
-    padding: 0;
-    max-width: 100%;
-  }
-
-  /* Apuntes y Semestres */
-  #apuntesGroupsContainer {
-    grid-template-columns: 1fr;
-  }
-
-  /* Semestres en 1 columna en móvil */
-  .materias-grid2 {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    padding: 12px;
-  }
-
-  .materias-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    padding: 10px 12px 12px;
-  }
-
-  /* Galerías y fotos */
-  .photos-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 3px;
-  }
-
-  .apuntes-photos-grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px;
-    width: 100%;
-  }
-
-  .photo-thumb {
-    border-radius: 4px;
-  }
-
-  .galeria-header {
-    top: 0;
-    margin-top: 0;
-    padding-top: 12px;
-    padding-bottom: 10px;
-  }
-  
-  .tablero-feed-header {
-    top: 0;
-    margin-top: 0;
-    padding-top: 12px;
-  }
-  
-  /* biblio-header sticky: fondo plano para cubrir contenido al hacer scroll */
-  .biblio-header {
-    background: var(--bg0);
-    border: none;
-    border-bottom: 1px solid var(--border);
-    border-radius: 0;
-    padding-left: 0;
-    padding-right: 0;
-  }
-
-  .btn-back-galeria {
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-
-  .galeria-title {
-    font-size: 15px;
-  }
-
-  /* Otros Grids y Elementos */
-  .color-picker-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
-
-  .dinamicas-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .topbar-group-badge {
-    max-width: 80px;
-  }
-
-  .muro-photos-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 3px;
-  }
-
-  #btnInvitarCompa span {
-    display: none;
-  }
-
-  /* Burbuja Flotante */
-  .chat-fab {
-    bottom: calc(var(--ze-bottom-nav-clearance) + 12px);
-    right: 14px;
-    width: 48px;
-    height: 48px;
-  }
-
-  .chat-burbuja-panel {
-    bottom: calc(var(--ze-bottom-nav-clearance) + 68px);
-    right: 14px;
-    width: min(300px, calc(100vw - 48px));
-    max-height: 360px;
-  }
-}
 
 
 /* ── Responsive apuntes ── */
-@media (max-width: 600px) {
-  #apuntesGroupsContainer {
-    flex-direction: column;
-    gap: 14px;
-  }
 
-  .materias-grid2 {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 9px;
-    padding: 11px;
-  }
-
-  .materia-card2-header {
-    height: 64px;
-  }
-
-  .materia-card2-icon {
-    font-size: 28px;
-  }
-
-  .materia-card2-name {
-    font-size: 12px;
-  }
-/* ── Chat: layout móvil mejorado ── */
-
-  .chat-compose {
-    padding: 8px 10px;
-    gap: 6px;
-  }
-
-  .chat-input-wrap {
-    padding: 8px 12px;
-    border-radius: 18px;
-  }
-
-  .chat-input {
-    font-size: 15px;
-    /* evita zoom en iOS */
-  }
-
-  .chat-send {
-    width: 38px;
-    height: 38px;
-    min-width: 38px;
-    font-size: 15px;
-    flex-shrink: 0;
-  }
-
-  .chat-msg-bubble {
-    max-width: 75vw;
-    font-size: 14px;
-  }
-
- /* En móvil siempre visible (no hay hover) */
-
-  .muro-photo-del {
-    opacity: 1;
-  }
-
-  .comment-del-btn {
-    opacity: 0.5;
-  }
-
-  .chat-del-btn {
-    opacity: 0.4;
-  }
-}
-
-
-@media (min-width: 500px) {
-  .dvd-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
-  .libro-abierto-ui { flex-direction: column; }
-  .libro-pagina-izq { border-right: none; border-bottom: 1px solid #ccc; border-radius: 8px 8px 0 0; }
-  .libro-pagina-der { border-radius: 0 0 8px 8px; }
-  .libro-lomo { width: 100%; height: 8px; bottom: auto; }
-  .libro-contenido-izq { padding-left: 0; padding-top: 8px; }
-}
 
 /* Mobile */
-@media (max-width: 540px) {
-  .dvd-detalle-modal {
-    max-height: 92dvh;
-    /* Centrado: NO align-self:flex-end, el overlay ya centra con align-items:center */
-  }
-  /* El overlay ya tiene align-items:center y padding:16px por defecto — no sobreescribir */
-  .dvd-detalle-comments-list {
-    max-height: 180px;
-  }
-}
 
-@media (max-width: 520px) {
-  .comments-modal-window { max-height: 92vh; border-radius: 14px; }
-}
 
 /* En celulares, ponemos 4 columnas para que no sean tan chiquitos */
-@media (max-width: 480px) {
-  .biblio-color-picker {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-  }
-
-  .feed-list { gap: 10px; }  /* ← espacio en móvil */
-
-  .libro-modal-layout {
-    flex-direction: column;
-  }
-  .libro-modal-cover {
-    width: 100%;
-    height: 100px;
-    flex-direction: row;
-    gap: 16px;
-  }
-  .libro-modal-icon {
-    margin-bottom: 0;
-    font-size: 36px;
-  }
-  .libro-modal-cover::after {
-    top: auto; bottom: 0; left: 0; right: 0;
-    width: 100%; height: 12px;
-    background: linear-gradient(to top, rgba(0,0,0,0.15), transparent);
-  }
-  .libro-modal-content {
-    padding: 20px;
-  }
-  .libro-modal-actions {
-    flex-direction: column;
-  }
-}
 
 /* El color de la materia en el lomo interno del libro */
 .libro-lomo {
@@ -8131,231 +7399,7 @@ a {
   font-size: 16px;
 }
 
-/* ═══════════════════════════════════════════════════════
-   RESPONSIVE — iPhone 13 mini y similares (375px)
-═══════════════════════════════════════════════════════ */
-@media (max-width: 390px) {
 
-  /* Login */
-  .login-card {
-    padding: 32px 20px;
-  }
-
-  .login-title {
-    font-size: 20px;
-  }
-
-  /* Topbar compacta — no pisar safe-area del notch (iPhone mini, etc.) */
-  .topbar {
-    padding-left: max(10px, env(safe-area-inset-left, 0px));
-    padding-right: max(10px, env(safe-area-inset-right, 0px));
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: 0;
-    min-height: calc(56px + env(safe-area-inset-top, 0px));
-    height: auto;
-    gap: 8px;
-  }
-
-  .topbar-title {
-    font-size: 14px;
-  }
-
-  .topbar-right {
-    gap: 4px;
-  }
-
-  .topbar-group-badge {
-    display: none;
-  }
-
-  .btn-theme-toggle {
-    min-width: 40px;
-    min-height: 40px;
-    width: 40px;
-    height: 40px;
-    font-size: 15px;
-    padding: 0;
-  }
-
-  #btnInvitarCompa {
-    padding: 5px 8px;
-    font-size: 11px;
-  }
-
-  /* Sections — mantener hueco para bottom nav */
-  .section {
-    padding: 10px 8px;
-    padding-bottom: calc(10px + var(--ze-bottom-nav-clearance));
-  }
-
-  /* Feed */
-  .feed-compose {
-    gap: 6px;
-    padding: 10px;
-  }
-
-  .feed-card-header {
-    padding: 10px 12px 8px;
-  }
-
-  .feed-card-actions {
-    padding: 6px 8px 8px;
-  }
-
-  /* Chat y Burbuja */
-  .chat-input {
-    font-size: 16px;
-  }
-
-  /* evitar zoom automático en iOS */
-  .chat-input-wrap {
-    padding: 8px 12px;
-    border-radius: 18px;
-  }
-
-  .chat-send {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    font-size: 14px;
-    flex-shrink: 0;
-  }
-
-  .chat-msg {
-    max-width: 90%;
-  }
-
-  .chat-msg-bubble {
-    font-size: 14px;
-    padding: 8px 12px;
-  }
-
-  .chat-burbuja-panel {
-    max-height: 340px;
-  }
-
-  /* Apuntes y Galerías */
-  .materias-grid2 {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    padding: 10px;
-  }
-
-  .materias-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-
-  .materia-card2-header {
-    height: 65px;
-  }
-
-  .materia-card2-icon {
-    font-size: 28px;
-  }
-
-  .btn-back-galeria {
-    padding: 6px 10px;
-    font-size: 11px;
-    gap: 4px;
-  }
-
-  .galeria-title {
-    font-size: 14px;
-  }
-
-  /* Cuadrículas de fotos (Unificadas) */
-  .photos-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-  }
-  .apuntes-photos-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px;
-  }
-
-  /* Modales */
-  .modal-box {
-    padding: 20px 16px;
-    border-radius: var(--radius-lg);
-  }
-
-  .modal-title {
-    font-size: 16px;
-  }
-
-  /* Bottom nav más compacta */
-  .bottom-nav-item {
-    font-size: 8px;
-    padding: 5px 0px;
-    max-width: 12.5%;
-  }
-
-  .bottom-nav-item .bnav-icon {
-    width: 20px;
-    height: 20px;
-    line-height: 20px;
-    font-size: 18px;
-  }
-
-  /* Dinámicas */
-  .dinamicas-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  .dinamica-card {
-    padding: 18px 12px;
-  }
-
-  .dinamica-icon {
-    font-size: 28px;
-    margin-bottom: 8px;
-  }
-
-  .dinamica-card h3 {
-    font-size: 14px;
-  }
-
-  .dinamica-card p {
-    font-size: 12px;
-    margin-bottom: 12px;
-  }
-
-  #apuntesGroupsContainer {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .semestre-banner {
-    min-height: 74px;
-    padding: 14px 14px;
-  }
-
-  .materias-grid2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: 10px;
-    gap: 8px;
-  }
-
-  .cal-grid {
-    gap: 3px;
-    padding: 8px;
-  }
-
-  .cal-dia {
-    min-height: 42px;
-  }
-}
-
-
-@media (max-width: 375px) {
-  .materias-grid2 {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    padding: 10px;
-  }
-}
 /* ── MODAL SELECTOR DE TABLERO ── */
 .selector-tablero-lista {
   display: flex;
@@ -8497,9 +7541,7 @@ a {
   background: rgba(22, 163, 74, 1);
 }
 
-/* ══════════════════════════════════════════════════════
-   MODAL NUEVO ÁLBUM — rediseño completo
-══════════════════════════════════════════════════════ */
+
 .album-modal-box {
   background: var(--bg2);
   border: 1px solid var(--border-hover);
@@ -8743,9 +7785,7 @@ a {
   transform: none;
 }
 
-/* ══════════════════════════════════════════════════════
-   MODAL DETALLE DVD — scroll de comentarios corregido
-══════════════════════════════════════════════════════ */
+
 .dvd-detalle-modal {
   background: var(--bg2);
   border: 1px solid var(--border-hover);
@@ -8918,10 +7958,6 @@ a {
 }
 
 
-
-/* ═══════════════════════════════════════════════════
-   MODAL DE CONFIRMACIÓN DESTRUCTIVA
-═══════════════════════════════════════════════════ */
 .confirm-btn-ok {
   background: var(--accent, #7c6af7);
   color: #fff;
@@ -8952,9 +7988,6 @@ a {
 }
 
 
-/* ═══════════════════════════════════════════════════
-   DVD — CATEGORÍA: SUGERENCIAS Y CHIPS
-═══════════════════════════════════════════════════ */
 .dvd-cat-suggestions {
   position: absolute;
   top: calc(100% + 4px);
@@ -8986,9 +8019,6 @@ a {
   z-index: 99999;
 }
 
-/* ═══════════════════════════════════════════════════
-   DINÁMICAS — VISTAS INLINE (Votación y Trivia)
-═══════════════════════════════════════════════════ */
 
 /* Header de cada vista inline */
 .din-vista-header {
@@ -9089,9 +8119,7 @@ a {
   overflow: hidden;
 }
 
-/* ═══════════════════════════════════════════════════
-   PANTALLA DE EXPULSADO
-═══════════════════════════════════════════════════ */
+
 .expulsado-hero {
   display: flex;
   flex-direction: column;
@@ -9141,12 +8169,339 @@ a {
   text-align: left;
 }
 
-/* ══════════════════════════════════════════════════════
-   FIX MÓVIL: Barra "Salas de Chat" sticky dentro de
-   #vistaSalasChat (el scroll vive ahí, no en la ventana,
-   por eso el sticky global no funcionaba en esta sección)
-══════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE — Media Queries Unificadas
+   ─────────────────────────────────────────────────────
+   Orden: desktop-first → tablet → móvil → iPhone mini
+   Breakpoints: 1200px · 900px · 769px · 768px · 600px
+                540px · 520px · 500px · 480px · 390px · 375px
+═══════════════════════════════════════════════════════ */
+/* ── Desktop: FAB position ── */
+@media (min-width: 769px) {
+  .chat-fab {
+    bottom: 24px;
+  }
+
+  .chat-burbuja-panel {
+    bottom: 86px;
+  }
+}
+
+/* ── Tablets grandes (≤1200px) ── */
+@media (max-width: 1200px) {
+  .feed-list { gap: 12px; }
+}
+
+/* ── Tablets (≤900px) ── */
+@media (max-width: 900px) {
+  .feed-list { gap: 10px; }
+}
+
+/* ── Móvil iOS/Android (≤768px)
+   Includes: sidebar deslizable, topbar fixed, bottom nav,
+   chat height, apuntes grid, burbuja flotante, chat salas ── */
 @media (max-width: 768px) {
+  /* Bug 5: Evita zoom automático en iOS al tocar inputs */
+  .modal-input,
+  .modal-textarea,
+  .modal-select,
+  .comments-modal-input,
+  .chat-input,
+  .album-modal-input,
+  .task-input,
+  input[type="text"],
+  input[type="email"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Bug 4: el overlay completo no debe propagar el scroll */
+  .modal-overlay,
+  .comments-modal-overlay {
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  /* El contenido interno sí puede hacer scroll */
+  .modal-box,
+  .comments-modal-window {
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+  }
+
+  #apuntesGroupsContainer {
+    /* 2 columnas forzadas en tablets/móviles grandes */
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tareas-toolbar {
+    gap: 8px;
+  }
+
+  .btn-calendario {
+    margin-left: 0;
+  }
+
+  .biblio-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  /* Sidebar deslizable */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100dvh;
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-close {
+    display: block;
+  }
+
+  .sidebar-overlay.show {
+    display: block;
+  }
+
+  .topbar-menu {
+    display: block;
+  }
+
+  /* FIX Bug 3: en iOS, position:sticky dentro de un contenedor con overflow anidado
+     desaparece al hacer scroll. Hacerlo fixed garantiza que siempre sea visible. */
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding-bottom: 0;
+    min-height: 0;
+    max-height: none;
+    flex: 1;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    overflow: hidden;
+    transition: height 0.15s ease, min-height 0.15s ease, max-height 0.15s ease;
+  }
+
+  .section {
+    padding: 12px;
+    /* Reducimos el padding-top: los headers sticky compensan con su propio top */
+    padding-top: 12px;
+    padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
+    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    /* Espacio para la topbar fija usando scroll-padding */
+    scroll-padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px) + 16px));
+  }
+
+  /* Spacer invisible al inicio de cada sección para que el contenido no quede bajo la topbar */
+  .section::before {
+    content: '';
+    display: block;
+    height: max(60px, calc(56px + env(safe-area-inset-top, 0px)));
+    pointer-events: none;
+  }
+
+  /* ── FIX MÓVIL: Headers/toolbars de sección siempre visibles ── */
+  .tableros-galeria-header,
+  .apuntes-toolbar,
+  .tareas-toolbar,
+  .biblio-header,
+  .dvd-header {
+    position: sticky;
+    top: max(60px, calc(56px + env(safe-area-inset-top, 0px)));
+    z-index: 50;
+    background: var(--bg0);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    margin-top: -10px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Bottom nav visible */
+  .bottom-nav {
+    display: flex;
+  }
+
+
+  /* Chat: altura fija para que flex:1 de chat-messages funcione en móvil */
+  #sectionChat.active {
+    height: calc(100dvh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+    flex: 1 1 auto;
+    padding: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: flex !important;
+    flex-direction: column;
+  }
+  #sectionChat:not(.active) {
+    display: none !important;
+  }
+  
+  #vistaChatSala {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 0;
+    box-sizing: border-box;
+  }
+
+  .chat-messages {
+    padding: 10px 12px;
+    max-width: 100%;
+  }
+
+  .chat-msg {
+    max-width: 88%;
+  }
+
+  /* Ajuste de la nueva barra de chat y emojis en móvil */
+  .chat-compose-wrapper {
+    width: 100%;
+    margin: 8px 0 0 0;
+    padding: 10px 12px 16px 12px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-top: 1px solid var(--border);
+    box-sizing: border-box;
+    overflow: visible;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .chat-compose {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  /* Apuntes y Semestres */
+  #apuntesGroupsContainer {
+    grid-template-columns: 1fr;
+  }
+
+  /* Semestres en 1 columna en móvil */
+  .materias-grid2 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .materias-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 10px 12px 12px;
+  }
+
+  /* Galerías y fotos */
+  .photos-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+  }
+
+  .apuntes-photos-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .photo-thumb {
+    border-radius: 4px;
+  }
+
+  .galeria-header {
+    top: 0;
+    margin-top: 0;
+    padding-top: 12px;
+    padding-bottom: 10px;
+  }
+  
+  .tablero-feed-header {
+    top: 0;
+    margin-top: 0;
+    padding-top: 12px;
+  }
+  
+  /* biblio-header sticky: fondo plano para cubrir contenido al hacer scroll */
+  .biblio-header {
+    background: var(--bg0);
+    border: none;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .btn-back-galeria {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .galeria-title {
+    font-size: 15px;
+  }
+
+  /* Otros Grids y Elementos */
+  .color-picker-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .dinamicas-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .topbar-group-badge {
+    max-width: 80px;
+  }
+
+  .muro-photos-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+  }
+
+  #btnInvitarCompa span {
+    display: none;
+  }
+
+  /* Burbuja Flotante */
+  .chat-fab {
+    bottom: calc(var(--ze-bottom-nav-clearance) + 12px);
+    right: 14px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .chat-burbuja-panel {
+    bottom: calc(var(--ze-bottom-nav-clearance) + 68px);
+    right: 14px;
+    width: min(300px, calc(100vw - 48px));
+    max-height: 360px;
+  }
+
   
   #vistaSalasChat {
     display: flex;
@@ -9181,32 +8536,416 @@ a {
     align-content: start;
   }
     
-  /* ══════════════════════════════════════════════════════
    FIX MÓVIL: Reducir tamaño de tarjetas de salas en Chat
    para evitar el exceso de espacio vertical entre ellas
-══════════════════════════════════════════════════════ */
 
   #salasGaleria.tableros-galeria .tablero-card {
     aspect-ratio: 3/2;
   }
 
-/* ══════════════════════════════════════════════════════
    FIX MÓVIL: Botón X del lightbox respeta la barra de
    estado del iPhone (safe-area-inset-top)
-══════════════════════════════════════════════════════ */
   .lightbox-close {
     top: max(16px, calc(env(safe-area-inset-top, 0px) + 10px));
   }
-}
 
-/* ══════════════════════════════════════════════════════
-   FIX MÓVIL: Chat — altura controlada por JS via
-   --chat-h cuando el teclado sube en iPhone
-══════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
   #sectionChat.active {
     height: var(--chat-h, calc(100dvh - 56px - 48px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
     max-height: var(--chat-h, calc(100dvh - 56px - 48px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
     transition: height 0.15s ease, max-height 0.15s ease;
   }
+}
+
+/* ── Pantallas medianas (≥500px): layout libro ── */
+@media (min-width: 500px) {
+  .dvd-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .libro-abierto-ui { flex-direction: column; }
+  .libro-pagina-izq { border-right: none; border-bottom: 1px solid #ccc; border-radius: 8px 8px 0 0; }
+  .libro-pagina-der { border-radius: 0 0 8px 8px; }
+  .libro-lomo { width: 100%; height: 8px; bottom: auto; }
+  .libro-contenido-izq { padding-left: 0; padding-top: 8px; }
+}
+
+/* ── Móviles medianos (≤600px) ── */
+@media (max-width: 600px) {
+  .feed-list {
+    flex-direction: column;
+    gap: 0;
+  }
+  .feed-col {
+    width: 100%;
+    flex-direction: column;
+  }
+  /* Galería de tableros: 2 columnas en mobile */
+  .tableros-galeria {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .tablero-card {
+    aspect-ratio: 3/2;
+    padding: 10px;
+  }
+  .tablero-card-icon { font-size: 22px; margin-bottom: 4px; }
+  .tablero-card-nombre { font-size: 13px; }
+
+  #apuntesGroupsContainer {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .materias-grid2 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .materia-card2-header {
+    height: 64px;
+  }
+
+  .materia-card2-icon {
+    font-size: 28px;
+  }
+
+  .materia-card2-name {
+    font-size: 12px;
+  }
+/* ── Chat: layout móvil mejorado ── */
+
+  .chat-compose {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .chat-input-wrap {
+    padding: 8px 12px;
+    border-radius: 18px;
+  }
+
+  .chat-input {
+    font-size: 15px;
+    /* evita zoom en iOS */
+  }
+
+  .chat-send {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .chat-msg-bubble {
+    max-width: 75vw;
+    font-size: 14px;
+  }
+
+ /* En móvil siempre visible (no hay hover) */
+
+  .muro-photo-del {
+    opacity: 1;
+  }
+
+  .comment-del-btn {
+    opacity: 0.5;
+  }
+
+  .chat-del-btn {
+    opacity: 0.4;
+  }
+}
+
+/* ── Móviles (≤540px): modal DVD ── */
+@media (max-width: 540px) {
+  .dvd-detalle-modal {
+    max-height: 92dvh;
+    /* Centrado: NO align-self:flex-end, el overlay ya centra con align-items:center */
+  }
+  /* El overlay ya tiene align-items:center y padding:16px por defecto — no sobreescribir */
+  .dvd-detalle-comments-list {
+    max-height: 180px;
+  }
+}
+
+/* ── Móviles (≤520px): modal comentarios ── */
+@media (max-width: 520px) {
+  .comments-modal-window { max-height: 92vh; border-radius: 14px; }
+}
+
+/* ── Móviles pequeños (≤480px): libro modal ── */
+@media (max-width: 480px) {
+  .biblio-color-picker {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .feed-list { gap: 10px; }  /* ← espacio en móvil */
+
+  .libro-modal-layout {
+    flex-direction: column;
+  }
+  .libro-modal-cover {
+    width: 100%;
+    height: 100px;
+    flex-direction: row;
+    gap: 16px;
+  }
+  .libro-modal-icon {
+    margin-bottom: 0;
+    font-size: 36px;
+  }
+  .libro-modal-cover::after {
+    top: auto; bottom: 0; left: 0; right: 0;
+    width: 100%; height: 12px;
+    background: linear-gradient(to top, rgba(0,0,0,0.15), transparent);
+  }
+  .libro-modal-content {
+    padding: 20px;
+  }
+  .libro-modal-actions {
+    flex-direction: column;
+  }
+}
+
+/* ── iPhone mini y similares (≤390px) ── */
+@media (max-width: 390px) {
+
+  /* Login */
+  .login-card {
+    padding: 32px 20px;
+  }
+
+  .login-title {
+    font-size: 20px;
+  }
+
+  /* Topbar compacta — no pisar safe-area del notch (iPhone mini, etc.) */
+  .topbar {
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: 0;
+    min-height: calc(56px + env(safe-area-inset-top, 0px));
+    height: auto;
+    gap: 8px;
+  }
+
+  .topbar-title {
+    font-size: 14px;
+  }
+
+  .topbar-right {
+    gap: 4px;
+  }
+
+  .topbar-group-badge {
+    display: none;
+  }
+
+  .btn-theme-toggle {
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+    padding: 0;
+  }
+
+  #btnInvitarCompa {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  /* Sections — mantener hueco para bottom nav */
+  .section {
+    padding: 10px 8px;
+    padding-bottom: calc(10px + var(--ze-bottom-nav-clearance));
+  }
+
+  /* Feed */
+  .feed-compose {
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .feed-card-header {
+    padding: 10px 12px 8px;
+  }
+
+  .feed-card-actions {
+    padding: 6px 8px 8px;
+  }
+
+  /* Chat y Burbuja */
+  .chat-input {
+    font-size: 16px;
+  }
+
+  /* evitar zoom automático en iOS */
+  .chat-input-wrap {
+    padding: 8px 12px;
+    border-radius: 18px;
+  }
+
+  .chat-send {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .chat-msg {
+    max-width: 90%;
+  }
+
+  .chat-msg-bubble {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+
+  .chat-burbuja-panel {
+    max-height: 340px;
+  }
+
+  /* Apuntes y Galerías */
+  .materias-grid2 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .materias-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .materia-card2-header {
+    height: 65px;
+  }
+
+  .materia-card2-icon {
+    font-size: 28px;
+  }
+
+  .btn-back-galeria {
+    padding: 6px 10px;
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  .galeria-title {
+    font-size: 14px;
+  }
+
+  /* Cuadrículas de fotos (Unificadas) */
+  .photos-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+  .apuntes-photos-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px;
+  }
+
+  /* Modales */
+  .modal-box {
+    padding: 20px 16px;
+    border-radius: var(--radius-lg);
+  }
+
+  .modal-title {
+    font-size: 16px;
+  }
+
+  /* Bottom nav más compacta */
+  .bottom-nav-item {
+    font-size: 8px;
+    padding: 5px 0px;
+    max-width: 12.5%;
+  }
+
+  .bottom-nav-item .bnav-icon {
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    font-size: 18px;
+  }
+
+  /* Dinámicas */
+  .dinamicas-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .dinamica-card {
+    padding: 18px 12px;
+  }
+
+  .dinamica-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+
+  .dinamica-card h3 {
+    font-size: 14px;
+  }
+
+  .dinamica-card p {
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  #apuntesGroupsContainer {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .semestre-banner {
+    min-height: 74px;
+    padding: 14px 14px;
+  }
+
+  .materias-grid2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .cal-grid {
+    gap: 3px;
+    padding: 8px;
+  }
+
+  .cal-dia {
+    min-height: 42px;
+  }
+}
+
+/* ── Pantallas muy pequeñas (≤375px) ── */
+@media (max-width: 375px) {
+  .materias-grid2 {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+}
+/* ── Botón + Invitar mejorado ── */
+#btnInvitarCompa {
+  background: linear-gradient(135deg, rgba(124, 106, 247, 0.18), rgba(124, 106, 247, 0.08));
+  border: 1px solid rgba(124, 106, 247, 0.4);
+  color: var(--accent2);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  transition: var(--transition);
+  box-shadow: 0 0 8px rgba(124, 106, 247, 0.1);
+  letter-spacing: 0.2px;
+}
+#btnInvitarCompa:hover {
+  background: linear-gradient(135deg, rgba(124, 106, 247, 0.32), rgba(124, 106, 247, 0.16));
+  border-color: var(--accent2);
+  box-shadow: 0 0 14px rgba(124, 106, 247, 0.35);
+  transform: translateY(-1px);
 }

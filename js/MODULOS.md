@@ -9,28 +9,44 @@ Cada uno depende del anterior (las variables globales de core.js las usan todos)
 
 | Archivo              | Líneas | Qué hace                                              |
 |----------------------|--------|-------------------------------------------------------|
-| `core.js`            | ~563   | Estado global, utilidades (escHtml, fmtTime...), tema oscuro/claro, Firebase Auth |
-| `grupos.js`          | ~492   | Crear/cambiar/abandonar grupos, invitar miembros, sidebar de integrantes |
-| `tableros.js`        | ~1790  | Tableros (galería + feed), tarjetas, comentarios, likes, chinchetas, publicar, quitar votación del tablero |
-| `muro.js`            | ~354   | Muro personal y ajeno, álbumes de fotos, subir fotos al muro |
-| `chat.js`            | ~1155  | Chat en tiempo real, salas, imágenes, typing, online, burbuja flotante. Botón ← Salas y nombre de sala se inyectan en el topbar al entrar |
-| `tareas.js`          | ~155   | Crear/completar/filtrar tareas, subtareas, calendario |
-| `biblioteca.js`      | ~685   | Biblioteca de archivos, categorías, compartir al tablero |
-| `apuntes.js`         | ~772   | Semestres, materias/galerías, fotos de pizarrón, notas de materia |
-| `dinamicas.js`       | ~1793  | Ruleta, votación (sin autopublicar), trivia (guardada en Firestore), puntos, lightbox, compartir al tablero |
-| `videotutoriales.js` | ~435   | Cajas DVD, comentarios de video, compartir al tablero |
-| `utils-extra.js`     | ~377   | Selector de tablero, fix de teclado iOS, compartir libro/DVD, resize |
+| `core.js`            | ~605   | Estado global, utilidades (escHtml, fmtTime…), tema oscuro/claro, Firebase Auth, **uploadToCloudinary** |
+| `grupos.js`          | ~577   | Crear/cambiar/abandonar grupos, invitar miembros, sidebar de integrantes, **navegación global (activarSeccion, setActiveNav)** |
+| `tableros.js`        | ~1792  | Tableros (galería + feed), tarjetas, comentarios, likes, chinchetas, publicar, quitar votación del tablero |
+| `muro.js`            | ~767   | Muro personal y ajeno, álbumes, fotos, **initMuro**, cargarMuroFotos, publicarFotoMuroAlFeed |
+| `chat.js`            | ~941   | Chat en tiempo real, salas, imágenes, typing, online, burbuja flotante |
+| `tareas.js`          | ~555   | Crear/completar/filtrar tareas, subtareas, **calendario mensual**, calNavegar, calVerDia |
+| `biblioteca.js`      | ~229   | Biblioteca de archivos, categorías, compartir al tablero |
+| `apuntes.js`         | ~760   | Semestres, materias/galerías, fotos de pizarrón, notas de materia |
+| `dinamicas.js`       | ~1831  | Ruleta, votación (sin autopublicar), trivia (guardada en Firestore), puntos, lightbox, compartir al tablero |
+| `videotutoriales.js` | ~720   | Cajas DVD, comentarios de video, compartir al tablero |
+| `utils-extra.js`     | ~439   | Selector de tablero, fix de teclado iOS, compartir libro/DVD, resize |
 
 ---
 
-## Regla para hacer cambios
+## Qué archivo tocar según lo que quieras cambiar
 
-- **¿Tocas el chat?** → edita solo `chat.js`
-- **¿Tocas las tareas?** → edita solo `tareas.js`
-- **¿Tocas el feed o las tarjetas del tablero?** → edita `tableros.js`
-- **¿Tocas variables que usan todos (currentUser, currentGroupId)?** → edita `core.js`
-- **¿Tocas "compartir al tablero" desde biblioteca o videotutoriales?** → edita `utils-extra.js`
-- **¿Tocas votaciones o trivias?** → edita solo `dinamicas.js`
+| Qué quieres cambiar | Archivo |
+|---|---|
+| Chat (mensajes, salas, burbuja) | `chat.js` |
+| Muro (fotos, álbumes, perfil) | `muro.js` |
+| Tareas (lista, subtareas, calendario) | `tareas.js` |
+| Feed o tarjetas del tablero | `tableros.js` |
+| Variables globales (currentUser, currentGroupId) | `core.js` |
+| Subir archivos a Cloudinary | `core.js` — función `uploadToCloudinary()` |
+| "Compartir al tablero" desde biblioteca/videotutoriales | `utils-extra.js` |
+| Votaciones o trivias | `dinamicas.js` |
+| Navegación entre secciones | `grupos.js` — funciones `activarSeccion()` y `setActiveNav()` |
+
+---
+
+## Lo que se reorganizó (vs versión anterior)
+
+| Qué se movió | De | A | Por qué |
+|---|---|---|---|
+| `initMuro()`, `cargarMuroFotos()`, `cargarMuroStats()`, `cargarMuroPublicaciones()`, `eliminarFotoMuro()`, `publicarFotoMuroAlFeed()` | `chat.js` | `muro.js` | La lógica del muro no tiene nada que ver con el chat |
+| `renderCalMes()`, `calNavegar()`, `calVerDia()`, `resetVistaCalendario()`, `toggleTarea()`, `compartirTarea()`, `eliminarTarea()` | `biblioteca.js` | `tareas.js` | El calendario es parte de Tareas, no de Biblioteca |
+| `uploadToCloudinary()` | `apuntes.js` | `core.js` | La usan 5 módulos distintos (apuntes, muro, chat, tableros, dinámicas) |
+| `window.abrirDetalleDvd = abrirDetalleDvd` | `utils-extra.js` | eliminado | Era una referencia muerta; `abrirDetalleDvd` se llama directamente en `videotutoriales.js` |
 
 ---
 
@@ -43,18 +59,29 @@ Cada uno depende del anterior (las variables globales de core.js las usan todos)
 
 ---
 
-## Cuando subas cambios
+## Regla para hacer cambios
+
+Antes de tocar cualquier archivo, pregúntate:
+
+1. **¿Qué sección visual afecta?** → ese es el archivo
+2. **¿Afecta a VARIOS módulos?** → va en `core.js` o `utils-extra.js`
+3. **¿Es navegación?** → va en `grupos.js`
+4. **¿Es responsive/visual?** → va en `style.css`, sección correspondiente
+
+---
+
+## Cuándo subir cambios
 
 Solo sube el archivo que modificaste + `sw.js` incrementando la versión del caché:
 
 ```js
 // sw.js — línea 1
-const CACHE_NAME = 'zonaescolar-shell-v11';  // ← incrementar cada deploy
+const CACHE_NAME = 'zonaescolar-shell-v28';  // ← incrementar cada deploy
 ```
 
 Y actualiza el `?v=` del script correspondiente en `index.html`:
 ```html
-<script src="js/dinamicas.js?v=2"></script>  ← incrementar versión
+<script src="js/tareas.js?v=2"></script>  ← incrementar versión
 ```
 Esto fuerza al navegador a descargar la versión nueva en lugar de usar el caché.
 
@@ -72,9 +99,9 @@ Esto fuerza al navegador a descargar la versión nueva en lugar de usar el cach�
 | `ec_chat`             | chat              | Mensajes del chat grupal por sala                |
 | `ec_salas_chat`       | chat              | Salas de chat creadas por el grupo               |
 | `ec_chat_reads`       | chat              | Marca de último mensaje leído por usuario        |
-| `ec_typing`           | chat              | Indicador de "está escribiendo..." en tiempo real |
+| `ec_typing`           | chat              | Indicador de "está escribiendo…" en tiempo real  |
 | `ec_online`           | chat              | Presencia online de usuarios                     |
-| `ec_tareas`           | tareas, biblioteca| Tareas del grupo con responsable y fecha         |
+| `ec_tareas`           | tareas            | Tareas del grupo con responsable y fecha         |
 | `ec_semestres`        | apuntes           | Semestres dentro de Apuntes                      |
 | `ec_galerias`         | apuntes           | Materias/galerías dentro de un semestre          |
 | `ec_fotos`            | apuntes           | Fotos de apuntes subidas a una galería           |

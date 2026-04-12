@@ -1,23 +1,25 @@
-const CACHE_NAME = 'zonaescolar-shell-v27';
+const CACHE_NAME = 'zonaescolar-shell-v31';
 const APP_SHELL = [
   './',
   './index.html',
-  './css/style.css',
+  './css/style.css?v=31',
   './manifest.webmanifest',
-  './js/core.js',
-  './js/grupos.js',
-  './js/tableros.js',
-  './js/muro.js',
-  './js/chat.js',
-  './js/tareas.js',
-  './js/biblioteca.js',
-  './js/apuntes.js',
-  './js/dinamicas.js',
-  './js/videotutoriales.js',
-  './js/utils-extra.js'
+  './js/core.js?v=31',
+  './js/grupos.js?v=31',
+  './js/tableros.js?v=31',
+  './js/muro.js?v=31',
+  './js/chat.js?v=31',
+  './js/tareas.js?v=31',
+  './js/biblioteca.js?v=31',
+  './js/apuntes.js?v=31',
+  './js/dinamicas.js?v=31',
+  './js/videotutoriales.js?v=31',
+  './js/utils-extra.js?v=31'
 ];
 
 self.addEventListener('install', event => {
+  // Activar inmediatamente sin esperar a que se cierren las pestañas anteriores
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache =>
       Promise.allSettled(APP_SHELL.map(u => cache.add(u).catch(() => null)))
@@ -51,8 +53,11 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          if (response?.ok && isSameOrigin)
-            caches.open(CACHE_NAME).then(c => c.put(request, response.clone()));
+          // Clonar ANTES de consumir el body (devolver response)
+          if (response?.ok && isSameOrigin) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(c => c.put(request, copy));
+          }
           return response;
         })
         .catch(() => caches.match(request).then(c => c || caches.match('./index.html')))
@@ -62,8 +67,11 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(request).then(cached => {
       const networkFetch = fetch(request).then(response => {
-        if (response?.ok && isSameOrigin)
-          caches.open(CACHE_NAME).then(c => c.put(request, response.clone()));
+        // Clonar ANTES de consumir el body
+        if (response?.ok && isSameOrigin) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(c => c.put(request, copy));
+        }
         return response;
       }).catch(() => null);
       return cached || networkFetch;

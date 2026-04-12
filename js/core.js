@@ -178,9 +178,20 @@ function lib() { return window._fbLib; }
 // Función para convertir links de Drive a links directos de previsualización
 function limpiarLinkDrive(url) {
   if (url.includes('drive.google.com')) {
-    const match = url.match(/\/d\/(.+?)\/(view|edit|usp|preview)/);
-    if (match && match[1]) {
-      return `https://drive.google.com/file/d/${match[1]}/preview`;
+    // Formato 1: /d/ID/view, /d/ID/edit, /d/ID/preview (el más común)
+    const matchPath = url.match(/\/d\/([a-zA-Z0-9_-]+)\/(view|edit|usp|preview)/);
+    if (matchPath && matchPath[1]) {
+      return `https://drive.google.com/file/d/${matchPath[1]}/preview`;
+    }
+    // Formato 2: /d/ID sin segmento de ruta (p.ej. /d/ID?usp=sharing)
+    const matchId = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (matchId && matchId[1]) {
+      return `https://drive.google.com/file/d/${matchId[1]}/preview`;
+    }
+    // Formato 3: open?id=ID o ?id=ID
+    const matchQuery = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (matchQuery && matchQuery[1]) {
+      return `https://drive.google.com/file/d/${matchQuery[1]}/preview`;
     }
   }
   return url;
@@ -201,10 +212,21 @@ function applyTheme(theme) {
   if (meta) meta.content = theme === 'light' ? '#ffffff' : '#1a1a2e';
   localStorage.setItem('ze_theme', theme);
 }
-$('btnThemeToggle').addEventListener('click', () => {
-  const current = localStorage.getItem('ze_theme') || 'dark';
-  applyTheme(current === 'dark' ? 'light' : 'dark');
-});
+// FIX #1: El listener se registra después de que el DOM esté disponible
+// para evitar TypeError si el script carga antes que el HTML.
+function _initThemeToggle() {
+  const btn = $('btnThemeToggle');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const current = localStorage.getItem('ze_theme') || 'dark';
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initThemeToggle);
+} else {
+  _initThemeToggle();
+}
 
 function getAvatarHtml(url, name, extraClass = '') {
   const initial = (name || '?').charAt(0).toUpperCase();
@@ -565,3 +587,41 @@ window.showToast = function(msg, type = 'info', duration = 3500) {
   const timer = setTimeout(remove, duration);
   toast.addEventListener('click', () => { clearTimeout(timer); remove(); });
 };
+
+/* ═══════════════════════════════════════════════════
+   SUBIDA DE ARCHIVOS — CLOUDINARY
+   Función compartida por: apuntes, muro, chat,
+   tableros y dinámicas. Centralizada aquí para que
+   cualquier módulo pueda usarla sin duplicar código.
+═══════════════════════════════════════════════════ */
+async function uploadToCloudinary(file, tag = '') {
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('El archivo es muy pesado. Máximo 10 MB.', 'info');
+    return null;
+  }
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', CLOUDINARY_PRESET);
+
+  if (tag) {
+    fd.append('tags', tag);
+    fd.append('folder', `ZonaEscolar/${tag}`);
+    fd.append('asset_folder', `ZonaEscolar/${tag}`);
+  }
+
+  try {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+      method: 'POST', body: fd
+    });
+    const data = await res.json();
+    if (data.error) {
+      console.error('Error exacto de Cloudinary:', data.error.message);
+      return null;
+    }
+    return data.secure_url || null;
+  } catch (e) {
+    console.error('Fallo de conexión con Cloudinary:', e);
+    return null;
+  }
+}

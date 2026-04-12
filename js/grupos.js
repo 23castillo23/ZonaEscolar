@@ -1,4 +1,16 @@
 /* ═══════════════════════════════════════════════════
+   GRUPOS — Crear/cambiar/abandonar grupos,
+   invitar miembros, sidebar de integrantes,
+   navegación entre secciones.
+   
+   Dependencias: core.js
+   Colecciones: ec_grupos, ec_users
+   
+   REGLA: activarSeccion() y setActiveNav() viven
+   aquí porque controlan la navegación global.
+   Si cambias el routing, edita solo este archivo.
+═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
    GRUPOS
 ═══════════════════════════════════════════════════ */
 async function loadGruposDelUsuario() {
@@ -116,6 +128,10 @@ async function activarGrupo(groupId) {
   const btnInvitar = $('btnInvitarCompa');
   if (btnInvitar) btnInvitar.style.display = isAdmin ? 'inline-block' : 'none';
 
+  // 3. Botón de Salir del Grupo (solo visible para miembros, no para el admin)
+  const btnLeave = $('btnLeaveGroup');
+  if (btnLeave) btnLeave.style.display = (!isAdmin) ? 'inline-block' : 'none';
+
   // ------------------------------------------
  // Cancelar TODOS los listeners activos antes de cambiar de grupo
   if (feedUnsub) { feedUnsub(); feedUnsub = null; }
@@ -145,13 +161,13 @@ async function activarGrupo(groupId) {
   renderGroupSelector();
   renderSidebarMiembros();
 
-  _setOnlineStatus();
+  if (typeof _setOnlineStatus === 'function') _setOnlineStatus();
   _onlineHeartbeatTimer = setInterval(() => {
-    if (currentGroupId && currentUser) _setOnlineStatus();
+    if (currentGroupId && currentUser && typeof _setOnlineStatus === 'function') _setOnlineStatus();
   }, 25000);
-  initSidebarOnlinePresence();
+  if (typeof initSidebarOnlinePresence === 'function') initSidebarOnlinePresence();
 
-  hookBurbujaEnGrupo();
+  if (typeof hookBurbujaEnGrupo === 'function') hookBurbujaEnGrupo();
 
   // Mostrar FAB del chat burbuja
   const fab = $('chatFab');
@@ -162,8 +178,10 @@ async function activarGrupo(groupId) {
   }
   if (fab) fab.style.display = 'flex';
 
-  // Restaurar última sección usada
-  const lastSection = localStorage.getItem('ze_last_section') || 'feed';
+  // Restaurar última sección usada — validar que sea una sección real
+  const SECCIONES_VALIDAS = ['feed','muro','apuntes','chat','tareas','biblioteca','videotutoriales','dinamicas'];
+  const _saved = localStorage.getItem('ze_last_section');
+  const lastSection = SECCIONES_VALIDAS.includes(_saved) ? _saved : 'feed';
   currentSection = lastSection;
   setActiveNav(lastSection);
   activarSeccion(lastSection);
@@ -316,12 +334,17 @@ $('btnConfirmarGrupo').addEventListener('click', async () => {
     else if (typeof grupoIconSelected !== 'undefined') iconoFinal = grupoIconSelected;
 
     // 3. Creamos el grupo
+    // FIX #2: Se agrega adminEmail y miembroNombres para que el sidebar
+    // muestre correctamente el badge ⭐ del admin y el nombre del creador.
+    const emailKey = currentUser.email.replace(/\./g, '_');
     await addDoc(collection(db(), 'ec_grupos'), {
       name: grupoNombre,
       desc: grupoDesc,
       icon: iconoFinal,
       adminUid: currentUser.uid,
+      adminEmail: currentUser.email,
       miembros: [currentUser.email],
+      miembroNombres: { [emailKey]: customName },
       createdAt: serverTimestamp()
     });
 
@@ -406,10 +429,13 @@ function setActiveNav(section) {
 qsa('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     const section = btn.dataset.section;
+    // FIX #8: guardar la sección PREVIA antes de cambiarla, para que
+    // activarSeccion pueda saber desde dónde venimos (ej: ya estaba en chat).
+    const prevSection = currentSection;
     currentSection = section;
     localStorage.setItem('ze_last_section', section);
     setActiveNav(section);
-    activarSeccion(section);
+    activarSeccion(section, prevSection);
     closeSidebar();
   });
 });
@@ -417,14 +443,16 @@ qsa('.nav-item').forEach(btn => {
 qsa('.bottom-nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     const section = btn.dataset.section;
+    // FIX #8: guardar sección previa antes de cambiarla
+    const prevSection = currentSection;
     currentSection = section;
     localStorage.setItem('ze_last_section', section);
     setActiveNav(section);
-    activarSeccion(section);
+    activarSeccion(section, prevSection);
   });
 });
 
-function activarSeccion(section) {
+function activarSeccion(section, prevSection = null) {
   // Si no hay grupo y no es muro, verificar si fue expulsado o simplemente no tiene grupo
   if (!currentGroupId && section !== 'muro') {
     // Si la sección expulsado está activa, no redirigir a noGroup (ya está bien)
@@ -497,7 +525,9 @@ function activarSeccion(section) {
 
 
   if (section === 'chat') {
-    const yaEstabaEnChat = currentSection === 'chat';
+    // FIX #8: usar prevSection (pasado como parámetro) en lugar de currentSection,
+    // que ya fue actualizado antes de llamar a esta función y siempre sería === 'chat'.
+    const yaEstabaEnChat = prevSection === 'chat';
     initSalasChat();
     // Restaurar sala solo si venimos de OTRA sección (no si ya estábamos en chat)
     if (!yaEstabaEnChat) {
@@ -547,6 +577,36 @@ function showSection(name) {
     // una sección, para que el usuario no empiece a la mitad del contenido anterior.
     if (name !== 'chat') el.scrollTop = 0;
   }
+}
+
+/* ── SALIR DEL GRUPO ── */
+const _btnLeaveGroup = $('btnLeaveGroup');
+if (_btnLeaveGroup) {
+  _btnLeaveGroup.addEventListener('click', () => {
+    if (!currentGroupId || !currentGroupData) return;
+    // El admin no puede abandonar su propio grupo (debe eliminarlo o transferirlo)
+    if (isAdmin) {
+      showToast('Eres el admin. Elimina el grupo desde el botón 🗑️ o transfiere el rol primero.', 'info');
+      return;
+    }
+    showConfirm({
+      title: `Salir de "${currentGroupData.name}"`,
+      message: 'Ya no podrás ver el contenido del grupo. El admin puede volver a invitarte.',
+      confirmText: 'Salir del grupo',
+      onConfirm: async () => {
+        const { doc, updateDoc, arrayRemove } = lib();
+        try {
+          await updateDoc(doc(db(), 'ec_grupos', currentGroupId), {
+            miembros: arrayRemove(currentUser.email)
+          });
+          // El listener onSnapshot de loadGruposDelUsuario detectará el cambio
+          // y llamará a _manejarExpulsion automáticamente.
+        } catch (e) {
+          showToast('No se pudo salir del grupo. ' + friendlyError(e), 'error');
+        }
+      }
+    });
+  });
 }
 
 /* ── TOPBAR MENÚ (móvil) ── */

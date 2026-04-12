@@ -1,3 +1,19 @@
+/* ═══════════════════════════════════════════════════
+   UTILS-EXTRA — Selector de tablero, compartir
+   libro/DVD, fix de teclado iOS, resize.
+   
+   Dependencias: core.js, grupos.js, tableros.js,
+                 videotutoriales.js, biblioteca.js
+   
+   REGLA: Utilidades compartidas entre módulos.
+   · mostrarSelectorTablero → abre modal con tableros
+   · abrirModalLibro        → detalle de libro
+   · compartirDvd           → comparte video al tablero
+   · compartirNotaAlTablero → comparte foto de apuntes
+   
+   NOTA: abrirDetalleDvd se llama directamente desde
+   videotutoriales.js — no necesita window.* aquí.
+═══════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════
 SELECTOR DE TABLERO (compartir)
@@ -161,21 +177,22 @@ $('btnCompartirLibro')?.addEventListener('click', async () => {
               url: libroSeleccionado.url
             },
             text: `📚 Te recomiendo este archivo de la biblioteca.`,
-            images: [], authorUid: currentUser.uid, authorName: currentUser.name,
+            images: [], authorUid: currentUser.uid, authorName: getUserAlias(),
             authorAvatar: currentUser.avatar, likes: 0, likedBy: [], commentCount: 0,
             createdAt: serverTimestamp()
           });
           await updateDoc(doc(db(), 'ec_biblioteca', libroSeleccionado.id), { compartidoEnTablero: true });
           showToast(`📌 ¡Libro compartido en "${tableroNombre}"!`, 'success');
         }
-      } catch (e) { showToast('Error al compartir: ' + e.message, 'error'); }
+      // FIX #4: usar friendlyError para no exponer mensajes técnicos de Firebase al usuario
+      } catch (e) { showToast('Error al compartir: ' + friendlyError(e), 'error'); }
     },
     yaEn
   );
 });
 
 // Compartir VideoTutorial
-window.abrirDetalleDvd = abrirDetalleDvd;
+// abrirDetalleDvd is defined in videotutoriales.js and called directly via onclick
 
 window.verComentariosDvdDesdeFeed = async function(dvdId, dvdUrl) {
   // Abre el video directo en YouTube sin salir del tablero
@@ -229,17 +246,19 @@ window.compartirDvd = async function(dvdId) {
               dvdId: dvdId,
               dvdData: { titulo: dvd.titulo, thumbnail: dvd.thumbnail, url: dvd.url },
               text: `📀 Chequen este video tutorial que agregué a la colección.`,
-              images: [], authorUid: currentUser.uid, authorName: currentUser.name,
+              images: [], authorUid: currentUser.uid, authorName: getUserAlias(),
               authorAvatar: currentUser.avatar, likes: 0, likedBy: [], commentCount: 0,
               createdAt: serverTimestamp()
             });
             showToast(`📌 ¡Video compartido en "${tableroNombre}"!`, 'success');
           }
-        } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        // FIX #4: usar friendlyError para no exponer mensajes técnicos de Firebase al usuario
+        } catch (e) { showToast('Error: ' + friendlyError(e), 'error'); }
       },
       yaEn
     );
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  // FIX #4: usar friendlyError para no exponer mensajes técnicos de Firebase al usuario
+  } catch (e) { showToast('Error: ' + friendlyError(e), 'error'); }
 };
 
 
@@ -259,14 +278,34 @@ window.addEventListener('resize', () => {
 });
 
 /* ══════════════════════════════════════════════════════
-   iOS KEYBOARD FIX — visualViewport API
-   Cuando el teclado sube/baja en iPhone, reajustamos
-   el chat y los modales para que no queden tapados
+   iOS KEYBOARD FIX — visualViewport API (unificado)
+   Maneja teclado nativo en iPhone: ajusta --chat-h,
+   hace scroll al fondo del chat, reposiciona el
+   compose bar y enfoca campos en modales.
+   Nota: fixChatKeyboardHeight está integrado aquí para
+   evitar doble listener de resize/scroll.
 ══════════════════════════════════════════════════════ */
 (function setupIOSKeyboardFix() {
   if (!window.visualViewport) return;
 
+  const BOTTOM_NAV_H = 48;
+  const TOP_BAR_H = 56;
+
   let _lastVVHeight = window.visualViewport.height;
+
+  function _scrollChatToBottom() {
+    const box = $('chatMessages');
+    if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 100);
+  }
+
+  function _updateChatHeight(vvHeight) {
+    const safeTop = parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue('--sat') || '0') || 0;
+    const safeBottom = parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue('--sab') || '0') || 0;
+    const chatH = vvHeight - TOP_BAR_H - BOTTOM_NAV_H - safeTop - safeBottom;
+    document.documentElement.style.setProperty('--chat-h', Math.max(chatH, 200) + 'px');
+  }
 
   window.visualViewport.addEventListener('resize', () => {
     const vvHeight = window.visualViewport.height;
@@ -274,26 +313,33 @@ window.addEventListener('resize', () => {
     const keyboardClosed = vvHeight > _lastVVHeight + 50;
     _lastVVHeight = vvHeight;
 
-    // 1. Ajustar sección activa para que no quede tapada
+    // 1. Actualizar variable CSS --chat-h
+    _updateChatHeight(vvHeight);
+
+    // 2. Ajustar sección activa (solo secciones que NO son el chat,
+    //    para que el chat use --chat-h en lugar de maxHeight)
     const activeSection = document.querySelector('.section.active');
-    if (activeSection) {
+    if (activeSection && !activeSection.id?.includes('Chat')) {
       if (keyboardOpen) {
-        // Teclado subió: reducir altura del contenedor
         activeSection.style.maxHeight = vvHeight + 'px';
       } else if (keyboardClosed) {
         activeSection.style.maxHeight = '';
       }
     }
 
-    // 2. Scroll del chat al fondo cuando aparece el teclado
-    if (currentSection === 'chat' || currentSection === 'sectionChat') {
-      const box = $('chatMessages');
-      if (box) {
-        setTimeout(() => { box.scrollTop = box.scrollHeight; }, 100);
-      }
+    // 3. Desplazar sección de chat si el teclado cubre contenido
+    const chatSection = document.querySelector('#sectionChat.active');
+    if (chatSection) {
+      const offsetY = window.visualViewport.offsetTop;
+      chatSection.style.transform = offsetY > 0 ? `translateY(-${Math.min(offsetY, 120)}px)` : '';
     }
 
-    // 3. Scroll de modales abiertos al campo activo
+    // 4. Scroll del chat al fondo cuando aparece el teclado
+    if (currentSection === 'chat' || currentSection === 'sectionChat') {
+      _scrollChatToBottom();
+    }
+
+    // 5. Scroll de modales abiertos al campo activo
     const activeModal = document.querySelector('.modal-overlay.open, .modal-overlay[style*="flex"]');
     if (activeModal && keyboardOpen) {
       const focused = activeModal.querySelector('input:focus, textarea:focus');
@@ -305,14 +351,22 @@ window.addEventListener('resize', () => {
 
   // Ajustar posición cuando el viewport se desplaza (iOS scroll con teclado)
   window.visualViewport.addEventListener('scroll', () => {
+    _updateChatHeight(window.visualViewport.height);
+
     if (currentSection === 'chat' || currentSection === 'sectionChat') {
       const chatCompose = document.querySelector('.chat-compose-wrapper');
       if (chatCompose) {
         const offsetY = window.visualViewport.offsetTop;
         chatCompose.style.transform = offsetY ? `translateY(${offsetY}px)` : '';
       }
+      _scrollChatToBottom();
     }
   });
+
+  window.addEventListener('resize', () => _updateChatHeight(window.visualViewport.height));
+
+  // Inicializar --chat-h al cargar
+  _updateChatHeight(window.visualViewport.height);
 })();
 
 
@@ -324,14 +378,13 @@ window.compartirNotaAlTablero = async function(fotoId, url) {
     `¿En qué tablero quieres compartir esta nota de ${materiaNombre}?`,
     async (tableroId, tableroNombre) => {
       try {
-        const { collection, addDoc, updateDoc, doc, query, where, getDocs, serverTimestamp, arrayUnion } = window._fbLib;
-        const db = window._db;
+        const { collection, addDoc, updateDoc, doc, query, where, getDocs, serverTimestamp, arrayUnion } = lib();
 
         // Buscar si ya existe una publicación de esta galería+tablero del mismo autor
         let publicacionExistente = null;
         if (galeriaId) {
           const snap = await getDocs(query(
-            collection(db, 'ec_feed'),
+            collection(db(), 'ec_feed'),
             where('groupId', '==', currentGroupId),
             where('galeriaId', '==', galeriaId),
             where('tableroId', '==', tableroId || ''),
@@ -347,14 +400,14 @@ window.compartirNotaAlTablero = async function(fotoId, url) {
             showToast('Esta foto ya está en la publicación.', 'info');
             return;
           }
-          await updateDoc(doc(db, 'ec_feed', publicacionExistente.id), {
+          await updateDoc(doc(db(), 'ec_feed', publicacionExistente.id), {
             images: arrayUnion(url),
             createdAt: serverTimestamp()
           });
           showToast(`📌 Foto añadida a la publicación de ${materiaNombre} en "${tableroNombre}"`, 'success');
         } else {
           // No existe → crear publicación nueva
-          await addDoc(collection(db, 'ec_feed'), {
+          await addDoc(collection(db(), 'ec_feed'), {
             groupId: currentGroupId,
             tableroId: tableroId || '',
             galeriaId: galeriaId || '',
@@ -362,62 +415,19 @@ window.compartirNotaAlTablero = async function(fotoId, url) {
             text: `📖 Apuntes compartidos de la materia: ${materiaNombre}`,
             images: [url],
             authorUid: currentUser.uid,
-            authorName: currentUser.name,
+            authorName: getUserAlias(),
             authorAvatar: currentUser.avatar,
             likes: 0, likedBy: [], commentCount: 0,
             createdAt: serverTimestamp()
           });
           showToast(`¡Nota compartida en "${tableroNombre}"! 📌`, 'success');
         }
-      } catch(e) { showToast('Error al compartir: ' + e.message, 'error'); }
+      // FIX #4: usar friendlyError para no exponer mensajes técnicos de Firebase al usuario
+      } catch(e) { showToast('Error al compartir: ' + friendlyError(e), 'error'); }
     }
   );
 };
 
 
-/* ══════════════════════════════════════════════════════
-   FIX MÓVIL: Teclado en Chat — iOS Safari no reduce
-   dvh cuando sube el teclado nativo, así que usamos
-   visualViewport para calcular la altura real disponible
-   y la asignamos como variable CSS --chat-h
-══════════════════════════════════════════════════════ */
-(function fixChatKeyboardHeight() {
-  if (!window.visualViewport) return;
 
-  const BOTTOM_NAV_H = 48;  // altura de la bottom nav
-  const TOP_BAR_H = 56;     // altura del topbar
 
-  function updateChatHeight() {
-    const vvHeight = window.visualViewport.height;
-    const safeTop = parseInt(getComputedStyle(document.documentElement)
-      .getPropertyValue('--sat') || '0') || 0;
-    const safeBottom = parseInt(getComputedStyle(document.documentElement)
-      .getPropertyValue('--sab') || '0') || 0;
-
-    const chatH = vvHeight - TOP_BAR_H - BOTTOM_NAV_H - safeTop - safeBottom;
-    document.documentElement.style.setProperty('--chat-h', Math.max(chatH, 200) + 'px');
-
-    // Scroll al fondo de los mensajes cuando sube el teclado
-    if (currentSection === 'chat' || currentSection === 'sectionChat') {
-      const box = document.getElementById('chatMessages');
-      if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 100);
-    }
-    
-    // Desplazar la sección de chat si el teclado cubre contenido
-    const activeSection = document.querySelector('#sectionChat.active');
-    if (activeSection) {
-      const offsetY = window.visualViewport.offsetY;
-      const offsetX = window.visualViewport.offsetX;
-      if (offsetY > 0) {
-        activeSection.style.transform = `translateY(-${Math.min(offsetY, 120)}px)`;
-      } else {
-        activeSection.style.transform = '';
-      }
-    }
-  }
-
-  window.visualViewport.addEventListener('resize', updateChatHeight);
-  window.visualViewport.addEventListener('scroll', updateChatHeight);
-  window.addEventListener('resize', updateChatHeight);
-  updateChatHeight();
-})();

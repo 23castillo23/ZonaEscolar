@@ -1,4 +1,14 @@
 /* ═══════════════════════════════════════════════════
+   MURO — Perfil propio y de terceros, álbumes,
+   fotos, publicaciones del muro.
+   
+   Dependencias: core.js, grupos.js
+   Colecciones: ec_muro_fotos, ec_muro_albums, ec_feed
+   
+   REGLA: Todo lo del muro va aquí.
+   No editar chat.js para lógica del muro.
+═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
    LÓGICA DEL MURO (PERFIL PROPIO Y DE TERCEROS)
 ═══════════════════════════════════════════════════ */
 let muroFotosUnsub = null;
@@ -352,3 +362,400 @@ window.verMuroDeUsuario = async function (email, nombre) {
   }
 };
 
+
+/* ═══════════════════════════════════════════════════
+   INIT MURO — Punto de entrada principal
+   (movido desde chat.js donde estaba mezclado)
+═══════════════════════════════════════════════════ */
+function initMuro() {
+  // Resetear vista de álbum al entrar/cambiar de muro
+  muroAlbumActualId = null;
+  muroAlbumsCache = [];
+
+  // ¿Estamos viendo el muro de otro?
+  const esAjeno = muroViendoUid && muroViendoUid !== '__pending__';
+  const esPropio = !muroViendoUid;
+  const uid = esAjeno ? muroViendoUid : currentUser.uid;
+  const nombre = esAjeno ? muroViendoNombre : currentUser.name;
+  const avatar = esPropio ? currentUser.avatar : '';
+
+  // Mostrar avatar del muro correctamente (URL, emoji o inicial)
+  const muroAv = $('muroAvatar');
+  const muroFb = $('muroAvatarFallback');
+  if (muroAv && muroFb) {
+    const isUrl = avatar && avatar.startsWith('http');
+    const isEmoji = avatar && !isUrl && [...avatar].length <= 2;
+    const initial = (nombre || '?').charAt(0).toUpperCase();
+    if (isUrl) {
+      muroAv.src = avatar; muroAv.style.display = 'block'; muroFb.style.display = 'none';
+    } else {
+      muroAv.style.display = 'none'; muroFb.style.display = 'flex';
+      muroFb.textContent = isEmoji ? avatar : initial;
+    }
+  }
+  if ($('muroNombre')) $('muroNombre').textContent = nombre;
+
+  // Botón editar avatar/nombre: solo en muro propio
+  const btnEditAv = $('btnEditarAvatar');
+  if (btnEditAv) btnEditAv.style.display = esPropio ? '' : 'none';
+
+  // Botón subir: solo visible en muro propio
+  const btnSubir = $('btnMuroSubir');
+  if (btnSubir) btnSubir.style.display = esPropio ? '' : 'none';
+
+  // Botón volver si es ajeno
+  let btnBack = $('muroBackBtn');
+  if (esAjeno) {
+    if (!btnBack) {
+      btnBack = document.createElement('button');
+      btnBack.id = 'muroBackBtn';
+      btnBack.className = 'btn-sm';
+      btnBack.style.marginBottom = '10px';
+      btnBack.textContent = '← Volver a mi muro';
+      btnBack.addEventListener('click', () => {
+        muroViendoUid = null; muroViendoEmail = null; muroViendoNombre = null;
+        initMuro();
+      });
+      const header = $('sectionMuro').querySelector('.muro-header');
+      if (header) header.insertAdjacentElement('beforebegin', btnBack);
+    }
+    btnBack.style.display = '';
+  } else {
+    if (btnBack) btnBack.style.display = 'none';
+  }
+
+  if (muroViendoUid === '__pending__') {
+    // Usuario invitado que aún no se ha registrado
+    const grid = $('muroFotosGrid');
+    if (grid) grid.innerHTML = `<div class="feed-loading" style="grid-column:1/-1;padding:30px">
+      ${escHtml(muroViendoNombre)} aún no ha iniciado sesión en ZonaEscolar.
+    </div>`;
+    if ($('muroStats')) $('muroStats').textContent = '0 fotos';
+    return;
+  }
+
+  // Respetar la pestaña activa; si ninguna está activa, abrir en fotos
+  const tabActiva = document.querySelector('.muro-tab.active');
+  const tipoTab = tabActiva ? tabActiva.dataset.tab : 'fotos';
+  qsa('.muro-tab').forEach(t => t.classList.remove('active'));
+  const tabTarget = document.querySelector(`.muro-tab[data-tab="${tipoTab}"]`);
+  if (tabTarget) tabTarget.classList.add('active');
+  const content = $('muroContent');
+  if (tipoTab === 'fotos') {
+    loadMuroAlbums(uid, esPropio);
+  } else {
+    if (content) content.innerHTML = `<div class="feed-list" id="muroPostsList"><div class="feed-loading">Cargando…</div></div>`;
+    cargarMuroPublicaciones();
+  }
+  // ---------------------------------------------------------------------
+
+  cargarMuroStats(uid);
+}
+
+function cargarMuroStats(uid) {
+  const targetUid = uid || currentUser.uid;
+  const { collection, query, where, getDocs } = lib();
+  const qFotos = query(collection(db(), 'ec_muro_fotos'), where('authorUid', '==', targetUid));
+  getDocs(qFotos).then(snap => {
+    if ($('muroStats')) $('muroStats').textContent = `${snap.size} foto${snap.size !== 1 ? 's' : ''}`;
+  }).catch(err => {
+    console.error('Error al cargar estadísticas del muro:', err);
+  });
+}
+
+function cargarMuroFotos(uid, esPropio) {
+  // SOLUCIÓN: Si le das clic a la pestaña, usa el ID de la persona que estás viendo
+  const targetUid = uid || (muroViendoUid && muroViendoUid !== '__pending__' ? muroViendoUid : currentUser.uid);
+  const prop = esPropio !== undefined ? esPropio : (targetUid === currentUser.uid);
+
+  const { collection, query, where, orderBy, onSnapshot } = lib();
+
+  // Filtrar por álbum activo
+  // NOTA: fotos viejas no tienen groupId ni albumId; filtramos solo por authorUid
+  // y aplicamos filtro de álbum en memoria para máxima compatibilidad
+  const constraints = [
+    where('authorUid', '==', targetUid),
+    orderBy('createdAt', 'desc')
+  ];
+
+  const q = query(collection(db(), 'ec_muro_fotos'), ...constraints);
+
+  const grid = $('muroFotosGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="feed-loading" style="grid-column:1/-1">Cargando fotos…</div>';
+
+  if (muroFotosUnsub) { muroFotosUnsub(); muroFotosUnsub = null; }
+  muroFotosUnsub = onSnapshot(q, async snap => {
+    let fotos = [];
+    snap.forEach(d => fotos.push({ id: d.id, ...d.data() }));
+
+    // Filtro en memoria por álbum (cubre fotos viejas sin campo albumId)
+    if (muroAlbumActualId === '__none__') {
+      fotos = fotos.filter(f => !f.albumId);
+    } else if (muroAlbumActualId) {
+      fotos = fotos.filter(f => f.albumId === muroAlbumActualId);
+    }
+
+    lightboxPhotos = fotos;
+
+    if (!fotos.length) {
+      const msg = muroAlbumActualId
+        ? (prop ? 'Este álbum está vacío. Sube fotos con el botón "+ Foto".' : 'Este álbum está vacío.')
+        : (prop ? 'No has subido fotos todavía.' : 'Este integrante aún no tiene fotos.');
+      grid.innerHTML = `<div class="feed-loading" style="grid-column:1/-1;padding:30px">
+        ${msg}<br>
+        ${(prop && !muroAlbumActualId) ? '<span style="font-size:12px;color:var(--text3)">Usa el botón "+ Foto" para subir.</span>' : ''}
+      </div>`;
+      return;
+    }
+
+    // Consultar en qué tableros ya está compartida cada foto
+    // Mapa: fotoId → Set de tableroIds donde ya existe
+    const compartidasMap = {};
+    if (prop && fotos.length) {
+      try {
+        const { collection, query, where, getDocs, orderBy } = lib();
+        // Traer nombres de tableros para mostrar etiqueta
+        const tablerosSnap = await getDocs(query(
+          collection(db(), 'ec_tableros'),
+          where('groupId', '==', currentGroupId)
+        ));
+        const tablerosNombres = { '': '🏠 Tablero general' };
+        tablerosSnap.forEach(d => {
+          tablerosNombres[d.id] = `📌 ${d.data().nombre}`;
+        });
+
+        const feedSnap = await getDocs(query(
+          collection(db(), 'ec_feed'),
+          where('groupId', '==', currentGroupId),
+          where('type', '==', 'foto')
+        ));
+        feedSnap.forEach(d => {
+          const data = d.data();
+          if (!data.muroFotoId) return;
+          if (!compartidasMap[data.muroFotoId]) compartidasMap[data.muroFotoId] = [];
+          const tId = data.tableroId ?? '';
+          compartidasMap[data.muroFotoId].push(tablerosNombres[tId] || '📌 Tablero');
+        });
+      } catch (_) { /* si falla, renderizamos sin badges */ }
+    }
+
+    grid.innerHTML = fotos.map((f, i) => {
+      const canDelFoto = f.authorUid === currentUser.uid || isAdmin;
+      const btnDelFoto = canDelFoto
+        ? `<button class="muro-photo-del" onclick="event.stopPropagation(); eliminarFotoMuro('${f.id}')" title="Eliminar foto">🗑️</button>`
+        : '';
+
+      const tablerosDonde = compartidasMap[f.id] || [];
+      const yaCompartida = tablerosDonde.length > 0;
+      const tooltipTexto = yaCompartida
+        ? `Compartida en: ${tablerosDonde.join(', ')}`
+        : 'Compartir en tablero';
+
+      const badge = yaCompartida
+        ? `<div class="muro-photo-compartido-badge" title="${escHtml(tooltipTexto)}">
+             ✅
+             <span class="muro-photo-compartido-lista">${escHtml(tablerosDonde.join(' · '))}</span>
+           </div>`
+        : '';
+
+      const btnPublicar = prop
+        ? `<button class="muro-photo-publish ${yaCompartida ? 'ya-pub' : ''}"
+              onclick="event.stopPropagation(); publicarFotoMuroAlFeed('${f.id}','${escHtml(f.url)}')"
+              title="${escHtml(tooltipTexto)}">
+             ${yaCompartida ? '📌 Volver a compartir' : '📌 Compartir al Tablero'}
+           </button>`
+        : '';
+
+      return `<div class="muro-photo-thumb" onclick="openLightbox(${i})">
+        <img src="${escHtml(f.url)}" loading="lazy" alt="">
+        ${btnDelFoto}
+        <div class="muro-photo-overlay">
+          ${badge}
+          ${btnPublicar}
+        </div>
+      </div>`;
+    }).join('');
+
+    if ($('muroStats')) $('muroStats').textContent = `${fotos.length} foto${fotos.length !== 1 ? 's' : ''}`;
+  });
+}
+
+// Eliminar foto del muro (propia o admin)
+window.eliminarFotoMuro = function (fotoId) {
+  showConfirm({
+    title: 'Eliminar foto',
+    message: '¿Eliminar esta foto de tu muro? Esta acción no se puede deshacer.',
+    confirmText: 'Eliminar',
+    onConfirm: async () => {
+      const { doc, deleteDoc, collection, query, where, getDocs } = lib();
+      try {
+        await deleteDoc(doc(db(), 'ec_muro_fotos', fotoId));
+        const snap = await getDocs(query(collection(db(), 'ec_feed'), where('muroFotoId', '==', fotoId)));
+        for (const d of snap.docs) await deleteDoc(doc(db(), 'ec_feed', d.id));
+      } catch (e) { showToast('No se pudo eliminar. ' + friendlyError(e), 'error'); }
+    }
+  });
+};
+
+// Publicar foto del muro al feed del grupo (manual, a decisión del usuario)
+window.publicarFotoMuroAlFeed = async function(fotoId, url) {
+  const { collection, query, where, getDocs, addDoc, doc, updateDoc, serverTimestamp } = lib();
+
+  // Consultar en qué tableros ya existe esta foto
+  const existingSnap = await getDocs(query(
+    collection(db(), 'ec_feed'),
+    where('muroFotoId', '==', fotoId)
+  )).catch(() => null);
+
+  const yaEn = new Set();
+  existingSnap?.forEach(d => yaEn.add(d.data().tableroId ?? ''));
+
+  mostrarSelectorTablero(
+    '¿En qué tablero quieres compartir esta foto?',
+    async (tableroId, tableroNombre) => {
+      try {
+        const enEste = existingSnap?.docs.find(d => (d.data().tableroId ?? '') === (tableroId || ''));
+        if (enEste) {
+          await updateDoc(doc(db(), 'ec_feed', enEste.id), { createdAt: serverTimestamp() });
+          showToast(`📌 ¡Publicación subida al inicio de "${tableroNombre}"!`, 'success');
+        } else {
+          // Reemplazar prompt() nativo con modal personalizado
+          pedirTextoFotoModal(async (texto) => {
+            try {
+              await addDoc(collection(db(), 'ec_feed'), {
+                groupId: currentGroupId,
+                tableroId: tableroId || '',
+                type: 'foto',
+                muroFotoId: fotoId,
+                text: texto.trim(),
+                images: [url],
+                authorUid: currentUser.uid,
+                authorName: currentUser.name,
+                authorAvatar: currentUser.avatar,
+                likes: 0, likedBy: [], commentCount: 0,
+                createdAt: serverTimestamp()
+              });
+              showToast(`¡Foto publicada en "${tableroNombre}"! 📌`, 'success');
+            } catch(e) { showToast('No se pudo publicar. ' + friendlyError(e), 'error'); }
+          });
+        }
+      } catch(e) { showToast('No se pudo publicar. ' + friendlyError(e), 'error'); }
+    },
+    yaEn
+  );
+};
+
+
+$('btnMuroSubir').addEventListener('click', () => {
+  muroViendoUid = null;
+  $('muroFileInput').click();
+});
+$('muroFileInput').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  if (!files.length) return;
+  $('muroFileInput').value = '';
+  mostrarSelectorAlbum(files);
+});
+
+// Tabs del muro
+qsa('.muro-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    qsa('.muro-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const tipo = tab.dataset.tab;
+    const content = $('muroContent');
+    const esAjeno = muroViendoUid && muroViendoUid !== '__pending__';
+    const esPropio = !muroViendoUid;
+    const uid = esAjeno ? muroViendoUid : currentUser.uid;
+    if (tipo === 'fotos') {
+      muroAlbumActualId = null;
+      loadMuroAlbums(uid, esPropio);
+    } else {
+      muroAlbumActualId = null;
+      if (muroAlbumsUnsub) { muroAlbumsUnsub(); muroAlbumsUnsub = null; }
+      content.innerHTML = `<div class="feed-list" id="muroPostsList"><div class="feed-loading">Cargando…</div></div>`;
+      cargarMuroPublicaciones();
+    }
+  });
+});
+
+function cargarMuroPublicaciones() {
+  // Si estamos viendo el muro de otro miembro, mostrar SUS publicaciones
+  const targetUid = (muroViendoUid && muroViendoUid !== '__pending__')
+    ? muroViendoUid : currentUser.uid;
+  const esPropio = targetUid === currentUser.uid;
+
+  // Cancelar listener anterior para evitar acumulación de listeners duplicados
+  if (muroFeedUnsub) { muroFeedUnsub(); muroFeedUnsub = null; }
+
+  const { collection, query, where, orderBy, limit, onSnapshot } = lib();
+  const q = query(
+    collection(db(), 'ec_feed'),
+    where('authorUid', '==', targetUid),
+    where('groupId', '==', currentGroupId),
+    orderBy('createdAt', 'desc'),
+    limit(20)
+  );
+  const list = $('muroPostsList');
+  if (!list) return;
+  muroFeedUnsub = onSnapshot(q, snap => {
+    const posts = [];
+    snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
+    if (!posts.length) {
+      list.innerHTML = `<div class="feed-loading">${esPropio ? 'Aún no tienes publicaciones en este grupo.' : 'Este integrante aún no tiene publicaciones.'}</div>`;
+      return;
+    }
+
+    const cols = getFeedCols(list);
+    const numCols = getVisibleColCount();
+    const newIds = new Set(posts.map(p => p.id));
+
+    // Mostrar/ocultar columnas según pantalla
+    cols.forEach((col, i) => { col.style.display = i < numCols ? '' : 'none'; });
+
+    // Eliminar cards que ya no existen
+    list.querySelectorAll('.feed-card[data-id]').forEach(el => {
+      if (!newIds.has(el.dataset.id)) el.remove();
+    });
+
+    // Distribuir en columnas masonry (responsive)
+    posts.forEach((p, idx) => {
+      const col = cols[idx % numCols];
+      const posInCol = Math.floor(idx / numCols);
+
+      let card = list.querySelector(`.feed-card[data-id="${p.id}"]`);
+      if (!card) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = buildFeedCard(p);
+        card = tmp.firstElementChild;
+        card.dataset.id = p.id;
+        bindFeedCard(card, p.id);
+        injectPin(card, getCardColor(p.id, p.pinColor), p.pinShape || 'flat');
+      }
+
+      const cardsInCol = [...col.querySelectorAll('.feed-card[data-id]')];
+      const currentPosInCol = cardsInCol.indexOf(card);
+      if (card.parentElement !== col || currentPosInCol !== posInCol) {
+        const refCard = col.querySelectorAll('.feed-card[data-id]')[posInCol];
+        if (refCard && refCard !== card) col.insertBefore(card, refCard);
+        else if (!refCard) col.appendChild(card);
+      }
+
+      // Actualizar contadores
+      const likeBtn = card.querySelector('.feed-action-btn[data-like]');
+      if (likeBtn) {
+        const isLiked = p.likedBy?.includes(currentUser.uid);
+        likeBtn.className = `feed-action-btn ${isLiked ? 'liked' : ''}`;
+        likeBtn.innerHTML = `<span class="foco-icon">💡</span> Útil (<span class="like-count">${p.likes || 0}</span>)`;
+      }
+      const commentToggle = card.querySelector('.feed-comments-toggle');
+      if (commentToggle && card.querySelector('.feed-comments-section')?.dataset.open !== '1') {
+        const cnt = p.commentCount || 0;
+        commentToggle.textContent = `📝 ${cnt > 0 ? cnt + ' notas' : 'Añadir nota'}`;
+      }
+    });
+  });
+}
+
+// Nota: lastChatDateStr y chatUnreadDividerInserted están declarados en chat.js
