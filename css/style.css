@@ -8485,7 +8485,7 @@ header.topbar {
   /* Spacer mínimo para compensar la topbar fija (position:fixed en móvil) */
   .section::before {
     content: '';
-    display: block;
+    display: none; /* APAGAMOS ESTE ESPACIO EXTRA */        
     height: var(--ze-topbar-h, calc(56px + env(safe-area-inset-top, 0px)));
     pointer-events: none;
   }
@@ -8532,7 +8532,7 @@ header.topbar {
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
-    padding-top: var(--ze-topbar-h, calc(56px + env(safe-area-inset-top, 0px)));
+    padding-top: 0; /* QUITAMOS EL PADDING DOBLE */
     padding-bottom: 0;
     box-sizing: border-box;
     overflow: hidden;
