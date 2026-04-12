@@ -37,7 +37,7 @@
   --chat-other-bg: var(--bg3);
   /* Espacio bajo el contenido: sobreescrito por JS con el alto real de #bottomNav (móvil) */
   --ze-bottom-nav-clearance: calc(52px + env(safe-area-inset-bottom, 0px));
-  --ze-topbar-h: calc(56px + env(safe-area-inset-top, 0px)); /* sobreescrito por JS */
+  --ze-topbar-h: calc(56px + env(safe-area-inset-top, 0px) + 12px); /* sobreescrito por JS */
   --ze-real-vh: 1vh; /* sobreescrito por JS con visualViewport — fix Safari */
   /* Safe-area shortcuts usadas por el iOS keyboard fix en utils-extra.js */
   --sat: env(safe-area-inset-top, 0px);
@@ -4558,8 +4558,9 @@ header.topbar {
 ═══════════════════════════════════════════════════════ */
 @supports (padding-top: env(safe-area-inset-top)) {
   .topbar {
-    padding-top: env(safe-area-inset-top, 0px);
-    height: calc(56px + env(safe-area-inset-top, 0px));
+    /* 👇 Aquí agregamos los 12px extra para despegarlo de la batería */
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    height: calc(56px + env(safe-area-inset-top, 0px) + 12px);
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
@@ -4572,10 +4573,11 @@ header.topbar {
 
 /* PWA instalada en Android (standalone) — fuerza el safe area
    aunque @supports no lo detecte al arrancar */
+/* PWA instalada en Android (standalone) */
 @media (display-mode: standalone) {
   .topbar {
-    padding-top: env(safe-area-inset-top, 0px);
-    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    height: calc(56px + env(safe-area-inset-top, 0px) + 12px);
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
@@ -4586,11 +4588,11 @@ header.topbar {
   }
 }
 
-/* PWA en fullscreen (algunos Android la instalan así) */
+/* PWA en fullscreen */
 @media (display-mode: fullscreen) {
   .topbar {
-    padding-top: env(safe-area-inset-top, 0px);
-    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    height: calc(56px + env(safe-area-inset-top, 0px) + 12px);
   }
 }
 
@@ -8917,9 +8919,9 @@ header.topbar {
   .topbar {
     padding-left: max(10px, env(safe-area-inset-left, 0px));
     padding-right: max(10px, env(safe-area-inset-right, 0px));
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px); /* 👇 Separación extra */
     padding-bottom: 0;
-    min-height: calc(56px + env(safe-area-inset-top, 0px));
+    min-height: calc(56px + env(safe-area-inset-top, 0px) + 12px); /* 👇 Altura compensada */
     height: auto;
     gap: 8px;
   }
