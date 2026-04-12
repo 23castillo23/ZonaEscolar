@@ -205,7 +205,9 @@ window.compartirTarea = async function(tareaId) {
             text: `📋 Nueva tarea: "${titulo}"${metaPartes.length ? ' · ' + metaPartes.join(' · ') : ''}`,
             images: [],
             authorUid: currentUser.uid,
-            authorName: currentUser.name,
+            // BUG FIX: usar getUserAlias() en lugar de currentUser.name para
+            // respetar el apodo/alias configurado por el usuario en el grupo.
+            authorName: getUserAlias(),
             authorAvatar: currentUser.avatar,
             likes: 0, likedBy: [], commentCount: 0,
             createdAt: serverTimestamp()
@@ -325,7 +327,8 @@ $('btnConfirmarTarea').addEventListener('click', async () => {
       done: false,
       subtareas: subtareas, // <-- Guardamos la lista dinámica en Firebase
       authorUid: currentUser.uid,
-      authorName: currentUser.name,
+      // BUG FIX: usar getUserAlias() para respetar el alias del grupo.
+      authorName: getUserAlias(),
       createdAt: serverTimestamp()
     };
     

@@ -359,7 +359,20 @@ function initAuth() {
         await ensureUserDoc();
         loadGruposDelUsuario();
       } else {
+        // FIX: Cancelar TODOS los listeners activos antes de limpiar el estado.
+        // Antes solo se ocultaba el DOM, dejando listeners de Firestore y el
+        // heartbeat corriendo con currentUser=null → errores silenciosos y
+        // riesgo de datos cruzados si el usuario cambia de cuenta en la misma pestaña.
         currentUser = null;
+        currentGroupId = null;
+        currentGroupData = null;
+
+        // Delegar el teardown a grupos.js que tiene acceso directo a todas
+        // las variables let de los módulos (son closures del mismo scope global).
+        if (typeof window.teardownAllListeners === 'function') {
+          window.teardownAllListeners();
+        }
+
         showLogin();
       }
     });
@@ -569,9 +582,10 @@ window.showConfirm = function({ title = '¿Estás seguro?', message = '', confir
   // Confirmar
   newOk.addEventListener('click', () => { close(); onConfirm?.(); });
 
-  // Cancelar — reusar el mismo botón que ya existe
-  const newCancel = document.getElementById('confirmBtnCancel').cloneNode(true);
-  document.getElementById('confirmBtnCancel').parentNode.replaceChild(newCancel, document.getElementById('confirmBtnCancel'));
+  // Cancelar — reusar el mismo botón que ya existe, guardando referencia antes de usarla
+  const cancelBtnOld = document.getElementById('confirmBtnCancel');
+  const newCancel = cancelBtnOld.cloneNode(true);
+  cancelBtnOld.parentNode.replaceChild(newCancel, cancelBtnOld);
   newCancel.addEventListener('click', close);
 
   // Cerrar al hacer clic en el overlay
@@ -701,11 +715,15 @@ async function uploadToCloudinary(file, tag = '') {
     const data = await res.json();
     if (data.error) {
       console.error('Error exacto de Cloudinary:', data.error.message);
+      // FIX: mostrar error al usuario en lugar de fallar silenciosamente
+      showToast('No se pudo subir el archivo. Intenta de nuevo.', 'error');
       return null;
     }
     return data.secure_url || null;
   } catch (e) {
     console.error('Fallo de conexión con Cloudinary:', e);
+    // FIX: feedback al usuario en error de red (común en móvil)
+    showToast('Sin conexión. Verifica tu red e intenta de nuevo.', 'error');
     return null;
   }
 }

@@ -386,23 +386,28 @@ async function cargarMasMensajesChat() {
         .map(d => ({ id: d.id, ...d.data() }))
         .reverse();
 
-      // FIX: guardar y restaurar lastChatDateStr correctamente.
-      // Los mensajes viejos tienen su propia cadena de fechas independiente,
-      // así que reseteamos para reconstruir sus separadores y luego
-      // dejamos el valor del primer mensaje nuevo (el que quedó al tope del hilo)
-      // sin tocar lastChatDateStr del hilo principal.
+      // BUG-22: Al insertar mensajes antiguos, resetear lastChatDateStr para que
+      // los separadores de fecha se generen correctamente para esos mensajes.
+      // NO restaurar el valor antiguo al terminar; en cambio, NO tocar lastChatDateStr
+      // del hilo principal para evitar duplicar el separador del primer mensaje nuevo.
       const savedLastDateStr = lastChatDateStr;
 
       const tempDiv = document.createElement('div');
       lastChatDateStr = ''; // reset para separadores de los mensajes viejos
       mensajes.forEach(m => appendChatMessageObj(m, tempDiv));
-      // Después de insertar los viejos, restauramos para que el hilo nuevo
-      // no vuelva a dibujar el separador del primer mensaje nuevo.
-      lastChatDateStr = savedLastDateStr;
+      // Después de insertar los viejos, restauramos el valor del PRIMER mensaje
+      // del hilo existente (el que ya está visible en pantalla), no el antiguo.
+      // Si tempDiv generó separadores hasta cierta fecha, lastChatDateStr ya tiene
+      // el valor correcto del último mensaje antiguo. Lo dejamos para que el hilo
+      // nuevo no repita el separador de ese mismo día.
+      // Solo restauramos si el tempDiv no generó ningún separador (sin mensajes).
+      if (!tempDiv.querySelector('.chat-date-divider')) {
+        lastChatDateStr = savedLastDateStr;
+      }
 
       const ancla = $('chatLoadMoreBtn');
       while (tempDiv.firstChild) {
-        box.insertBefore(tempDiv.firstChild, ancla ? ancla.nextSibling : box.firstChild);
+        box.insertBefore(tempDiv.firstChild, ancla || box.firstChild);
       }
 
       // Mantener la posición de scroll (no saltar al top)
@@ -422,11 +427,11 @@ async function cargarMasMensajesChat() {
 
 function initChatOnline() {
   if (!currentGroupId || !currentUser) return;
+  // FIX: El heartbeat de presencia (25 s) ya lo arranca grupos.js al seleccionar grupo.
+  // Antes se creaba un segundo intervalo aquí (30 s) que sobreescribía
+  // _onlineHeartbeatTimer sin cancelar el anterior, dejando intervalos huérfanos
+  // cada vez que el usuario entraba al chat. Solo hacemos un ping inmediato.
   _setOnlineStatus();
-
-  // Heartbeat cada 30 s para mantener presencia activa
-  if (_onlineHeartbeatTimer) clearInterval(_onlineHeartbeatTimer);
-  _onlineHeartbeatTimer = setInterval(_setOnlineStatus, 30000);
 
   if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
   const { collection, query, where, onSnapshot } = lib();
@@ -435,7 +440,7 @@ function initChatOnline() {
     where('groupId', '==', currentGroupId)
   );
 
-  chatOnlineUnsub = onSnapshot(q, snap => {
+    chatOnlineUnsub = onSnapshot(q, snap => {
     const list = $('chatOnlineList');
     if (!list) return;
     const now = Date.now();
@@ -640,9 +645,12 @@ async function enviarMensaje() {
   input.value = '';
   input.dispatchEvent(new Event('input'));
 
-  // Append optimista: mostrar el mensaje al instante
   const msgBox = $('chatMessages');
   const tempId = 'optimist-' + Date.now();
+  // BUG FIX: el mensaje optimista debe pasar por appendChatMessageObj para
+  // actualizar lastChatDateStr. Si el mensaje es el primero del día, el
+  // separador de fecha se dibuja correctamente para los mensajes reales
+  // que llegan después a través del listener en tiempo real.
   const mensajeOptimista = {
     id: tempId,
     text,
@@ -820,10 +828,11 @@ function initChatListeners() {
   });
 
   // ── Scroll al enfocar teclado en móvil ──
+  // BUG FIX: los tres setTimeout anidados (100/300/600 ms) causaban saltos
+  // de scroll visibles en Android Chrome. Con un único setTimeout de 150 ms
+  // es suficiente: el viewport ya terminó de reajustarse en ese tiempo.
   $('chatInput')?.addEventListener('focus', () => {
-    setTimeout(() => ajustarScrollChat(false), 100);
-    setTimeout(() => ajustarScrollChat(false), 300);
-    setTimeout(() => ajustarScrollChat(false), 600);
+    setTimeout(() => ajustarScrollChat(false), 150);
   });
 
   $('chatInput')?.addEventListener('blur', () => {
@@ -920,75 +929,7 @@ function pedirTextoFotoModal(onConfirm) {
   });
 }
 
-/* ══════════════════════════════════════════
-   FIX iOS: Visual Viewport API
-   El teclado virtual no tapa ninguna sección
-══════════════════════════════════════════ */
-(function patchIOSKeyboard() {
-  const vv = window.visualViewport;
-  if (!vv) return;
-
-  const TOPBAR_H = 56;
-  const KB_THRESHOLD = 100; // px — si el viewport bajó más de esto, el teclado subió
-
-  function onViewportChange() {
-    const visibleH = vv.height;
-    const screenH = window.screen.height;
-    const kbOpen = (screenH - visibleH) > KB_THRESHOLD;
-
-    const mainContent = document.querySelector('.main-content');
-    const bottomNav = document.getElementById('bottomNav');
-    const chatSection = document.getElementById('sectionChat');
-
-    if (kbOpen) {
-      if (mainContent) {
-        mainContent.style.height = visibleH + 'px';
-        mainContent.style.minHeight = visibleH + 'px';
-        mainContent.style.maxHeight = visibleH + 'px';
-      }
-      if (bottomNav) {
-        bottomNav.style.transform = 'translateY(100%)';
-        bottomNav.style.visibility = 'hidden';
-      }
-      if (chatSection && chatSection.classList.contains('active')) {
-        const chatH = (visibleH - TOPBAR_H) + 'px';
-        chatSection.style.height = chatH;
-        chatSection.style.maxHeight = chatH;
-        chatSection.style.setProperty('--chat-h', chatH);
-        setTimeout(() => {
-          const box = document.getElementById('chatMessages');
-          if (box) box.scrollTop = box.scrollHeight;
-        }, 60);
-      }
-    } else {
-      if (mainContent) {
-        mainContent.style.height = '';
-        mainContent.style.minHeight = '';
-        mainContent.style.maxHeight = '';
-      }
-      if (bottomNav) {
-        bottomNav.style.transform = '';
-        bottomNav.style.visibility = '';
-      }
-      if (chatSection) {
-        chatSection.style.height = '';
-        chatSection.style.maxHeight = '';
-        chatSection.style.removeProperty('--chat-h');
-      }
-    }
-  }
-
-  vv.addEventListener('resize', onViewportChange);
-  vv.addEventListener('scroll', onViewportChange);
-
-  // Al cambiar de sección limpiar los estilos inline
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('[data-section]')) return;
-    const mainContent = document.querySelector('.main-content');
-    const bottomNav = document.getElementById('bottomNav');
-    const chatSection = document.getElementById('sectionChat');
-    if (mainContent) { mainContent.style.height = ''; mainContent.style.minHeight = ''; mainContent.style.maxHeight = ''; }
-    if (bottomNav) { bottomNav.style.transform = ''; bottomNav.style.visibility = ''; }
-    if (chatSection) { chatSection.style.height = ''; chatSection.style.maxHeight = ''; chatSection.style.removeProperty('--chat-h'); }
-  });
-})();
+// BUG FIX: patchIOSKeyboard eliminado — su lógica estaba duplicada con
+// setupIOSKeyboardFix en utils-extra.js. Tener dos listeners de
+// visualViewport.resize operando en paralelo causaba saltos de layout y
+// scroll errático al abrir/cerrar el teclado en iOS/Android.

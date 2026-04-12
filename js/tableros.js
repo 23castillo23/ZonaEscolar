@@ -60,6 +60,8 @@ function initTableros() {
     // Si falla por índice pendiente, usamos query simple sin orderBy
     if (err.code === 'failed-precondition' || err.message?.includes('index')) {
       console.warn('Índice de tableros compilando, usando query sin orden…');
+      // BUG-31: Cancelar el listener anterior antes de crear el fallback
+      if (tablerosUnsub) { tablerosUnsub(); tablerosUnsub = null; }
       const qSimple = query(
         collection(db(), 'ec_tableros'),
         where('groupId', '==', currentGroupId)
@@ -213,6 +215,7 @@ window.eliminarTableroActivo = function() {
 
 /* ── Ordenar tableros ── */
 window._ordenSalas = localStorage.getItem('ze_orden_salas') || 'fecha';
+window._ordenTableros = localStorage.getItem('ze_orden_tableros') || 'fecha';
 window.toggleOrdenSalas = function() {
   window._ordenSalas = window._ordenSalas === 'fecha' ? 'nombre' : 'fecha';
   localStorage.setItem('ze_orden_salas', window._ordenSalas);
@@ -644,7 +647,7 @@ function abrirModalComentariosConId(commentPostId, cardEl, feedPostId, toggleBtn
       _unlockBodyScroll();
       if (modal._prevUnsub) { modal._prevUnsub(); modal._prevUnsub = null; }
     }
-  }, { once: true });
+  });
 }
 
 /* ── Modal comentarios del feed ── */
@@ -804,7 +807,7 @@ function abrirModalComentarios(postId, cardEl) {
   const newClose = closeBtn.cloneNode(true);
   closeBtn.parentNode.replaceChild(newClose, closeBtn);
   newClose.addEventListener('click', cerrarModal);
-  modal.addEventListener('click', e => { if (e.target === modal) cerrarModal(); }, { once: true });
+  modal.addEventListener('click', e => { if (e.target === modal) cerrarModal(); });
 }
 
 window.eliminarComentarioModal = function(comentarioId, postId) {
@@ -862,11 +865,15 @@ function renderFeed(posts) {
 
   // Eliminar cards que ya no existen
   list.querySelectorAll('.feed-card[data-id]').forEach(el => {
-    if (!newIds.has(el.dataset.id)) el.remove();
+    if (!newIds.has(el.dataset.id)) {
+      // BUG-27: Cancelar listener de comentarios antes de eliminar la card
+      const section = el.querySelector('.feed-comments-section');
+      if (section?._commentsUnsub) { section._commentsUnsub(); section._commentsUnsub = null; }
+      el.remove();
+    }
   });
 
   posts.forEach((p, idx) => {
-    if (p._keepOnly) return; // legacy marker — card ya está en el DOM, no tocar
     const colIdx = idx % numCols;
     const col = cols[colIdx];
     const posInCol = Math.floor(idx / numCols);
@@ -1194,7 +1201,7 @@ function buildFeedCard(p) {
   if (p.authorEmail && currentGroupData && currentGroupData.miembros) {
     isAuthorInGroup = currentGroupData.miembros.includes(p.authorEmail);
   }
-  const canDelete = isMine || (isAdmin && !isAuthorInGroup);
+  const canDelete = isMine || (isAdmin && (p.authorEmail ? !isAuthorInGroup : true));
 
   const badgeMap = {
     foto: ['badge-foto', '📷 Foto'],
@@ -1704,6 +1711,8 @@ $('composeSend').addEventListener('click', async () => {
     composeFiles = [];
     $('composePhoto').value = '';
     renderComposePreview();
+    // BUG-34: Cerrar el dropdown del pin al publicar
+    $('composePinDropdown')?.classList.remove('open');
   } catch (e) {
     showToast('No se pudo publicar. ' + friendlyError(e), 'error');
   } finally {

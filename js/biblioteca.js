@@ -91,7 +91,10 @@ $('btnAgregarArchivoBiblioMain')?.addEventListener('click', () => {
       } catch (e) { console.error(e); }
     });
 
-    // Guardar Libro
+    // Guardar Libro — debe estar DENTRO del guard !bibliotecaUiBound
+    // BUG FIX: antes btnConfirmarBiblio.onclick se reasignaba fuera del guard,
+    // lo que significaba que tras cambiar de grupo y volver a biblioteca el
+    // handler usaba el currentGroupId del closure anterior (grupo viejo).
     const btnConfLibro = $('btnConfirmarBiblio');
     if (btnConfLibro) {
       btnConfLibro.onclick = async () => {
@@ -102,7 +105,7 @@ $('btnAgregarArchivoBiblioMain')?.addEventListener('click', () => {
         if (!nombre || !urlOriginal || !catId) { showToast('Faltan datos.', 'error'); return; }
 
         const urlLimpia = limpiarLinkDrive(urlOriginal);
-        const descripcion = $('biblioDesc') ? $('biblioDesc').value.trim() : ''; // <-- NUEVA LÍNEA: Guarda la descripción
+        const descripcion = $('biblioDesc') ? $('biblioDesc').value.trim() : '';
 
         btnConfLibro.disabled = true;
         btnConfLibro.textContent = '⏳...';
@@ -113,7 +116,7 @@ $('btnAgregarArchivoBiblioMain')?.addEventListener('click', () => {
             groupId: currentGroupId,
             categoriaId: catId,
             name: nombre,
-            descripcion: descripcion, // <-- NUEVA LÍNEA: Se manda a Firebase
+            descripcion: descripcion,
             url: urlLimpia,
             ext: (nombre.split('.').pop() || 'LINK').toUpperCase(),
             colorClass: selectedBiblioColor,

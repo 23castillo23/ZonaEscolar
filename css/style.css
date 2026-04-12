@@ -39,6 +39,9 @@
   --ze-bottom-nav-clearance: calc(48px + env(safe-area-inset-bottom, 0px));
   --ze-topbar-h: calc(56px + env(safe-area-inset-top, 0px)); /* sobreescrito por JS */
   --ze-real-vh: 1vh; /* sobreescrito por JS con visualViewport — fix Safari */
+  /* Safe-area shortcuts usadas por el iOS keyboard fix en utils-extra.js */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
 }
 
 /* ── VARIABLES MODO CLARO (Suave y sin fatiga visual) ── */
@@ -114,7 +117,6 @@ body {
   background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1.5px, transparent 1.5px);
   background-size: 24px 24px;
   color: var(--text0);
-  min-height: 100vh;
   min-height: 100vh;
   height: 100dvh;
   min-height: -webkit-fill-available;
@@ -312,7 +314,6 @@ a {
 ═══════════════════════════════════════════════════════ */
 .app-shell {
   display: flex;
-  min-height: 100vh;
   min-height: 100vh;
   height: 100dvh;
   min-height: -webkit-fill-available;
@@ -553,10 +554,8 @@ header.topbar {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  min-height: 100vh;
   height: 100dvh;
   min-height: -webkit-fill-available;
-  max-height: 100vh;
   max-height: 100vh;
   height: 100dvh;
   overflow: hidden;
@@ -4750,7 +4749,6 @@ header.topbar {
   height: 100dvh;
   height: -webkit-fill-available;
   min-height: 100vh;
-  min-height: 100vh;
   height: 100dvh;
   position: sticky;
   top: 0;
@@ -8371,10 +8369,6 @@ header.topbar {
     gap: 8px;
   }
 
-  .btn-calendario {
-    margin-left: 0;
-  }
-  
   /* Tareas: 1 columna en móvil */
   .tareas-list {
     grid-template-columns: 1fr;
@@ -8430,7 +8424,6 @@ header.topbar {
     max-height: none;
     flex: 1;
     min-height: 100vh;
-  min-height: 100vh;
   height: 100dvh;
     min-height: -webkit-fill-available;
     overflow: hidden;
@@ -8676,15 +8669,15 @@ header.topbar {
     align-content: start;
   }
     
-   FIX MÓVIL: Reducir tamaño de tarjetas de salas en Chat
-   para evitar el exceso de espacio vertical entre ellas
+  /* FIX MÓVIL: Reducir tamaño de tarjetas de salas en Chat
+     para evitar el exceso de espacio vertical entre ellas */
 
   #salasGaleria.tableros-galeria .tablero-card {
     aspect-ratio: 3/2;
   }
 
-   FIX MÓVIL: Botón X del lightbox respeta la barra de
-   estado del iPhone (safe-area-inset-top)
+  /* FIX MÓVIL: Botón X del lightbox respeta la barra de
+     estado del iPhone (safe-area-inset-top) */
   .lightbox-close {
     top: max(16px, calc(env(safe-area-inset-top, 0px) + 10px));
   }

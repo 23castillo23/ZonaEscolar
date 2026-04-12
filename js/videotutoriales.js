@@ -57,10 +57,17 @@ function dvdOrdenarArray(dvds) {
   return arr;
 }
 
-/** Convierte #RGB a {r,g,b} o null */
+/** Convierte #RGB / #RRGGBB / rgb(r,g,b) a {r,g,b} o null */
 function dvdHexToRgb(hex) {
   if (!hex || typeof hex !== 'string') return null;
   let h = hex.trim();
+
+  // BUG-33: Soporte para formato rgb(r, g, b)
+  const rgbMatch = h.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+  if (rgbMatch) {
+    return { r: parseInt(rgbMatch[1]), g: parseInt(rgbMatch[2]), b: parseInt(rgbMatch[3]) };
+  }
+
   if (h.length === 4 && h[0] === '#') {
     h = `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}`;
   }
@@ -654,18 +661,17 @@ if (btnConfirmarDvd) {
 
 // Caché local para no esperar a Firestore en cada render
 let _dvdFavsCache = [];
-let _dvdFavsUnsub = null;
 
 /** Inicia el listener en tiempo real de favoritos del usuario actual.
  *  Se llama desde initVideotutoriales() para tener los favs listos. */
 function initDvdFavs() {
-  if (_dvdFavsUnsub) { _dvdFavsUnsub(); _dvdFavsUnsub = null; }
+  if (window._dvdFavsUnsub) { window._dvdFavsUnsub(); window._dvdFavsUnsub = null; }
   if (!currentUser?.uid || !currentGroupId) return;
 
   const { doc, onSnapshot } = lib();
   const ref = doc(db(), 'ec_dvd_favs', `${currentUser.uid}_${currentGroupId}`);
 
-  _dvdFavsUnsub = onSnapshot(ref, snap => {
+  window._dvdFavsUnsub = onSnapshot(ref, snap => {
     _dvdFavsCache = snap.exists() ? (snap.data().favIds || []) : [];
     // Refrescar la grid y el badge del tab en tiempo real
     filtrarDvds();

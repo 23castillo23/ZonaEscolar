@@ -72,7 +72,16 @@ function renderMuroAlbums(targetUid, esPropio) {
     return;
   }
 
-  // Contar fotos sin álbum (sin filtro groupId: fotos viejas no tienen ese campo)
+  // BUG-07: Debounce de 300ms para evitar race condition si el snapshot se dispara múltiples veces
+  if (renderMuroAlbums._debounceTimer) clearTimeout(renderMuroAlbums._debounceTimer);
+  renderMuroAlbums._debounceTimer = setTimeout(() => _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid), 300);
+}
+
+function _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid) {
+  // Guardar referencia al grid actual para evitar escribir en un grid obsoleto
+  const currentGrid = grid || $('muroAlbumsGrid');
+  if (!currentGrid) return;
+
   const { collection, query, where, getDocs } = lib();
   getDocs(query(
     collection(db(), 'ec_muro_fotos'),
@@ -202,7 +211,8 @@ window.crearAlbumMuro = async function () {
     await addDoc(collection(db(), 'ec_muro_albums'), {
       nombre, emoji,
       authorUid: currentUser.uid,
-      authorName: currentUser.name,
+      // BUG FIX: getUserAlias() para respetar el alias del grupo.
+      authorName: getUserAlias(),
       groupId: currentGroupId,
       createdAt: serverTimestamp()
     });
@@ -284,19 +294,34 @@ async function subirFotosMuro(files, albumId) {
   const btn = $('btnMuroSubir');
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   const { collection, addDoc, serverTimestamp } = lib();
+  let exitosas = 0;
+  let fallidas = 0;
   for (const file of files) {
     const url = await uploadToCloudinary(file);
     if (url) {
+      exitosas++;
       await addDoc(collection(db(), 'ec_muro_fotos'), {
         url,
         albumId: albumId || null,
         authorUid: currentUser.uid,
-        authorName: currentUser.name,
+        // BUG FIX: getUserAlias() para respetar el alias del grupo.
+        authorName: getUserAlias(),
         authorAvatar: currentUser.avatar,
         groupId: currentGroupId,
         createdAt: serverTimestamp()
       });
+    } else {
+      fallidas++;
     }
+  }
+  // BUG-24: Notificar si alguna foto no se pudo subir
+  if (fallidas > 0) {
+    showToast(
+      exitosas > 0
+        ? `Se subieron ${exitosas} de ${files.length} fotos. ${fallidas} no pudieron cargarse.`
+        : `No se pudo subir ninguna foto. Intenta de nuevo.`,
+      fallidas === files.length ? 'error' : 'warning'
+    );
   }
   if (btn) { btn.disabled = false; btn.textContent = '+ Foto'; }
   if ($('muroFileInput')) $('muroFileInput').value = '';
@@ -320,6 +345,9 @@ async function subirFotosMuro(files, albumId) {
 /* ── ABRIR EL MURO DE UN COMPAÑERO DESDE LA BARRA LATERAL ── */
 
 window.verMuroDeUsuario = async function (email, nombre) {
+  // BUG-12: Resetear el álbum actual antes de cambiar de muro
+  muroAlbumActualId = null;
+
   // 1. Si das clic en tu propio nombre, limpiamos las variables para ver tu muro
   if (email === currentUser.email) {
     muroViendoUid = null;
@@ -631,7 +659,8 @@ window.publicarFotoMuroAlFeed = async function(fotoId, url) {
                 text: texto.trim(),
                 images: [url],
                 authorUid: currentUser.uid,
-                authorName: currentUser.name,
+                // BUG FIX: getUserAlias() para respetar el alias del grupo.
+                authorName: getUserAlias(),
                 authorAvatar: currentUser.avatar,
                 likes: 0, likedBy: [], commentCount: 0,
                 createdAt: serverTimestamp()

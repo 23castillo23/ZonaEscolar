@@ -328,14 +328,14 @@ window.addEventListener('resize', () => {
     }
 
     // 3. Desplazar sección de chat si el teclado cubre contenido
-    const chatSection = document.querySelector('#sectionChat.active');
-    if (chatSection) {
-      const offsetY = window.visualViewport.offsetTop;
-      chatSection.style.transform = offsetY > 0 ? `translateY(-${Math.min(offsetY, 120)}px)` : '';
-    }
+    // FIX: eliminado translateY en el contenedor padre del chat. Aplicarlo aquí
+    // mientras .chat-compose-wrapper también tiene su propio transform (listener
+    // de scroll más abajo) causaba doble desplazamiento en Android Chrome.
+    // El scroll al fondo es suficiente para mantener el input visible.
 
     // 4. Scroll del chat al fondo cuando aparece el teclado
-    if (currentSection === 'chat' || currentSection === 'sectionChat') {
+    // FIX: eliminado alias 'sectionChat' — data-section siempre vale 'chat'
+    if (currentSection === 'chat') {
       _scrollChatToBottom();
     }
 
@@ -351,19 +351,28 @@ window.addEventListener('resize', () => {
 
   // Ajustar posición cuando el viewport se desplaza (iOS scroll con teclado)
   window.visualViewport.addEventListener('scroll', () => {
-    _updateChatHeight(window.visualViewport.height);
+    const vvH = window.visualViewport?.height;
+    if (vvH) _updateChatHeight(vvH);
 
-    if (currentSection === 'chat' || currentSection === 'sectionChat') {
+    if (currentSection === 'chat') {
       const chatCompose = document.querySelector('.chat-compose-wrapper');
       if (chatCompose) {
         const offsetY = window.visualViewport.offsetTop;
+        // BUG FIX: solo aplicar el transform cuando la sección chat está activa.
+        // Antes se aplicaba siempre, desplazando el compose bar en secciones
+        // como Feed o Tareas si el usuario había tocado algún input.
         chatCompose.style.transform = offsetY ? `translateY(${offsetY}px)` : '';
       }
       _scrollChatToBottom();
     }
   });
 
-  window.addEventListener('resize', () => _updateChatHeight(window.visualViewport.height));
+  // BUG FIX: proteger con optional chaining por si visualViewport deja de
+  // estar disponible (contexto raro en algunos Android WebView).
+  window.addEventListener('resize', () => {
+    const vvH = window.visualViewport?.height;
+    if (vvH) _updateChatHeight(vvH);
+  });
 
   // Inicializar --chat-h al cargar
   _updateChatHeight(window.visualViewport.height);

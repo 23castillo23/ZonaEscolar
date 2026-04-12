@@ -13,6 +13,40 @@
 /* ═══════════════════════════════════════════════════
    GRUPOS
 ═══════════════════════════════════════════════════ */
+/* ── TEARDOWN GLOBAL DE LISTENERS ──────────────────
+   Llamada en: cambio de grupo, expulsión, logout.
+   Al estar en grupos.js tiene acceso directo a todos
+   los let de módulo sin necesidad de eval ni globals.
+─────────────────────────────────────────────────── */
+window.teardownAllListeners = function() {
+  if (feedUnsub)         { feedUnsub();         feedUnsub         = null; }
+  if (chatUnsub)         { chatUnsub();         chatUnsub         = null; }
+  if (salasUnsub)        { salasUnsub();        salasUnsub        = null; }
+  if (bibliotecaUnsub)   { bibliotecaUnsub();   bibliotecaUnsub   = null; }
+  if (tareasUnsub)       { tareasUnsub();       tareasUnsub       = null; }
+  if (votacionUnsub)     { votacionUnsub();     votacionUnsub     = null; }
+  if (gruposUnsub)       { gruposUnsub();       gruposUnsub       = null; }
+  if (semestresUnsub)    { semestresUnsub();    semestresUnsub    = null; }
+  if (galeriasUnsub)     { galeriasUnsub();     galeriasUnsub     = null; }
+  if (chatOnlineUnsub)   { chatOnlineUnsub();   chatOnlineUnsub   = null; }
+  if (tablerosUnsub)     { tablerosUnsub();     tablerosUnsub     = null; }
+  if (tableroFeedUnsub)  { tableroFeedUnsub();  tableroFeedUnsub  = null; }
+  if (sidebarOnlineUnsub){ sidebarOnlineUnsub();sidebarOnlineUnsub= null; }
+  if (catBiblioUnsub)    { catBiblioUnsub();    catBiblioUnsub    = null; }
+  if (dvdUnsub)          { dvdUnsub();          dvdUnsub          = null; }
+  if (window._dvdFavsUnsub) { window._dvdFavsUnsub(); window._dvdFavsUnsub = null; }
+  if (muroFeedUnsub)     { muroFeedUnsub();     muroFeedUnsub     = null; }
+  if (muroFotosUnsub)    { muroFotosUnsub();    muroFotosUnsub    = null; }
+  if (muroAlbumsUnsub)   { muroAlbumsUnsub();   muroAlbumsUnsub   = null; }
+  if (window._apuntesFotosUnsub) { window._apuntesFotosUnsub(); window._apuntesFotosUnsub = null; }
+  if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
+  currentTableroId  = null;
+  muroAlbumActualId = null;
+  muroAlbumsCache   = [];
+  bibliotecaUiBound = false;
+};
+
+
 async function loadGruposDelUsuario() {
   const { collection, query, onSnapshot, where } = lib();
   if (gruposUnsub) gruposUnsub();
@@ -140,35 +174,14 @@ async function activarGrupo(groupId) {
   if (btnLeave) btnLeave.style.display = (!isAdmin) ? 'inline-block' : 'none';
 
   // ------------------------------------------
- // Cancelar TODOS los listeners activos antes de cambiar de grupo
-  if (feedUnsub) { feedUnsub(); feedUnsub = null; }
-  if (chatUnsub) { chatUnsub(); chatUnsub = null; }
-  if (salasUnsub) { salasUnsub(); salasUnsub = null; }
-  if (bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
-  if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
-  if (votacionUnsub) { votacionUnsub(); votacionUnsub = null; }
-  if (semestresUnsub) { semestresUnsub(); semestresUnsub = null; }
-  if (galeriasUnsub) { galeriasUnsub(); galeriasUnsub = null; }
-  if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
-  if (tablerosUnsub) { tablerosUnsub(); tablerosUnsub = null; }
-  if (tableroFeedUnsub) { tableroFeedUnsub(); tableroFeedUnsub = null; }
-  currentTableroId = null;
-  if (sidebarOnlineUnsub) { sidebarOnlineUnsub(); sidebarOnlineUnsub = null; }
-  if (catBiblioUnsub) { catBiblioUnsub(); catBiblioUnsub = null; }
-  if (dvdUnsub) { dvdUnsub(); dvdUnsub = null; }
-  if (muroFeedUnsub) { muroFeedUnsub(); muroFeedUnsub = null; }
-  if (muroFotosUnsub) { muroFotosUnsub(); muroFotosUnsub = null; }
-  if (muroAlbumsUnsub) { muroAlbumsUnsub(); muroAlbumsUnsub = null; }
-  muroAlbumActualId = null;
-  muroAlbumsCache = [];
-  if (window._apuntesFotosUnsub) { window._apuntesFotosUnsub(); window._apuntesFotosUnsub = null; }
-  if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
-  bibliotecaUiBound = false;
+  // Cancelar TODOS los listeners activos antes de cambiar de grupo
+  window.teardownAllListeners();
 
   renderGroupSelector();
   renderSidebarMiembros();
 
   if (typeof _setOnlineStatus === 'function') _setOnlineStatus();
+  if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
   _onlineHeartbeatTimer = setInterval(() => {
     if (currentGroupId && currentUser && typeof _setOnlineStatus === 'function') _setOnlineStatus();
   }, 25000);
@@ -230,23 +243,8 @@ function renderSidebarMiembros() {
 
 /* ── Manejar cuando el usuario actual es expulsado en tiempo real ── */
 function _manejarExpulsion() {
-  // Cancelar todos los listeners activos
-  if (feedUnsub) { feedUnsub(); feedUnsub = null; }
-  if (chatUnsub) { chatUnsub(); chatUnsub = null; }
-  if (salasUnsub) { salasUnsub(); salasUnsub = null; }
-  if (bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
-  if (tareasUnsub) { tareasUnsub(); tareasUnsub = null; }
-  if (votacionUnsub) { votacionUnsub(); votacionUnsub = null; }
-  if (semestresUnsub) { semestresUnsub(); semestresUnsub = null; }
-  if (galeriasUnsub) { galeriasUnsub(); galeriasUnsub = null; }
-  if (tablerosUnsub) { tablerosUnsub(); tablerosUnsub = null; }
-  if (dvdUnsub) { dvdUnsub(); dvdUnsub = null; }
-  if (muroFeedUnsub) { muroFeedUnsub(); muroFeedUnsub = null; }
-  if (muroFotosUnsub) { muroFotosUnsub(); muroFotosUnsub = null; }
-  if (muroAlbumsUnsub) { muroAlbumsUnsub(); muroAlbumsUnsub = null; }
-  if (sidebarOnlineUnsub) { sidebarOnlineUnsub(); sidebarOnlineUnsub = null; }
-  if (chatOnlineUnsub) { chatOnlineUnsub(); chatOnlineUnsub = null; }
-  if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
+  // Cancelar todos los listeners activos (reutiliza la función centralizada)
+  window.teardownAllListeners();
 
   // Cerrar cualquier modal abierto
   document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
@@ -275,7 +273,9 @@ function _manejarExpulsion() {
 window.expulsarMiembro = async function (emailExpulsado) {
   showConfirm({
     title: 'Expulsar integrante',
-    message: `¿Estás seguro de expulsar a ${emailExpulsado} del grupo? Se le quitará el acceso.`,
+    // BUG FIX: escHtml para evitar inyección en el modal si el email contiene
+    // caracteres especiales (improbable pero posible con cuentas externas).
+    message: `¿Estás seguro de expulsar a ${escHtml(emailExpulsado)} del grupo? Se le quitará el acceso.`,
     confirmText: 'Expulsar',
     onConfirm: async () => {
   const { doc, updateDoc, arrayRemove } = lib();
@@ -460,6 +460,14 @@ qsa('.bottom-nav-item').forEach(btn => {
 });
 
 function activarSeccion(section, prevSection = null) {
+  // BUG-15: Cerrar modal de comentarios si está abierto al cambiar de sección
+  const commentsModal = document.getElementById('comments-modal-overlay');
+  if (commentsModal?.classList.contains('active')) {
+    commentsModal.classList.remove('active');
+    if (commentsModal._prevUnsub) { commentsModal._prevUnsub(); commentsModal._prevUnsub = null; }
+    if (typeof _unlockBodyScroll === 'function') _unlockBodyScroll();
+  }
+
   // Si no hay grupo y no es muro, verificar si fue expulsado o simplemente no tiene grupo
   if (!currentGroupId && section !== 'muro') {
     // Si la sección expulsado está activa, no redirigir a noGroup (ya está bien)

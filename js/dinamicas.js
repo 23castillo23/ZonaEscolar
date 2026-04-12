@@ -110,7 +110,22 @@ function dibujarRuleta() {
   const canvas = $('ruletaCanvas');
   const ctx = canvas.getContext('2d');
   const cx = 150, cy = 150, r = 140;
-  const n = ruletaMiembros.length || 1;
+  const n = ruletaMiembros.length;
+
+  // BUG-32: Si no hay miembros, mostrar mensaje y deshabilitar botón de girar
+  const btnSpin = $('btnSpin');
+  if (!n) {
+    if (btnSpin) btnSpin.disabled = true;
+    ctx.clearRect(0, 0, 300, 300);
+    ctx.fillStyle = 'var(--text2, #888)';
+    ctx.font = 'bold 14px Plus Jakarta Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Agrega participantes', cx, cy - 10);
+    ctx.fillText('para usar la ruleta', cx, cy + 14);
+    return;
+  }
+  if (btnSpin) btnSpin.disabled = false;
+
   const segAngle = (Math.PI * 2) / n;
   const colores = ['#7c6af7', '#a594f9', '#4f46e5', '#6366f1', '#818cf8', '#c4b5fd', '#8b5cf6', '#ddd6fe'];
   ctx.clearRect(0, 0, 300, 300);
@@ -765,7 +780,7 @@ async function _guardarTriviaEnFirestore() {
       nombre,
       preguntas: _triviaBancoModal,
       authorUid: currentUser.uid,
-      authorName: currentUser.name,
+      authorName: getUserAlias(),
       authorAvatar: currentUser.avatar || '',
       createdAt: serverTimestamp()
     });
@@ -799,18 +814,21 @@ function mostrarPreguntaTrivia() {
     if (seen.has(k)) return false;
     seen.add(k); return true;
   });
-  // Se mantiene el orden original tal como fueron guardadas (sin shuffle)
+
+  // BUG-21: Shuffle opciones para que la correcta no sea siempre la primera
+  const correcta = opciones[0]; // La correcta siempre es el índice 0 según el diseño
+  const shuffled = [correcta, ...opciones.slice(1)].sort(() => Math.random() - 0.5);
 
   // Guardar en variables de módulo — la respuesta correcta NO aparece en el HTML
-  _triviaCorrectaActual   = p.respuestas[0];
-  _triviaOpcionesActuales = opciones;
+  _triviaCorrectaActual   = correcta;
+  _triviaOpcionesActuales = shuffled;
 
   $('triviaProgreso').textContent = `Pregunta ${triviaIdx + 1} de ${triviaBanco.length} · Puntos: ${triviaScore}`;
   $('triviaPreguntaText').textContent = p.pregunta;
   $('triviaFeedback').textContent = '';
 
   // Solo índice numérico en onclick — nada de texto de respuesta en el DOM
-  $('triviaOpciones').innerHTML = opciones.map((op, i) =>
+  $('triviaOpciones').innerHTML = shuffled.map((op, i) =>
     `<button class="trivia-opcion" data-idx="${i}" onclick="responderTrivia(${i},this)">
       ${escHtml(op)}
     </button>`).join('');
@@ -885,7 +903,7 @@ window.compartirVotacion = async function (votacionId, pregunta) {
           text: `🗳️ Votación: "${vData.pregunta}"`,
           images: [],
           authorUid: currentUser.uid,
-          authorName: currentUser.name,
+          authorName: getUserAlias(),
           authorAvatar: currentUser.avatar || '',
           likes: 0, likedBy: [], commentCount: 0,
           createdAt: serverTimestamp()
@@ -934,7 +952,7 @@ window.compartirTrivia = async function (triviaId, nombre) {
           text: `🧠 Trivia: "${tData.nombre}" · ${tData.preguntas?.length || 0} preguntas — Ve a Dinámicas → Trivia para jugar.`,
           images: [],
           authorUid: currentUser.uid,
-          authorName: currentUser.name,
+          authorName: getUserAlias(),
           authorAvatar: currentUser.avatar || '',
           likes: 0, likedBy: [], commentCount: 0,
           createdAt: serverTimestamp()

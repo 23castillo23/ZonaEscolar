@@ -431,7 +431,7 @@ window.toggleFotoLike = async function (fotoId, btnEl) {
   const isLiked = btnEl.classList.contains('liked');
   btnEl.classList.toggle('liked');
   
-  const span = btnEl.querySelector('span:last-child'); // El span que tiene el número
+  const span = btnEl.querySelector('.like-count'); // El span que tiene el número
   let currentLikes = parseInt(span.textContent) || 0;
   
   span.textContent = isLiked ? (currentLikes - 1) : (currentLikes + 1);
@@ -455,6 +455,8 @@ window.abrirNotasDeFoto = function (fotoUrl, caption) {
 };
 
 function setupApunteUpload() {
+  if ($('btnApunteSend').dataset.bound) return;
+  $('btnApunteSend').dataset.bound = '1';
   const onChange = e => {
     const nuevos = [...e.target.files].filter(f => f.type.startsWith('image/'));
     apunteFiles = [...apunteFiles, ...nuevos];
@@ -534,6 +536,8 @@ function setupApunteUpload() {
 
 function renderApuntePreview() {
   const container = $('apuntePreviewList');
+  // Revocar URLs anteriores para evitar memory leaks
+  container.querySelectorAll('img[src^="blob:"]').forEach(img => URL.revokeObjectURL(img.src));
   container.innerHTML = apunteFiles.map((f, i) => {
     const url = URL.createObjectURL(f);
     return `
@@ -545,6 +549,9 @@ function renderApuntePreview() {
 }
 
 window.removerFotoPrevia = function (idx) {
+  // Revocar Object URL de la foto eliminada
+  const imgs = $('apuntePreviewList').querySelectorAll('img[src^="blob:"]');
+  if (imgs[idx]) URL.revokeObjectURL(imgs[idx].src);
   apunteFiles.splice(idx, 1);
   renderApuntePreview();
   $('btnApunteSend').disabled = !apunteFiles.length;
@@ -716,7 +723,7 @@ window.publicarFotoEnFeed = async function (fotoId) {
         text: `📸 Apuntes de ${gal.icon || '📚'} ${gal.name}${semNombre ? ` · ${semNombre}` : ''}`,
         images: [foto.url],
         authorUid: currentUser.uid,
-        authorName: currentUser.name,
+        authorName: getUserAlias(),
         authorAvatar: currentUser.avatar || '',
         likes: 0, likedBy: [], commentCount: 0,
         createdAt: serverTimestamp()
