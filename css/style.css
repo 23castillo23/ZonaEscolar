@@ -37,6 +37,8 @@
   --chat-other-bg: var(--bg3);
   /* Espacio reservado sobre el contenido para la bottom nav fija + home indicator (iOS) */
   --ze-bottom-nav-clearance: calc(48px + env(safe-area-inset-bottom, 0px));
+  --ze-topbar-h: calc(56px + env(safe-area-inset-top, 0px)); /* sobreescrito por JS */
+  --ze-real-vh: 1vh; /* sobreescrito por JS con visualViewport — fix Safari */
 }
 
 /* ── VARIABLES MODO CLARO (Suave y sin fatiga visual) ── */
@@ -112,7 +114,9 @@ body {
   background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1.5px, transparent 1.5px);
   background-size: 24px 24px;
   color: var(--text0);
-  min-height: 100dvh;
+  min-height: 100vh;
+  min-height: 100vh;
+  height: 100dvh;
   min-height: -webkit-fill-available;
   overflow-x: hidden;
   line-height: 1.55;
@@ -212,6 +216,7 @@ a {
 
 .login-card {
   background: rgba(26, 26, 46, 0.85);
+  -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
   border: 1px solid var(--border-hover);
   border-radius: var(--radius-xl);
@@ -307,7 +312,9 @@ a {
 ═══════════════════════════════════════════════════════ */
 .app-shell {
   display: flex;
-  min-height: 100dvh;
+  min-height: 100vh;
+  min-height: 100vh;
+  height: 100dvh;
   min-height: -webkit-fill-available;
 }
 
@@ -488,6 +495,7 @@ header.topbar {
   text-overflow: ellipsis;
   white-space: nowrap;
   box-shadow: 0 0 10px rgba(124, 106, 247, 0.12);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   transition: var(--transition);
 }
@@ -544,9 +552,13 @@ header.topbar {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: 100vh;
+  min-height: 100vh;
+  height: 100dvh;
   min-height: -webkit-fill-available;
-  max-height: 100dvh;
+  max-height: 100vh;
+  max-height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--bg0);
   transition: background 0.3s;
@@ -576,6 +588,7 @@ header.topbar {
   overflow: hidden !important;
   padding: 0;
   max-width: 100%;
+  height: calc(100vh - 56px);
   height: calc(100svh - 56px);
 }
 
@@ -677,6 +690,7 @@ header.topbar {
   flex-direction: column;
   box-shadow: 0 4px 16px rgba(0,0,0,0.18);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
+  -webkit-user-select: none;
   user-select: none;
   border: none;
   text-align: left;
@@ -1015,6 +1029,7 @@ header.topbar {
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -1578,6 +1593,7 @@ header.topbar {
   inset: 0;
   z-index: 9999;
   background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   align-items: center;
   justify-content: center;
@@ -2216,6 +2232,7 @@ header.topbar {
 /* ── HEADER DEL SEMESTRE ── */
 .group-header {
   cursor: pointer;
+  -webkit-user-select: none;
   user-select: none;
   display: flex;
   flex-direction: column;
@@ -2809,6 +2826,7 @@ header.topbar {
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   color: #fff;
   font-size: 14px;
@@ -2872,6 +2890,7 @@ header.topbar {
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   color: #fff;
   font-size: 13px;
@@ -3038,6 +3057,7 @@ header.topbar {
   display: none;
   flex-direction: column;
   height: 100vh;
+  height: calc(var(--ze-real-vh, 1vh) * 100);
   height: 100dvh;
   padding: 0;
   max-width: 100%;
@@ -3300,6 +3320,7 @@ header.topbar {
   font-size: 18px;
   cursor: pointer;
   transition: transform 0.15s;
+  -webkit-user-select: none;
   user-select: none;
   padding: 4px;
   border-radius: 8px;
@@ -3779,6 +3800,7 @@ header.topbar {
   align-items: center;
   justify-content: center;
   padding: 16px;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 
@@ -4423,6 +4445,7 @@ header.topbar {
 }
 
 .lightbox-content img {
+  max-height: 80vh;
   max-height: 80dvh;
   max-width: 90vw;
   object-fit: contain;
@@ -4723,9 +4746,12 @@ header.topbar {
   width: 260px;
   min-width: 260px;
   flex-shrink: 0;
+  height: calc(var(--ze-real-vh, 1vh) * 100);
   height: 100dvh;
   height: -webkit-fill-available;
-  min-height: 100dvh;
+  min-height: 100vh;
+  min-height: 100vh;
+  height: 100dvh;
   position: sticky;
   top: 0;
   display: flex;
@@ -5395,7 +5421,7 @@ header.topbar {
   min-height: 0;
 }
 
-.chat-online-bar:has(.chat-online-list[style*="flex"]) {
+.chat-online-bar.visible {
   padding: 6px 14px;
   border-bottom: 1px solid var(--border);
 }
@@ -6241,6 +6267,7 @@ header.topbar {
 
 .photo-action-btn {
   background: rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   border: none;
   border-radius: 12px;
@@ -6505,7 +6532,7 @@ header.topbar {
 
 .dvd-shell {
   padding: 20px 16px 100px;
-  max-width: 1200px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
@@ -6567,6 +6594,7 @@ header.topbar {
   white-space: nowrap;
   font-family: var(--font);
   transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.15s;
+  -webkit-user-select: none;
   user-select: none;
 }
 .dvd-sort-btn:hover {
@@ -6607,6 +6635,7 @@ header.topbar {
   transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.15s;
   visibility: hidden;
   padding: 0;
+  -webkit-user-select: none;
   user-select: none;
   line-height: 1;
 }
@@ -6649,6 +6678,7 @@ header.topbar {
   cursor: pointer;
   white-space: nowrap;
   font-family: var(--font);
+  -webkit-user-select: none;
   user-select: none;
   position: relative;
   transition: background 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.15s;
@@ -7344,6 +7374,7 @@ header.topbar {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.5px;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 
@@ -7598,6 +7629,7 @@ header.topbar {
   font-size: 11px;
   font-weight: 700;
   color: #fff;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   max-width: 100%;
@@ -8358,7 +8390,8 @@ header.topbar {
     position: fixed;
     top: 0;
     left: 0;
-    height: 100dvh;
+    height: calc(var(--ze-real-vh, 1vh) * 100);
+  height: 100dvh;
     z-index: 300;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
@@ -8396,7 +8429,9 @@ header.topbar {
     min-height: 0;
     max-height: none;
     flex: 1;
-    min-height: 100dvh;
+    min-height: 100vh;
+  min-height: 100vh;
+  height: 100dvh;
     min-height: -webkit-fill-available;
     overflow: hidden;
     transition: height 0.15s ease, min-height 0.15s ease, max-height 0.15s ease;
@@ -8418,7 +8453,7 @@ header.topbar {
   .section::before {
     content: '';
     display: block;
-    height: max(56px, calc(56px + env(safe-area-inset-top, 0px)));
+    height: calc(56px + env(safe-area-inset-top, 0px));
     pointer-events: none;
   }
 
@@ -8429,12 +8464,12 @@ header.topbar {
   .biblio-header,
   .dvd-header {
     position: sticky;
-    top: max(60px, calc(56px + env(safe-area-inset-top, 0px)));
+    top: calc(56px + env(safe-area-inset-top, 0px));
     z-index: 50;
     background: var(--bg0);
     padding-top: 10px;
     padding-bottom: 10px;
-    margin-top: -10px;
+    margin-top: 0;
     margin-bottom: 12px;
     border-bottom: 1px solid var(--border);
   }
@@ -8609,7 +8644,9 @@ header.topbar {
   #vistaSalasChat {
     display: flex;
     flex-direction: column;
+    height: calc(100vh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     height: calc(100svh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100vh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     max-height: calc(100svh - 56px - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     overflow: hidden;
   }
@@ -8761,7 +8798,8 @@ header.topbar {
 /* ── Móviles (≤540px): modal DVD ── */
 @media (max-width: 540px) {
   .dvd-detalle-modal {
-    max-height: 92dvh;
+    max-height: 92vh;
+  max-height: 92dvh;
     /* Centrado: NO align-self:flex-end, el overlay ya centra con align-items:center */
   }
   /* El overlay ya tiene align-items:center y padding:16px por defecto — no sobreescribir */

@@ -373,22 +373,35 @@ function _renderTarjetaVotacion(v) {
   </div>`;
 }
 
+let _votandoEnProgreso = false;
 window.votarEnPanel = async function (votacionId, opcionIdx) {
+  // Evitar doble clic mientras se procesa el voto
+  if (_votandoEnProgreso) return;
+  _votandoEnProgreso = true;
   const { doc, getDoc, updateDoc, arrayUnion, increment, collection, query, where, getDocs } = lib();
   try {
     const vSnap = await getDoc(doc(db(), 'ec_votaciones', votacionId));
     if (!vSnap.exists()) return;
     const vData = vSnap.data();
     if (!vData.activa) { showToast('Esta votación ya cerró.', 'info'); return; }
-    const votoAnterior = Number(vData?.userVotes?.[currentUser.uid]);
-    if (Number.isInteger(votoAnterior) && votoAnterior === opcionIdx) return;
+    // Leer voto anterior de forma segura — puede ser undefined si nunca ha votado
+    const votoAnteriorRaw = vData?.userVotes?.[currentUser.uid];
+    const votoAnterior = (votoAnteriorRaw !== undefined && votoAnteriorRaw !== null)
+      ? parseInt(votoAnteriorRaw, 10) : null;
+    // Si ya votó por la misma opción, no hacer nada
+    if (votoAnterior !== null && votoAnterior === opcionIdx) return;
     const patch = { votantes: arrayUnion(currentUser.uid), [`userVotes.${currentUser.uid}`]: opcionIdx };
-    if (Number.isInteger(votoAnterior)) patch[`votos.${votoAnterior}`] = increment(-1);
+    // Quitar voto anterior solo si existía y es un número válido
+    if (votoAnterior !== null && Number.isFinite(votoAnterior)) {
+      patch[`votos.${votoAnterior}`] = increment(-1);
+    }
     patch[`votos.${opcionIdx}`] = increment(1);
     await updateDoc(doc(db(), 'ec_votaciones', votacionId), patch);
+    // Actualizar también en el feed si está compartida
     const feedSnap = await getDocs(query(collection(db(), 'ec_feed'), where('votacionId', '==', votacionId)));
     if (!feedSnap.empty) await updateDoc(doc(db(), 'ec_feed', feedSnap.docs[0].id), patch);
   } catch (e) { showToast('No se pudo registrar tu voto. ' + friendlyError(e), 'error'); }
+  finally { _votandoEnProgreso = false; }
 };
 window.cerrarVotacionPanel = function (vid) {
   showConfirm({ title:'Cerrar votación', message:'¿Cerrar esta votación?', confirmText:'Cerrar', onConfirm: async () => {
@@ -559,6 +572,8 @@ function loadTriviasGuardadas() {
   triviasUnsub = onSnapshot(q, snap => {
     const trivias = [];
     snap.forEach(d => trivias.push({ id: d.id, ...d.data() }));
+    // Guardar en caché global para acceso instantáneo en jugarTrivia
+    window._triviasCache = trivias;
     renderTriviasLista(trivias);
   }, err => {
     console.error('loadTriviasGuardadas:', err);
@@ -601,17 +616,28 @@ function renderTriviasLista(trivias) {
 }
 
 window.jugarTrivia = function (triviaId) {
-  const { doc, getDoc } = lib();
-  getDoc(doc(db(), 'ec_trivias', triviaId)).then(snap => {
-    if (!snap.exists()) { showToast('No se encontró la trivia.', 'error'); return; }
-    _triviaJugandoData = { id: snap.id, ...snap.data() };
+  // Usar caché local para carga instantánea — solo ir a Firebase si no está en caché
+  const cached = window._triviasCache?.find(t => t.id === triviaId);
+  const _iniciar = (data) => {
+    _triviaJugandoData = data;
     triviaBanco = _triviaJugandoData.preguntas || [];
     triviaIdx = 0; triviaScore = 0;
     $('dinamicasVistaTrivia').style.display = 'none';
     $('dinamicasJuegoTrivia').style.display = 'block';
     if ($('triviaJuegoTitulo')) $('triviaJuegoTitulo').textContent = `🧠 ${_triviaJugandoData.nombre}`;
     mostrarPreguntaTrivia();
-  }).catch(e => showToast('Error al cargar trivia.', 'error'));
+  };
+  if (cached) {
+    _iniciar(cached);
+  } else {
+    const { doc, getDoc } = lib();
+    getDoc(doc(db(), 'ec_trivias', triviaId))
+      .then(snap => {
+        if (!snap.exists()) { showToast('No se encontró la trivia.', 'error'); return; }
+        _iniciar({ id: snap.id, ...snap.data() });
+      })
+      .catch(() => showToast('Error al cargar trivia.', 'error'));
+  }
 };
 
 window.volverAListaTrivias = function () {
@@ -768,18 +794,12 @@ function mostrarPreguntaTrivia() {
 
   // Deduplicar por si los datos en Firestore ya tienen duplicados (compatibilidad con trivias antiguas)
   const seen = new Set();
-  const unicas = (p.respuestas || []).filter(r => {
+  const opciones = (p.respuestas || []).filter(r => {
     const k = (r || '').toLowerCase();
     if (seen.has(k)) return false;
     seen.add(k); return true;
   });
-
-  // Fisher-Yates shuffle — mezcla uniforme
-  const opciones = [...unicas];
-  for (let i = opciones.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [opciones[i], opciones[j]] = [opciones[j], opciones[i]];
-  }
+  // Se mantiene el orden original tal como fueron guardadas (sin shuffle)
 
   // Guardar en variables de módulo — la respuesta correcta NO aparece en el HTML
   _triviaCorrectaActual   = p.respuestas[0];

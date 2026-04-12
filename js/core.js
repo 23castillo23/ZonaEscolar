@@ -228,6 +228,90 @@ if (document.readyState === 'loading') {
   _initThemeToggle();
 }
 
+/* ═══════════════════════════════════════════════════
+   SAFARI / CROSS-BROWSER UNIVERSAL LAYOUT FIXES
+   
+   1. --ze-topbar-h: alto real del topbar medido con JS
+   2. --ze-real-vh: 1% del viewport real de Safari
+      (Safari cambia el tamaño al aparecer/ocultar la
+       barra de dirección, rompiendo 100vh)
+   3. Clase .visible en chat-online-bar (reemplaza :has
+      que no existe en Safari < 15.4)
+═══════════════════════════════════════════════════ */
+function _setTopbarHeight() {
+  const topbar = document.querySelector('header.topbar');
+  if (!topbar) return;
+  const h = topbar.getBoundingClientRect().height;
+  if (h > 0) {
+    document.documentElement.style.setProperty('--ze-topbar-h', h + 'px');
+  }
+}
+
+function _setRealVh() {
+  // En Safari la barra de dirección hace que 100vh > viewport real.
+  // Guardamos el valor real como variable CSS para usarla en los cálculos.
+  const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
+  document.documentElement.style.setProperty('--ze-real-vh', vh + 'px');
+}
+
+function _initSafariFixes() {
+  // Topbar height
+  _setTopbarHeight();
+  // Real viewport height
+  _setRealVh();
+
+  // Escuchar visualViewport (Safari lo soporta desde iOS 13)
+  // Se dispara cuando la barra de dirección aparece/desaparece
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      _setRealVh();
+      _setTopbarHeight();
+    }, { passive: true });
+  }
+
+  window.addEventListener('resize', () => {
+    _setRealVh();
+    _setTopbarHeight();
+  }, { passive: true });
+
+  window.addEventListener('orientationchange', () => {
+    requestAnimationFrame(() => {
+      _setRealVh();
+      _setTopbarHeight();
+    });
+  }, { passive: true });
+
+  // Segunda medición tras aplicar safe-areas en iOS
+  setTimeout(() => { _setRealVh(); _setTopbarHeight(); }, 100);
+  setTimeout(() => { _setRealVh(); _setTopbarHeight(); }, 600);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initSafariFixes);
+} else {
+  _initSafariFixes();
+}
+
+/* ── Chat online bar: clase .visible en lugar de :has() ── */
+function _updateChatOnlineBarVisibility() {
+  const bar = document.querySelector('.chat-online-bar');
+  const list = document.getElementById('chatOnlineList');
+  if (!bar || !list) return;
+  const isVisible = list.style.display === 'flex';
+  bar.classList.toggle('visible', isVisible);
+}
+// Observar cambios de estilo en la lista online para actualizar la clase
+if (typeof MutationObserver !== 'undefined') {
+  const _onlineObserver = new MutationObserver(_updateChatOnlineBarVisibility);
+  const _waitForOnlineList = setInterval(() => {
+    const list = document.getElementById('chatOnlineList');
+    if (list) {
+      _onlineObserver.observe(list, { attributes: true, attributeFilter: ['style'] });
+      clearInterval(_waitForOnlineList);
+    }
+  }, 500);
+}
+
 function getAvatarHtml(url, name, extraClass = '') {
   const initial = (name || '?').charAt(0).toUpperCase();
   const safeUrl = (url && typeof url === 'string') ? url.trim() : '';
