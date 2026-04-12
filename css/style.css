@@ -8525,21 +8525,24 @@ header.topbar {
     padding-top: 0;
   }
 
-  /* Chat: altura hasta borde inferior; padding-top = topbar (una sola vez, con --chat-h = vv - bottom) */
+/* Chat: altura hasta borde inferior y barra de navegación */
   #sectionChat.active {
-    height: var(--chat-h, calc(100dvh - var(--ze-bottom-nav-clearance, 52px)));
-    max-height: var(--chat-h, calc(100dvh - var(--ze-bottom-nav-clearance, 52px)));
+    height: 100dvh !important;
+    max-height: 100dvh !important;
     min-height: 0;
     flex: 1 1 auto;
-    padding: 0;
-    padding-top: 0; /* QUITAMOS EL PADDING DOBLE */
-    padding-bottom: 0;
-    box-sizing: border-box;
-    overflow: hidden;
+    padding: 0 !important;
+        /* 1. Dejamos espacio EXACTO para la barra de arriba */
+    padding-top: var(--ze-topbar-h, 56px) !important;
+        /* 2. Dejamos espacio EXACTO para la barra de abajo (para que no tape el texto) */
+    padding-bottom: var(--ze-bottom-nav-clearance, 60px) !important;
+        box-sizing: border-box !important;
+    overflow: hidden !important;
     display: flex !important;
-    flex-direction: column;
-    transition: height 0.15s ease, max-height 0.15s ease;
+    flex-direction: column !important;
+    margin: 0 !important;
   }
+
   #sectionChat:not(.active) {
     display: none !important;
   }
@@ -8619,11 +8622,16 @@ header.topbar {
     border-radius: 4px;
   }
 
-  .galeria-header {
-    top: 0;
+.galeria-header {
+    position: sticky;
+    top: var(--ze-topbar-h, 56px); /* Se detiene exactamente debajo del menú superior */
     margin-top: 0;
     padding-top: 12px;
     padding-bottom: 10px;
+    background: var(--bg1); /* Aseguramos el color de fondo */
+    z-index: 10;
+    /* EL TRUCO MÁGICO 👇: Cortina sólida hacia arriba para tapar las fotos que van pasando */
+    box-shadow: 0 -60px 0 0 var(--bg1);
   }
   
   .tablero-feed-header {
@@ -8691,13 +8699,13 @@ header.topbar {
   }
 
   
-  #vistaSalasChat {
+#vistaSalasChat {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
-    height: auto;
-    max-height: none;
+    height: 100%; /* FORZAMOS EL LÍMITE DE PANTALLA */
+    max-height: 100%;
     overflow: hidden;
     padding: 0 10px 4px;
   }
