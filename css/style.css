@@ -8478,8 +8478,12 @@ header.topbar {
     left: 0;
     right: 0;
     z-index: 200;
+    /* Empuja el contenido de la topbar debajo de la barra de estado del móvil */
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    box-sizing: border-box;
   }
-
+  
   .main-content {
     margin-left: 0;
     padding-bottom: 0;
