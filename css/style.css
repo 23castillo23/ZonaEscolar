@@ -8559,8 +8559,8 @@ header.topbar {
      Antes solo descontaba bottom-nav, dejando el compose bar parcialmente oculto
      si JS aún no había calculado --chat-h al montar la vista. */
   #sectionChat.active {
-    height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
-    max-height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    height: var(--chat-h, calc(100svh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    max-height: var(--chat-h, calc(100svh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
@@ -8579,7 +8579,7 @@ header.topbar {
     max-height: none;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-top: 0;
+    padding-top: var(--ze-topbar-h, 56px);
     padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
   }
   #sectionChat:not(.active) {
