@@ -585,7 +585,10 @@ header.topbar {
 .section.active {
   display: block;
   overflow-y: auto;
-    overflow-x: hidden;
+  overflow-x: hidden;
+  /* Sin height explícito el scroll escapa al body — flex: 1 + min-height: 0
+     hacen que el elemento ocupe el espacio disponible y contenga su propio scroll */
+  height: 100%;
 }
 
 /* El chat necesita flex-column con altura fija para que el input quede al fondo */
@@ -8480,14 +8483,13 @@ header.topbar {
 
   .section {
     padding: 12px;
-    /* Empujar contenido por debajo del topbar fijo en móvil */
-    padding-top: var(--ze-topbar-h, calc(56px + max(20px, env(safe-area-inset-top, 20px)) + 8px));
+    /* Compensar topbar fixed: empuja el contenido justo debajo de ella */
+    padding-top: var(--ze-topbar-h, 56px);
     padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
     overflow-y: auto;
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;
-    /* Espacio para la topbar fija usando scroll-padding */
     scroll-padding-top: max(72px, calc(var(--ze-topbar-h, 56px) + 16px));
   }
 
@@ -8999,10 +9001,9 @@ header.topbar {
     font-size: 11px;
   }
 
-  /* Sections — mantener hueco para topbar fija + bottom nav */
+  /* Sections — mantener hueco para bottom nav */
   .section {
     padding: 10px 8px;
-    padding-top: var(--ze-topbar-h, calc(56px + max(20px, env(safe-area-inset-top, 20px)) + 8px));
     padding-bottom: calc(10px + var(--ze-bottom-nav-clearance));
   }
 
