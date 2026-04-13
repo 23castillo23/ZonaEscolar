@@ -37,7 +37,7 @@
   --chat-other-bg: var(--bg3);
   /* Espacio bajo el contenido: sobreescrito por JS con el alto real de #bottomNav (móvil) */
   --ze-bottom-nav-clearance: calc(52px + env(safe-area-inset-bottom, 0px));
-  --ze-topbar-h: calc(48px + max(20px, env(safe-area-inset-top, 20px)) + 8px); /* sobreescrito por JS */
+  --ze-topbar-h: calc(56px + env(safe-area-inset-top, 0px)); /* sobreescrito por JS */
   --ze-real-vh: 1vh; /* sobreescrito por JS con visualViewport — fix Safari */
   /* Safe-area shortcuts usadas por el iOS keyboard fix en utils-extra.js */
   --sat: env(safe-area-inset-top, 0px);
@@ -4564,19 +4564,16 @@ header.topbar {
    iOS / ANDROID SAFE AREAS — notch, home bar, etc.
    Se aplica en navegador Y en PWA standalone/fullscreen
 ═══════════════════════════════════════════════════════ */
-/* ESTRATEGIA: max(24px, env(...)) garantiza al menos 24px de colchón
-   aunque el navegador reporte safe-area-inset-top=0, evitando que
-   los iconos queden pegados a la barra de estado del sistema. */
 @supports (padding-top: env(safe-area-inset-top)) {
   .topbar {
-    padding-top: max(24px, env(safe-area-inset-top, 24px));
-    height: calc(56px + max(24px, env(safe-area-inset-top, 24px)));
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
 
   .login-screen {
-    padding-top: max(24px, env(safe-area-inset-top, 24px));
+    padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
@@ -4585,14 +4582,14 @@ header.topbar {
    aunque @supports no lo detecte al arrancar */
 @media (display-mode: standalone) {
   .topbar {
-    padding-top: max(24px, env(safe-area-inset-top, 24px));
-    height: calc(56px + max(24px, env(safe-area-inset-top, 24px)));
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
 
   .login-screen {
-    padding-top: max(24px, env(safe-area-inset-top, 24px));
+    padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
@@ -4600,8 +4597,8 @@ header.topbar {
 /* PWA en fullscreen (algunos Android la instalan así) */
 @media (display-mode: fullscreen) {
   .topbar {
-    padding-top: max(24px, env(safe-area-inset-top, 24px));
-    height: calc(56px + max(24px, env(safe-area-inset-top, 24px)));
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
   }
 }
 
@@ -8599,9 +8596,9 @@ header.topbar {
     max-width: 100%;
   }
 
-  /* Apuntes y Semestres */
+  /* Apuntes: 2 columnas en móvil */
   #apuntesGroupsContainer {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   /* Semestres en 1 columna en móvil */
@@ -8794,8 +8791,8 @@ header.topbar {
   .tablero-card-nombre { font-size: 13px; }
 
   #apuntesGroupsContainer {
-    flex-direction: column;
-    gap: 14px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   .materias-grid2 {
@@ -8925,20 +8922,19 @@ header.topbar {
     font-size: 20px;
   }
 
-  /* Topbar compacta móvil — safe-area + contenido reducido */
+  /* Topbar compacta — no pisar safe-area del notch (iPhone mini, etc.) */
   .topbar {
     padding-left: max(10px, env(safe-area-inset-left, 0px));
     padding-right: max(10px, env(safe-area-inset-right, 0px));
-    /* safe-area real + 8px de aire entre barra de estado y nuestros iconos */
-    padding-top: calc(max(20px, env(safe-area-inset-top, 20px)) + 8px);
-    padding-bottom: 6px;
-    min-height: auto;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: 0;
+    min-height: calc(56px + env(safe-area-inset-top, 0px));
     height: auto;
-    gap: 6px;
+    gap: 8px;
   }
 
   .topbar-title {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .topbar-right {
@@ -8949,32 +8945,17 @@ header.topbar {
     display: none;
   }
 
-  /* Botón tema más pequeño en móvil */
   .btn-theme-toggle {
-    min-width: 30px;
-    min-height: 30px;
-    width: 30px;
-    height: 30px;
-    font-size: 13px;
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
     padding: 0;
   }
 
-  /* Avatar más pequeño en móvil */
-  .topbar-avatar {
-    width: 28px;
-    height: 28px;
-    min-width: 28px;
-    min-height: 28px;
-  }
-
-  /* Botón hamburguesa más compacto */
-  .topbar-menu {
-    font-size: 18px;
-    padding: 4px;
-  }
-
   #btnInvitarCompa {
-    padding: 4px 8px;
+    padding: 5px 8px;
     font-size: 11px;
   }
 
@@ -9125,8 +9106,8 @@ header.topbar {
   }
 
   #apuntesGroupsContainer {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 
   .semestre-banner {
