@@ -37,7 +37,7 @@
   --chat-other-bg: var(--bg3);
   /* Espacio bajo el contenido: sobreescrito por JS con el alto real de #bottomNav (móvil) */
   --ze-bottom-nav-clearance: calc(52px + env(safe-area-inset-bottom, 0px));
-  --ze-topbar-h: calc(56px + env(safe-area-inset-top, 0px) + 10px);
+  --ze-topbar-h: calc(56px + env(safe-area-inset-top, 0px)); /* sobreescrito por JS */
   --ze-real-vh: 1vh; /* sobreescrito por JS con visualViewport — fix Safari */
   /* Safe-area shortcuts usadas por el iOS keyboard fix en utils-extra.js */
   --sat: env(safe-area-inset-top, 0px);
@@ -207,8 +207,8 @@ a {
 }
 
 @keyframes orbFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+
+  0%,
 }
 
 .orb3 {
@@ -216,8 +216,8 @@ a {
 }
 
 @keyframes orbFloat3 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-15px, 15px); }
+
+  0%,
 }
 
 .login-card {
@@ -241,8 +241,6 @@ a {
 }
 
 @keyframes loginFadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 .login-logo {
@@ -1207,8 +1205,6 @@ header.topbar {
   overflow: hidden;
 }
 @keyframes popupIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
 }
 .pin-color-dot {
   width: 20px;
@@ -1410,8 +1406,6 @@ header.topbar {
 }
 
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 .feed-card-header {
@@ -1629,8 +1623,6 @@ header.topbar {
   overflow: hidden;
 }
 @keyframes commentModalIn {
-  from { opacity: 0; transform: translateY(100%); }
-  to { opacity: 1; transform: translateY(0); }
 }
 .comments-modal-header {
   display: flex;
@@ -3844,8 +3836,6 @@ header.topbar {
 }
 
 @keyframes modalIn {
-  from { opacity: 0; transform: scale(0.95) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 
@@ -4568,13 +4558,10 @@ header.topbar {
 ═══════════════════════════════════════════════════════ */
 @supports (padding-top: env(safe-area-inset-top)) {
   .topbar {
-    /* 👇 Bajamos los botones 10px adicionales del borde del sistema */
-    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
-    height: calc(56px + env(safe-area-inset-top, 0px) + 10px);
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
-    /* Alineamos al centro para que no queden pegados arriba */
-    align-items: center; 
   }
 
   .login-screen {
@@ -4583,11 +4570,12 @@ header.topbar {
   }
 }
 
-/* PWA instalada en Android (standalone) */
+/* PWA instalada en Android (standalone) — fuerza el safe area
+   aunque @supports no lo detecte al arrancar */
 @media (display-mode: standalone) {
   .topbar {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
-    height: calc(56px + env(safe-area-inset-top, 0px) + 10px);
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
@@ -4598,11 +4586,11 @@ header.topbar {
   }
 }
 
-/* PWA en fullscreen */
+/* PWA en fullscreen (algunos Android la instalan así) */
 @media (display-mode: fullscreen) {
   .topbar {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
-    height: calc(56px + env(safe-area-inset-top, 0px) + 10px);
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
   }
 }
 
@@ -4835,7 +4823,6 @@ header.topbar {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 /* Botón borrar semestre */
@@ -8483,28 +8470,31 @@ header.topbar {
     transition: height 0.15s ease, min-height 0.15s ease, max-height 0.15s ease;
   }
 
-/* 1. CONFIGURACIÓN GLOBAL DE SECCIONES (Elimina huecos negros) */
   .section {
-    display: none;
-    flex: 1;
-    flex-direction: column;
-    height: 100%;
     padding: 12px;
-    /* Dejamos el espacio exacto para la barra superior corregida */
-    padding-top: var(--ze-topbar-h, 66px); 
+    padding-top: 0;
     padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
     overflow-y: auto;
-    box-sizing: border-box;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    /* Espacio para la topbar fija usando scroll-padding */
+    scroll-padding-top: max(72px, calc(var(--ze-topbar-h, 56px) + 16px));
   }
 
-  /* 2. LIMPIEZA DE MARGENES FANTASMA (Para todas las secciones incluyendo el chat) */
-  .section::before, 
+  /* Spacer mínimo para compensar la topbar fija (position:fixed en móvil) */
+  .section::before {
+    content: '';
+    display: none; /* APAGAMOS ESTE ESPACIO EXTRA */        
+    height: var(--ze-topbar-h, calc(56px + env(safe-area-inset-top, 0px)));
+    pointer-events: none;
+  }
+
+  /* Chat: la altura ya va con padding-top = topbar; el ::before duplicaba el hueco */
   #sectionChat::before {
-    content: none !important;
     display: none !important;
+    content: none !important;
     height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
   }
 
   /* Barras de módulo: sin sticky en móvil (evita solape con listas y “doble hueco” con el spacer) */
@@ -8535,20 +8525,21 @@ header.topbar {
     padding-top: 0;
   }
 
-/* Chat: altura hasta borde inferior y barra de navegación */
-#sectionChat.active {
+  /* Chat: altura hasta borde inferior; padding-top = topbar (una sola vez, con --chat-h = vv - bottom) */
+  #sectionChat.active {
+    height: var(--chat-h, calc(100dvh - var(--ze-bottom-nav-clearance, 52px)));
+    max-height: var(--chat-h, calc(100dvh - var(--ze-bottom-nav-clearance, 52px)));
+    min-height: 0;
+    flex: 1 1 auto;
+    padding: 0;
+    padding-top: 0; /* QUITAMOS EL PADDING DOBLE */
+    padding-bottom: 0;
+    box-sizing: border-box;
+    overflow: hidden;
     display: flex !important;
-    flex-direction: column !important;
-    height: 100% !important; 
-    max-height: 100% !important;
-    padding: 0 !important;
-    padding-top: var(--ze-topbar-h, 66px) !important; 
-    margin: 0 !important;
-    overflow: hidden !important;
-    position: relative;
-    box-sizing: border-box !important;
+    flex-direction: column;
+    transition: height 0.15s ease, max-height 0.15s ease;
   }
-
   #sectionChat:not(.active) {
     display: none !important;
   }
@@ -8628,15 +8619,11 @@ header.topbar {
     border-radius: 4px;
   }
 
-.galeria-header {
-    position: sticky;
-    top: var(--ze-topbar-h, 66px);
+  .galeria-header {
+    top: 0;
     margin-top: 0;
     padding-top: 12px;
     padding-bottom: 10px;
-    background: var(--bg1);
-    z-index: 10;
-    box-shadow: none; /* Quitamos el fondo negro feo */
   }
   
   .tablero-feed-header {
@@ -8704,37 +8691,39 @@ header.topbar {
   }
 
   
-/* 1. CONTENEDOR PADRE: No se mueve, mide el 100% */
   #vistaSalasChat {
-    display: flex !important;
-    flex-direction: column !important;
-    flex: 1 !important;
-    height: 100% !important;
-    max-height: 100% !important;
-    overflow: hidden !important;
-    padding: 0 !important; /* Limpiamos padding para que el header pegue bien */
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    overflow: hidden;
+    padding: 0 10px 4px;
   }
 
-  /* 2. EL HEADER: Se queda fijo arriba de las salas */
   #vistaSalasChat .tableros-galeria-header {
-    position: relative !important;
-    flex-shrink: 0 !important; /* Evita que se aplaste */
+    position: relative;
+    top: auto;
+    z-index: 2;
     background: var(--bg0);
-    padding: 10px 16px;
-    margin: 0;
+    padding-top: 4px;
+    padding-bottom: 8px;
+    margin-top: 0;
+    margin-bottom: 8px;
     border-bottom: 1px solid var(--border);
-    z-index: 10;
+    flex-shrink: 0;
   }
 
-  /* 3. LA LISTA DE SALAS: Es la única que tiene permiso de scrollear */
   #vistaSalasChat .tableros-galeria {
-    flex: 1 !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch; /* Scroll suave en iPhone */
-    display: grid !important;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
-    padding: 12px 10px;
     align-content: start;
   }
     
@@ -8920,9 +8909,9 @@ header.topbar {
   .topbar {
     padding-left: max(10px, env(safe-area-inset-left, 0px));
     padding-right: max(10px, env(safe-area-inset-right, 0px));
-    padding-top: calc(env(safe-area-inset-top, 0px) + 12px); /* 👇 Separación extra */
+    padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: 0;
-    min-height: calc(56px + env(safe-area-inset-top, 0px) + 12px); /* 👇 Altura compensada */
+    min-height: calc(56px + env(safe-area-inset-top, 0px));
     height: auto;
     gap: 8px;
   }
