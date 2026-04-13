@@ -324,6 +324,8 @@ a {
   height: 100svh;
   height: 100dvh;
   overflow: hidden;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* ── SIDEBAR ── */
@@ -4520,11 +4522,16 @@ header.topbar {
   align-items: stretch;
   justify-content: space-between;
   padding: 6px 0;
+  /* FIX iPhone 13 mini y modelos con home bar grande:
+     safe-area-inset-bottom cubre exactamente el espacio de la home bar.
+     El bottom-nav se extiende visualmente hasta el borde físico. */
   padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   gap: 0;
   transition: transform 0.18s ease, visibility 0.18s ease;
   will-change: transform;
   box-sizing: border-box;
+  /* Extender el fondo del bottom-nav hasta el borde físico de la pantalla */
+  background-clip: padding-box;
 }
 
 .bottom-nav-item {
@@ -4595,7 +4602,7 @@ header.topbar {
   }
 }
 
-/* PWA instalada (standalone) — fuerza el safe area
+/* PWA instalada en Android (standalone) — fuerza el safe area
    aunque @supports no lo detecte al arrancar */
 @media (display-mode: standalone) {
   .topbar {
@@ -4612,7 +4619,7 @@ header.topbar {
 
   /* Cubre la home bar del iPhone (zona inferior) sin romper el scroll */
   .bottom-nav {
-    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    padding-bottom: max(28px, env(safe-area-inset-bottom, 28px));
   }
 }
 
@@ -6474,9 +6481,9 @@ header.topbar {
 }
 
 .book-item {
-  width: 52px;
-  height: 150px;
-  padding: 30px 4px 14px 4px;
+  width: 48px;
+  height: 140px;
+  padding: 0 4px 12px 4px; /* Margen interno para el texto */
   border-radius: 4px 9px 9px 4px;
   position: relative;
   cursor: pointer;
@@ -6487,8 +6494,8 @@ header.topbar {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
+  padding-bottom: 12px;
   box-shadow: inset 4px 0 5px rgba(255, 255, 255, 0.25), inset -3px 0 5px rgba(0, 0, 0, 0.3), 5px 5px 10px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
 }
 
 .book-item:hover {
@@ -6498,48 +6505,35 @@ header.topbar {
 }
 
 .book-ext-badge {
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.4);
   color: white;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   padding: 3px 4px;
   border-radius: 4px;
   position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 10px;
   letter-spacing: 0.5px;
-  white-space: nowrap;
-  max-width: 44px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  z-index: 3;
 }
 
 /* Ajuste para que el título del libro se vea limpio dentro del lomo */
 .book-spine-title {
   writing-mode: vertical-rl;
-  -webkit-writing-mode: vertical-rl;
   transform: rotate(180deg);
   color: white;
-  font-size: 9px;
+  font-size: 9px; /* Un poco más pequeño para que quepa mejor */
   font-weight: 700;
-  /* Altura = book-item height - padding-top(30) - padding-bottom(14) - badge(~22px) */
-  height: 80px;
-  max-height: 80px;
-  width: 40px;
+  max-height: 85px;
   max-width: 40px;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: ellipsis; /* Pone los "..." si el nombre es muy largo */
   text-align: center;
   pointer-events: none;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.5px;  
   line-height: 1.2;
-  margin-bottom: 4px;
-  display: block;
-  flex-shrink: 0;
+  margin-bottom: 5px;
 }
 
 /* COLORES DE LOS LIBROS (Usados en el Modal y en la Biblioteca) */
