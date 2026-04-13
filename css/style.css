@@ -4614,11 +4614,6 @@ header.topbar {
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-
-  /* Cubre la home bar del iPhone (zona inferior) sin romper el scroll */
-  .bottom-nav {
-    padding-bottom: max(28px, env(safe-area-inset-bottom, 28px));
-  }
 }
 
 /* PWA en fullscreen (algunos Android la instalan así) */
@@ -6480,8 +6475,8 @@ header.topbar {
 
 .book-item {
   width: 48px;
-  height: 140px;
-  padding: 0 4px 12px 4px; /* Margen interno para el texto */
+  height: 150px;
+  padding: 32px 4px 12px 4px;
   border-radius: 4px 9px 9px 4px;
   position: relative;
   cursor: pointer;
@@ -6492,9 +6487,7 @@ header.topbar {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding-bottom: 12px;
   box-shadow: inset 4px 0 5px rgba(255, 255, 255, 0.25), inset -3px 0 5px rgba(0, 0, 0, 0.3), 5px 5px 10px rgba(0, 0, 0, 0.4);
-  /* Fix iOS Safari: evita que el contenido se desborde */
   overflow: hidden;
 }
 
@@ -6505,15 +6498,19 @@ header.topbar {
 }
 
 .book-ext-badge {
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.5);
   color: white;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
   padding: 3px 4px;
   border-radius: 4px;
   position: absolute;
-  top: 10px;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  z-index: 3;
 }
 
 /* Ajuste para que el título del libro se vea limpio dentro del lomo */
@@ -6522,24 +6519,22 @@ header.topbar {
   -webkit-writing-mode: vertical-rl;
   transform: rotate(180deg);
   color: white;
-  font-size: 9px; /* Un poco más pequeño para que quepa mejor */
+  font-size: 9px;
   font-weight: 700;
-  height: 85px;
-  max-height: 85px;
-  width: 36px;
-  max-width: 36px;
+  height: 90px;
+  max-height: 90px;
+  width: 38px;
+  max-width: 38px;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* Pone los "..." si el nombre es muy largo */
+  text-overflow: ellipsis;
   text-align: center;
   pointer-events: none;
   text-transform: uppercase;
-  letter-spacing: 0.5px;  
+  letter-spacing: 0.5px;
   line-height: 1.2;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   display: block;
-  /* Fix iOS Safari: fuerza que el texto no escape del contenedor */
-  -webkit-line-clamp: 1;
   flex-shrink: 0;
 }
 
