@@ -4595,7 +4595,7 @@ header.topbar {
   }
 }
 
-/* PWA instalada en Android (standalone) — fuerza el safe area
+/* PWA instalada (standalone) — fuerza el safe area
    aunque @supports no lo detecte al arrancar */
 @media (display-mode: standalone) {
   .topbar {
@@ -4608,6 +4608,30 @@ header.topbar {
   .login-screen {
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Fix iOS black-translucent: con ese meta tag la app mide desde
+     el borde físico (incluyendo la barra de estado), entonces
+     100dvh es MÁS alto que la zona visible y sobra espacio abajo.
+     fill-available hace que el navegador calcule la altura real
+     disponible descontando la barra de estado automáticamente. */
+  html {
+    height: -webkit-fill-available;
+  }
+
+  body {
+    height: -webkit-fill-available;
+    min-height: -webkit-fill-available;
+  }
+
+  .app-shell {
+    height: -webkit-fill-available;
+    min-height: -webkit-fill-available;
+  }
+
+  /* Cubre la home bar del iPhone en la parte de abajo */
+  .bottom-nav {
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
   }
 }
 
@@ -6484,8 +6508,7 @@ header.topbar {
   justify-content: flex-end;
   padding-bottom: 12px;
   box-shadow: inset 4px 0 5px rgba(255, 255, 255, 0.25), inset -3px 0 5px rgba(0, 0, 0, 0.3), 5px 5px 10px rgba(0, 0, 0, 0.4);
-  /* Fix iOS Safari: evita que el contenido se desborde */
-  overflow: hidden;
+  overflow: hidden; /* Fix iOS Safari: evita que el texto se desborde */
 }
 
 .book-item:hover {
@@ -6528,8 +6551,6 @@ header.topbar {
   line-height: 1.2;
   margin-bottom: 5px;
   display: block;
-  /* Fix iOS Safari: fuerza que el texto no escape del contenedor */
-  -webkit-line-clamp: 1;
   flex-shrink: 0;
 }
 
@@ -9236,18 +9257,4 @@ header.topbar {
   border-color: var(--accent2);
   box-shadow: 0 0 14px rgba(124, 106, 247, 0.35);
   transform: translateY(-1px);
-}
-
-/* ── iOS PWA: Safe Area — evita que el contenido quede debajo
-      de la barra de estado (notch, Dynamic Island, etc.)     ── */
-@supports (padding-top: env(safe-area-inset-top)) {
-  @media (display-mode: standalone) {
-    header.topbar {
-      padding-top: env(safe-area-inset-top);
-      height: calc(56px + env(safe-area-inset-top));
-    }
-    aside.sidebar {
-      padding-top: env(safe-area-inset-top);
-    }
-  }
 }
