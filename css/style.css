@@ -8596,9 +8596,10 @@ header.topbar {
     max-width: 100%;
   }
 
-  /* Apuntes: 2 columnas en móvil */
+  /* Apuntes: 2 columnas en tablets/móviles grandes */
   #apuntesGroupsContainer {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   /* Semestres en 1 columna en móvil */
@@ -8792,7 +8793,7 @@ header.topbar {
 
   #apuntesGroupsContainer {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    gap: 8px;
   }
 
   .materias-grid2 {
@@ -9106,7 +9107,7 @@ header.topbar {
   }
 
   #apuntesGroupsContainer {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 8px;
   }
 
