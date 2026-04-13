@@ -8480,7 +8480,8 @@ header.topbar {
 
   .section {
     padding: 12px;
-    padding-top: 0;
+    /* Empujar contenido por debajo del topbar fijo en móvil */
+    padding-top: var(--ze-topbar-h, calc(56px + max(20px, env(safe-area-inset-top, 20px)) + 8px));
     padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
     overflow-y: auto;
     flex: 1 1 auto;
@@ -8914,6 +8915,44 @@ header.topbar {
 /* ── iPhone mini y similares (≤390px) ── */
 @media (max-width: 390px) {
 
+  /* Semestres: 2 columnas compactas en pantallas pequeñas (iPhone mini, etc.) */
+  #apuntesGroupsContainer {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  /* Tarjeta de semestre más compacta */
+  .group-card-top {
+    height: 110px;
+  }
+
+  .group-icon {
+    font-size: 2.2rem;
+  }
+
+  .group-card-info {
+    padding: 8px;
+  }
+
+  .group-name {
+    font-size: 0.85rem;
+    line-height: 1.2;
+  }
+
+  .group-count {
+    font-size: 0.7rem;
+  }
+
+  .group-mini-actions {
+    padding: 0 8px 8px;
+    gap: 4px;
+  }
+
+  .group-mini-btn {
+    padding: 5px 4px;
+    font-size: 0.68rem;
+  }
+
   /* Login */
   .login-card {
     padding: 32px 20px;
@@ -8960,9 +8999,10 @@ header.topbar {
     font-size: 11px;
   }
 
-  /* Sections — mantener hueco para bottom nav */
+  /* Sections — mantener hueco para topbar fija + bottom nav */
   .section {
     padding: 10px 8px;
+    padding-top: var(--ze-topbar-h, calc(56px + max(20px, env(safe-area-inset-top, 20px)) + 8px));
     padding-bottom: calc(10px + var(--ze-bottom-nav-clearance));
   }
 
@@ -9107,8 +9147,8 @@ header.topbar {
   }
 
   #apuntesGroupsContainer {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
   }
 
   .semestre-banner {
