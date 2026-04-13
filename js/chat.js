@@ -18,7 +18,6 @@ let chatUnreadDividerInserted = false;
 
 /* ── Limpiar al cambiar de grupo ── */
 AppState.on('currentGroupId', () => {
-  if (typeof _detenerRecalcChatH === 'function') _detenerRecalcChatH();
   AppState.unsub('chatUnsub');
   AppState.unsub('salasUnsub');
   AppState.unsub('chatOnlineUnsub');
@@ -154,68 +153,6 @@ function renderGaleriaSalas(salas) {
   galeria.innerHTML = html;
 }
 
-/* ══════════════════════════════════════════
-   FIX iOS — recalc --chat-h con visualViewport
-   
-   En iOS Safari/Chrome el teclado virtual NO
-   reduce window.innerHeight, pero SÍ reduce
-   visualViewport.height. Sin este listener el
-   input bar sube fuera de pantalla al teclear.
-══════════════════════════════════════════ */
-
-let _chatVVListener = null;
-
-function _calcularChatH() {
-  const getVar  = (v, fb) => { const r = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(v)); return Number.isFinite(r) && r > 0 ? r : fb; };
-  const isMobile = window.matchMedia('(max-width: 768px)').matches;
-  const topbarH  = getVar('--ze-topbar-h', 56);
-  const bottomH  = isMobile ? getVar('--ze-bottom-nav-clearance', 52) : 0;
-
-  /* visualViewport.height ya descuenta el teclado en iOS */
-  const vvH   = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  const chatH = Math.max(vvH - topbarH - bottomH, 200);
-  document.documentElement.style.setProperty('--chat-h', chatH + 'px');
-
-  /* En iOS el scroll puede quedar mal; forzar al fondo si el usuario
-     estaba cerca del final antes de que apareciera el teclado */
-  const box = $('chatMessages');
-  if (box) {
-    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 300;
-    if (nearBottom) requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
-  }
-}
-
-function _iniciarRecalcChatH() {
-  /* Cálculo inicial */
-  _calcularChatH();
-  requestAnimationFrame(_calcularChatH);   /* segundo intento tras repaint */
-
-  /* Escuchar cambios de visualViewport (teclado iOS/Android) */
-  if (window.visualViewport && !_chatVVListener) {
-    _chatVVListener = () => _calcularChatH();
-    window.visualViewport.addEventListener('resize', _chatVVListener);
-    window.visualViewport.addEventListener('scroll', _chatVVListener);
-  }
-
-  /* Fallback para navegadores sin visualViewport */
-  if (!window.visualViewport) {
-    let _resizeTimer;
-    _chatVVListener = () => { clearTimeout(_resizeTimer); _resizeTimer = setTimeout(_calcularChatH, 80); };
-    window.addEventListener('resize', _chatVVListener);
-  }
-}
-
-function _detenerRecalcChatH() {
-  if (!_chatVVListener) return;
-  if (window.visualViewport) {
-    window.visualViewport.removeEventListener('resize', _chatVVListener);
-    window.visualViewport.removeEventListener('scroll', _chatVVListener);
-  } else {
-    window.removeEventListener('resize', _chatVVListener);
-  }
-  _chatVVListener = null;
-}
-
 window.abrirSalaChat = function(salaId, nombre, color) {
   AppState.set('currentSalaId', salaId === 'general' ? null : salaId);
   localStorage.setItem('ze_last_sala', JSON.stringify({ salaId, nombre, color }));
@@ -229,7 +166,21 @@ window.abrirSalaChat = function(salaId, nombre, color) {
   if (secChat) secChat.classList.remove('modo-galeria');
   
   /* Recalcular --chat-h ahora que el layout cambió a modo sala */
-  _iniciarRecalcChatH();
+  (function _recalcChatH() {
+    const vvH      = window.visualViewport?.height || window.innerHeight;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const getVar   = (v, fb) => { const r = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(v)); return Number.isFinite(r) && r > 0 ? r : fb; };
+    const topbarH  = getVar('--ze-topbar-h', 56);
+    const bottomH  = isMobile ? getVar('--ze-bottom-nav-clearance', 52) : 0;
+    const chatH    = Math.max(vvH - topbarH - bottomH, 200);
+    document.documentElement.style.setProperty('--chat-h', chatH + 'px');
+    /* Segundo intento tras el repaint por si los valores aún no están listos */
+    requestAnimationFrame(() => {
+      const vvH2   = window.visualViewport?.height || window.innerHeight;
+      const chatH2 = Math.max(vvH2 - topbarH - bottomH, 200);
+      document.documentElement.style.setProperty('--chat-h', chatH2 + 'px');
+    });
+  })();
 
   const titulo = $('salaFeedTitulo');
   if (titulo) { titulo.textContent = nombre; if (color) titulo.style.color = color; }
@@ -252,7 +203,6 @@ window.abrirSalaChat = function(salaId, nombre, color) {
 };
 
 function cerrarSalaChat() {
-  _detenerRecalcChatH();
   AppState.unsub('chatUnsub');
   AppState.set('currentSalaId', null);
   localStorage.removeItem('ze_last_sala');
@@ -814,16 +764,26 @@ function initChatListeners() {
     this.style.height = Math.min(this.scrollHeight, 100) + 'px';
   });
   $('chatInput')?.addEventListener('focus', () => {
-    // FIX iOS: al enfocar el input el teclado aparece y reduce visualViewport.height,
-    // pero hay un gap de ~150-300ms antes de que el viewport se estabilice.
-    // Recalculamos --chat-h en cascada para capturar la altura final correcta.
-    setTimeout(() => { _calcularChatH(); ajustarScrollChat(false); }, 150);
-    setTimeout(() => { _calcularChatH(); ajustarScrollChat(false); }, 350);
+    // FIX: siempre hacer scroll al fondo al enfocar, no solo cuando falta visualViewport.
+    // En iOS/Android con visualViewport el teclado dispara 'resize' en el viewport,
+    // pero hay un gap de ~100-200ms antes de que cambie la altura — este timeout
+    // hace scroll cuando ya se recalculó --chat-h.
+    setTimeout(() => ajustarScrollChat(false), 200);
   });
   $('chatInput')?.addEventListener('blur', () => {
     const box = $('chatMessages');
     if (box && box.scrollHeight > box.clientHeight) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 100);
   });
+
+  if (!window.visualViewport) {
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (document.activeElement === $('chatInput')) ajustarScrollChat(false);
+      }, 100);
+    });
+  }
 
   const chatImgBtn   = $('chatImgBtn');
   const chatImgInput = $('chatImgInput');
