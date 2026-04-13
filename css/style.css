@@ -107,9 +107,9 @@
 html {
   font-size: 16px;
   -webkit-tap-highlight-color: transparent;
-  height: 100%;
-  /* Evita que el cuerpo “rebote” horizontalmente en iOS al hacer overscroll */
-  overflow-x: clip;
+  height: 100svh;
+  max-height: 100svh;
+  overflow: hidden;
 }
 
 body {
@@ -123,7 +123,6 @@ body {
      el espacio en blanco debajo del bottom-nav al cargar la app */
   height: 100svh;
   height: 100dvh;
-  max-height: 100svh;
   overflow: hidden;
   line-height: 1.55;
   transition: background-color 0.3s, color 0.3s;
@@ -324,7 +323,6 @@ a {
   flex-direction: row;
   height: 100svh;
   height: 100dvh;
-  max-height: 100svh;
   overflow: hidden;
 }
 
