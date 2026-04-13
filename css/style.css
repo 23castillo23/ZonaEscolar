@@ -108,6 +108,7 @@ html {
   font-size: 16px;
   -webkit-tap-highlight-color: transparent;
   height: 100svh;
+  height: -webkit-fill-available;
   max-height: 100svh;
   overflow: hidden;
 }
@@ -115,14 +116,12 @@ html {
 body {
   font-family: var(--font);
   background-color: var(--bg0);
-  /* Textura de puntos sutil para rellenar espacio vacío */
   background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1.5px, transparent 1.5px);
   background-size: 24px 24px;
   color: var(--text0);
-  /* FIX Android Chrome: 100svh excluye barras del navegador, evita
-     el espacio en blanco debajo del bottom-nav al cargar la app */
   height: 100svh;
   height: 100dvh;
+  min-height: -webkit-fill-available;  /* FIX iOS PWA: llena el área visual completa incluyendo home bar */
   overflow: hidden;
   line-height: 1.55;
   transition: background-color 0.3s, color 0.3s;
@@ -323,10 +322,8 @@ a {
   flex-direction: row;
   height: 100svh;
   height: 100dvh;
+  height: -webkit-fill-available;
   overflow: hidden;
-  /* FIX iOS PWA: cuando viewport-fit=cover está activo, la app ocupa
-     toda la pantalla incluyendo el notch. El padding lateral izquierdo
-     evita que el sidebar quede detrás del notch en landscape. */
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
@@ -334,8 +331,7 @@ a {
 /* ── SIDEBAR ── */
 
 .sidebar-header {
-  /* FIX iOS PWA: el sidebar también necesita respetar el safe area del notch */
-  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 16px;
+  padding: 20px 20px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -465,14 +461,12 @@ header.topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* FIX iOS PWA: padding-top = safe-area-inset-top (notch / Dynamic Island) */
-  padding: env(safe-area-inset-top, 0px) 20px 0 20px;
-  height: calc(56px + env(safe-area-inset-top, 0px));
+  padding: 0 20px;
+  height: 56px;
   background: var(--bg1);
   border-bottom: 1px solid var(--border);
   position: relative;
   z-index: 100;
-  flex-shrink: 0;
 }
 
 .topbar-menu {
@@ -4616,6 +4610,18 @@ header.topbar {
   .login-screen {
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* FIX iOS PWA altura — iPhone 13 mini y pantallas con home bar:
+     En modo standalone iOS no reporta correctamente 100dvh/100svh.
+     -webkit-fill-available es el único valor que ocupa el área visual
+     real descontando la barra de estado Y la home bar de iOS. */
+  html, body {
+    height: -webkit-fill-available;
+  }
+
+  .app-shell {
+    height: -webkit-fill-available;
   }
 }
 
