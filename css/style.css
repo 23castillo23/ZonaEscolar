@@ -320,13 +320,13 @@ a {
 ═══════════════════════════════════════════════════════ */
 .app-shell {
   display: flex;
-  min-height: 100vh;
-  min-height: 100dvh;
-  min-height: 100svh;
+  /* FIX Android Chrome: 100dvh al cargar puede incluir la barra URL del navegador
+     y ser mayor que la pantalla visible, dejando espacio en blanco bajo el bottom-nav.
+     100svh (small viewport) siempre excluye las barras del navegador. */
+  height: 100svh;
   height: 100dvh;
-  min-height: -webkit-fill-available;
-  max-height: 100dvh;
   max-height: 100svh;
+  min-height: 100svh;
   overflow: hidden;
 }
 
@@ -8497,15 +8497,14 @@ header.topbar {
     padding-bottom: 0;
     flex: 1;
     min-height: 0;
-    /* FIX: 100dvh en Chrome Android incluye la barra URL al cargar,
-       haciendo el contenedor más alto que la pantalla visible y
-       dejando el bottom-nav flotando arriba con espacio en blanco abajo.
-       --ze-real-vh se calcula con visualViewport.height (altura real). */
-    height: calc(var(--ze-real-vh, 1vh) * 100);
-    max-height: calc(var(--ze-real-vh, 1vh) * 100);
-    min-height: -webkit-fill-available;
+    /* FIX: no fijar height explícita — el app-shell ya tiene height:100dvh.
+       main-content crece con flex:1 hasta llenar el espacio disponible.
+       Fijar height:100dvh aquí causaba que el contenedor fuera más alto
+       que la pantalla visible en Chrome Android, dejando espacio en blanco
+       debajo del bottom-nav. */
+    height: 100%;
+    max-height: 100%;
     overflow: hidden;
-    transition: height 0.15s ease, min-height 0.15s ease, max-height 0.15s ease;
   }
 
   .section {
