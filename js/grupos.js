@@ -543,7 +543,17 @@ function activarSeccion(section, prevSection = null) {
     // FIX #8: usar prevSection (pasado como parámetro) en lugar de currentSection,
     // que ya fue actualizado antes de llamar a esta función y siempre sería === 'chat'.
     const yaEstabaEnChat = prevSection === 'chat';
-    initSalasChat();
+
+    // FIX: Si ya estábamos en chat Y hay una sala abierta (vistaChatSala visible),
+    // NO llamar a initSalasChat() porque siempre resetea la vista a la galería,
+    // sacando al usuario de la sala en la que estaba.
+    const vistaChatSala = $('vistaChatSala');
+    const salaYaAbierta = yaEstabaEnChat && vistaChatSala && vistaChatSala.style.display !== 'none';
+
+    if (!salaYaAbierta) {
+      initSalasChat();
+    }
+
     // Restaurar sala solo si venimos de OTRA sección (no si ya estábamos en chat)
     if (!yaEstabaEnChat) {
       const lastSala = localStorage.getItem('ze_last_sala');

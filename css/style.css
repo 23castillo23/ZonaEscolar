@@ -37,7 +37,7 @@
   --chat-other-bg: var(--bg3);
   /* Espacio bajo el contenido: sobreescrito por JS con el alto real de #bottomNav (móvil) */
   --ze-bottom-nav-clearance: calc(52px + env(safe-area-inset-bottom, 0px));
-  --ze-topbar-h: calc(56px + env(safe-area-inset-top, 0px)); /* sobreescrito por JS */
+  --ze-topbar-h: calc(56px + max(24px, env(safe-area-inset-top, 24px))); /* sobreescrito por JS */
   --ze-real-vh: 1vh; /* sobreescrito por JS con visualViewport — fix Safari */
   /* Safe-area shortcuts usadas por el iOS keyboard fix en utils-extra.js */
   --sat: env(safe-area-inset-top, 0px);
@@ -4564,16 +4564,19 @@ header.topbar {
    iOS / ANDROID SAFE AREAS — notch, home bar, etc.
    Se aplica en navegador Y en PWA standalone/fullscreen
 ═══════════════════════════════════════════════════════ */
+/* ESTRATEGIA: max(24px, env(...)) garantiza al menos 24px de colchón
+   aunque el navegador reporte safe-area-inset-top=0, evitando que
+   los iconos queden pegados a la barra de estado del sistema. */
 @supports (padding-top: env(safe-area-inset-top)) {
   .topbar {
-    padding-top: env(safe-area-inset-top, 0px);
-    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-top: max(24px, env(safe-area-inset-top, 24px));
+    height: calc(56px + max(24px, env(safe-area-inset-top, 24px)));
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
 
   .login-screen {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: max(24px, env(safe-area-inset-top, 24px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
@@ -4582,14 +4585,14 @@ header.topbar {
    aunque @supports no lo detecte al arrancar */
 @media (display-mode: standalone) {
   .topbar {
-    padding-top: env(safe-area-inset-top, 0px);
-    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-top: max(24px, env(safe-area-inset-top, 24px));
+    height: calc(56px + max(24px, env(safe-area-inset-top, 24px)));
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
 
   .login-screen {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: max(24px, env(safe-area-inset-top, 24px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
@@ -4597,8 +4600,8 @@ header.topbar {
 /* PWA en fullscreen (algunos Android la instalan así) */
 @media (display-mode: fullscreen) {
   .topbar {
-    padding-top: env(safe-area-inset-top, 0px);
-    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-top: max(24px, env(safe-area-inset-top, 24px));
+    height: calc(56px + max(24px, env(safe-area-inset-top, 24px)));
   }
 }
 
@@ -8926,9 +8929,9 @@ header.topbar {
   .topbar {
     padding-left: max(10px, env(safe-area-inset-left, 0px));
     padding-right: max(10px, env(safe-area-inset-right, 0px));
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: max(24px, env(safe-area-inset-top, 24px));
     padding-bottom: 0;
-    min-height: calc(56px + env(safe-area-inset-top, 0px));
+    min-height: calc(56px + max(24px, env(safe-area-inset-top, 24px)));
     height: auto;
     gap: 8px;
   }
