@@ -4520,16 +4520,25 @@ header.topbar {
   align-items: stretch;
   justify-content: space-between;
   padding: 6px 0;
-  /* FIX iPhone 13 mini y modelos con home bar grande:
-     safe-area-inset-bottom cubre exactamente el espacio de la home bar.
-     El bottom-nav se extiende visualmente hasta el borde físico. */
   padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   gap: 0;
   transition: transform 0.18s ease, visibility 0.18s ease;
   will-change: transform;
   box-sizing: border-box;
-  /* Extender el fondo del bottom-nav hasta el borde físico de la pantalla */
-  background-clip: padding-box;
+}
+
+/* Rellena el espacio negro debajo del bottom-nav en iPhone con home bar
+   (iPhone 13 mini, X, 11, 12, 13, 14, 15...) sin romper el scroll */
+.bottom-nav::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background: var(--bg1);
+  z-index: 149;
+  pointer-events: none;
 }
 
 .bottom-nav-item {
