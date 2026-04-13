@@ -1,123 +1,359 @@
 /**
- * ZonaEscolar — app.js
+ * ZonaEscolar — core.js v2
  * Google Auth · Grupos privados · Feed + Comentarios + Likes
  * Chat · Tareas · Muro Personal · Apuntes · Dinámicas
  * Cloudinary: dwjzn6n0a / preset: zonaescolar_unsigned
+ *
+ * ── ARQUITECTURA AppState ──────────────────────────
+ * Todas las variables globales viven en AppState._data.
+ * Los módulos leen con AppState.get() y escriben con
+ * AppState.set(). Cuando un valor cambia, AppState
+ * dispara 'ze:stateChange' para que solo el módulo
+ * afectado reaccione — sin cadenas de efectos ocultos.
+ *
+ * COMPATIBILIDAD: Las variables sueltas (currentGroupId,
+ * isAdmin, etc.) se mantienen como getters/setters que
+ * apuntan a AppState. Así los módulos existentes siguen
+ * funcionando SIN ningún cambio hasta que los migres.
+ * ──────────────────────────────────────────────────
  */
 
-const CLOUDINARY_CLOUD = 'dwjzn6n0a';
+const CLOUDINARY_CLOUD  = 'dwjzn6n0a';
 const CLOUDINARY_PRESET = 'zonaescolar_unsigned';
 
 /* ═══════════════════════════════════════════════════
-   ESTADO GLOBAL
+   APP STATE — Fuente única de verdad
+   ───────────────────────────────────────────────────
+   CÓMO USARLO EN MÓDULOS NUEVOS O MIGRADOS:
+     Leer  → AppState.get('currentGroupId')
+     Escribir → AppState.set('currentGroupId', id)
+     Escuchar cambios → AppState.on('currentGroupId', fn)
+   ───────────────────────────────────────────────────
+   Los valores iniciales aquí definen el estado limpio
+   de la app. teardownAllListeners() resetea los unsubs.
 ═══════════════════════════════════════════════════ */
-let currentUser = null;
-let currentGroupId = null;
-let currentGroupData = null;
-let isAdmin = false;
+const AppState = (() => {
+  /* Estado interno — no acceder directamente */
+  const _data = {
+    /* ── Auth ── */
+    currentUser:        null,
+    currentGroupId:     null,
+    currentGroupData:   null,
+    isAdmin:            false,
 
-let grupos = [];
-let semestres = [];
-let galerias = [];
-let galeriaActual = null;
-let apunteFiles = [];
+    /* ── Listas globales ── */
+    grupos:             [],
+    semestres:          [],
+    galerias:           [],
+    galeriaActual:      null,
+    apunteFiles:        [],
 
-let feedUnsub = null;
-let chatUnsub = null;
-// — Paginación feed —
-let feedOldestDoc = null;
-let feedHayMas = true;
-let feedCargandoMas = false;
-// — Paginación chat —
-let chatOldestDoc = null;
-let chatHayMas = true;
-let chatCargandoMas = false;
-let currentSalaId = null;
-let salasUnsub = null;
-let salaChatColorSeleccionado = '#1a237e';
-let salaChatEmojiSeleccionado = '💬';
-let tareasUnsub = null;
-let votacionUnsub = null;
-let gruposUnsub = null;
-let chatOnlineUnsub = null;
-let _onlineHeartbeatTimer = null;
-let chatLastReadMs = 0;
+    /* ── Listeners de Firestore (unsubs) ── */
+    feedUnsub:          null,
+    chatUnsub:          null,
+    tareasUnsub:        null,
+    votacionUnsub:      null,
+    gruposUnsub:        null,
+    chatOnlineUnsub:    null,
+    salasUnsub:         null,
+    bibliotecaUnsub:    null,
+    catBiblioUnsub:     null,
+    semestresUnsub:     null,
+    galeriasUnsub:      null,
+    tablerosUnsub:      null,
+    tableroFeedUnsub:   null,
+    sidebarOnlineUnsub: null,
+    muroFeedUnsub:      null,
+    muroFotosUnsub:     null,
+    muroAlbumsUnsub:    null,
 
-let currentSection = 'feed';
-let tareasFilter = 'all';
-let tareasVistaCalendario = false;
-let lightboxPhotos = [];
-let lightboxIdx = 0;
+    /* ── Paginación feed ── */
+    feedOldestDoc:      null,
+    feedHayMas:         true,
+    feedCargandoMas:    false,
 
-let ruletaMiembros = [];
-let ruletaAngulo = 0;
-let ruletaSpinning = false;
-let triviaBanco = [];
-let triviaIdx = 0;
-let triviaScore = 0;
-let puntosMarcador = [];
-let bibliotecaUnsub = null;
-let sidebarOnlineUnsub = null;
+    /* ── Paginación chat ── */
+    chatOldestDoc:      null,
+    chatHayMas:         true,
+    chatCargandoMas:    false,
+    currentSalaId:      null,
+    salaChatColorSeleccionado: '#1a237e',
+    salaChatEmojiSeleccionado: '💬',
+    chatLastReadMs:     0,
+    _onlineHeartbeatTimer: null,
 
-// ── TABLEROS TEMÁTICOS ──
-let tablerosUnsub = null;
-let currentTableroId = null;   // null = feed general
-let dentroDeTablero = false;
-let tableroFeedUnsub = null;   // listener del feed filtrado por tablero
+    /* ── Navegación ── */
+    currentSection:     'feed',
 
-// ── MURO (Centralizado desde chat.js y muro.js para evitar duplicación) ──
-let muroAlbumActualId = null;     // null = vista de álbumes, string = dentro de un álbum
-let muroAlbumsCache = [];         // caché local de álbemes del usuario visto
+    /* ── Tareas ── */
+    tareasFilter:       'all',
+    tareasVistaCalendario: false,
 
-let semestresAbiertos = new Set(); // Recuerda qué semestres están abiertos
-let scrollPosicionApuntes = 0;
-let ordenSemestres = localStorage.getItem('ze_orden_semestres') || 'creacion'; 
-let ordenMaterias = localStorage.getItem('ze_orden_materias') || 'creacion';
-let semestresUnsub = null;
-let galeriasUnsub = null;
-let apuntesSearchTerm = '';
-let selectedBiblioColor = 'book-pdf';
-let catBiblioUnsub = null;
-let biblioCategorias = [];
-let bibliotecaUiBound = false;
-let calDiaSeleccionado = null;
-let calMesOffset = 0;             // Offset de mes para calendarios (debe ser global)
+    /* ── Lightbox ── */
+    lightboxPhotos:     [],
+    lightboxIdx:        0,
 
+    /* ── Dinámicas ── */
+    ruletaMiembros:     [],
+    ruletaAngulo:       0,
+    ruletaSpinning:     false,
+    triviaBanco:        [],
+    triviaIdx:          0,
+    triviaScore:        0,
+    puntosMarcador:     [],
+
+    /* ── Tableros temáticos ── */
+    currentTableroId:   null,
+    dentroDeTablero:    false,
+
+    /* ── Muro ── */
+    muroAlbumActualId:  null,
+    muroAlbumsCache:    [],
+
+    /* ── Apuntes ── */
+    semestresAbiertos:  new Set(),
+    scrollPosicionApuntes: 0,
+    ordenSemestres:     localStorage.getItem('ze_orden_semestres') || 'creacion',
+    ordenMaterias:      localStorage.getItem('ze_orden_materias')  || 'creacion',
+    apuntesSearchTerm:  '',
+
+    /* ── Biblioteca ── */
+    selectedBiblioColor: 'book-pdf',
+    biblioCategorias:    [],
+    bibliotecaUiBound:   false,
+
+    /* ── Calendario ── */
+    calDiaSeleccionado: null,
+    calMesOffset:       0,
+  };
+
+  /* Registro de listeners por clave */
+  const _listeners = {};
+
+  /* ── API pública ── */
+  return {
+    /**
+     * Leer un valor del estado.
+     * @param {string} key
+     * @returns {*}
+     */
+    get(key) {
+      return _data[key];
+    },
+
+    /**
+     * Escribir un valor en el estado y notificar suscriptores.
+     * @param {string} key
+     * @param {*} value
+     */
+    set(key, value) {
+      _data[key] = value;
+      /* Notificar suscriptores de esta clave */
+      (_listeners[key] || []).forEach(fn => { try { fn(value); } catch(e) { console.error('[AppState]', key, e); } });
+      /* Evento global para módulos que prefieren escuchar el bus */
+      document.dispatchEvent(new CustomEvent('ze:stateChange', { detail: { key, value } }));
+    },
+
+    /**
+     * Suscribirse a cambios de una clave específica.
+     * Devuelve una función para cancelar la suscripción.
+     * @param {string} key
+     * @param {function} fn  Recibe (nuevoValor)
+     * @returns {function}   Llama para desuscribirse
+     */
+    on(key, fn) {
+      if (!_listeners[key]) _listeners[key] = [];
+      _listeners[key].push(fn);
+      return () => {
+        _listeners[key] = _listeners[key].filter(f => f !== fn);
+      };
+    },
+
+    /**
+     * Cancelar un unsub guardado en el estado y poner null.
+     * Equivale al patrón: if (feedUnsub) { feedUnsub(); feedUnsub = null; }
+     * @param {string} key  Nombre del unsub (ej: 'feedUnsub')
+     */
+    unsub(key) {
+      const fn = _data[key];
+      if (typeof fn === 'function') { fn(); }
+      _data[key] = null;
+    },
+
+    /**
+     * Resetear el estado a valores limpios tras logout o cambio de grupo.
+     * No toca las preferencias de usuario (tema, orden, etc.).
+     */
+    resetSession() {
+      const preserve = ['ordenSemestres','ordenMaterias'];
+      const clean = {
+        currentUser: null, currentGroupId: null, currentGroupData: null, isAdmin: false,
+        grupos: [], semestres: [], galerias: [], galeriaActual: null, apunteFiles: [],
+        feedUnsub: null, chatUnsub: null, tareasUnsub: null, votacionUnsub: null,
+        gruposUnsub: null, chatOnlineUnsub: null, salasUnsub: null, bibliotecaUnsub: null,
+        catBiblioUnsub: null, semestresUnsub: null, galeriasUnsub: null, tablerosUnsub: null,
+        tableroFeedUnsub: null, sidebarOnlineUnsub: null, muroFeedUnsub: null,
+        muroFotosUnsub: null, muroAlbumsUnsub: null,
+        feedOldestDoc: null, feedHayMas: true, feedCargandoMas: false,
+        chatOldestDoc: null, chatHayMas: true, chatCargandoMas: false,
+        currentSalaId: null, chatLastReadMs: 0, _onlineHeartbeatTimer: null,
+        currentSection: 'feed', tareasFilter: 'all', tareasVistaCalendario: false,
+        lightboxPhotos: [], lightboxIdx: 0,
+        ruletaMiembros: [], ruletaAngulo: 0, ruletaSpinning: false,
+        triviaBanco: [], triviaIdx: 0, triviaScore: 0, puntosMarcador: [],
+        currentTableroId: null, dentroDeTablero: false,
+        muroAlbumActualId: null, muroAlbumsCache: [],
+        semestresAbiertos: new Set(), scrollPosicionApuntes: 0, apuntesSearchTerm: '',
+        selectedBiblioColor: 'book-pdf', biblioCategorias: [], bibliotecaUiBound: false,
+        calDiaSeleccionado: null, calMesOffset: 0,
+      };
+      Object.entries(clean).forEach(([k, v]) => {
+        if (!preserve.includes(k)) _data[k] = v;
+      });
+    },
+
+    /* Exponer _data internamente para compatibilidad con módulos sin migrar */
+    _data,
+  };
+})();
+
+/* ═══════════════════════════════════════════════════
+   COMPATIBILIDAD — Variables globales como proxies
+   ───────────────────────────────────────────────────
+   Todos los módulos existentes usan las variables
+   sueltas directamente (currentGroupId, isAdmin…).
+   Aquí las convertimos en getters/setters que leen y
+   escriben en AppState. Así NO necesitas cambiar
+   ningún módulo hoy — la migración es gradual.
+
+   Cuando migres un módulo, cambia sus accesos a
+   AppState.get/set y borra la entrada de aquí.
+═══════════════════════════════════════════════════ */
+Object.defineProperties(window, {
+  /* ── Auth ── */
+  currentUser:        { get: () => AppState.get('currentUser'),        set: v => AppState.set('currentUser', v),        configurable: true },
+  currentGroupId:     { get: () => AppState.get('currentGroupId'),     set: v => AppState.set('currentGroupId', v),     configurable: true },
+  currentGroupData:   { get: () => AppState.get('currentGroupData'),   set: v => AppState.set('currentGroupData', v),   configurable: true },
+  isAdmin:            { get: () => AppState.get('isAdmin'),            set: v => AppState.set('isAdmin', v),            configurable: true },
+
+  /* ── Listas ── */
+  grupos:             { get: () => AppState.get('grupos'),             set: v => AppState.set('grupos', v),             configurable: true },
+  semestres:          { get: () => AppState.get('semestres'),          set: v => AppState.set('semestres', v),          configurable: true },
+  galerias:           { get: () => AppState.get('galerias'),          set: v => AppState.set('galerias', v),           configurable: true },
+  galeriaActual:      { get: () => AppState.get('galeriaActual'),     set: v => AppState.set('galeriaActual', v),      configurable: true },
+  apunteFiles:        { get: () => AppState.get('apunteFiles'),        set: v => AppState.set('apunteFiles', v),        configurable: true },
+
+  /* ── Unsubs ── */
+  feedUnsub:          { get: () => AppState.get('feedUnsub'),          set: v => AppState.set('feedUnsub', v),          configurable: true },
+  chatUnsub:          { get: () => AppState.get('chatUnsub'),          set: v => AppState.set('chatUnsub', v),          configurable: true },
+  tareasUnsub:        { get: () => AppState.get('tareasUnsub'),        set: v => AppState.set('tareasUnsub', v),        configurable: true },
+  votacionUnsub:      { get: () => AppState.get('votacionUnsub'),      set: v => AppState.set('votacionUnsub', v),      configurable: true },
+  gruposUnsub:        { get: () => AppState.get('gruposUnsub'),        set: v => AppState.set('gruposUnsub', v),        configurable: true },
+  chatOnlineUnsub:    { get: () => AppState.get('chatOnlineUnsub'),    set: v => AppState.set('chatOnlineUnsub', v),    configurable: true },
+  salasUnsub:         { get: () => AppState.get('salasUnsub'),         set: v => AppState.set('salasUnsub', v),         configurable: true },
+  bibliotecaUnsub:    { get: () => AppState.get('bibliotecaUnsub'),    set: v => AppState.set('bibliotecaUnsub', v),    configurable: true },
+  catBiblioUnsub:     { get: () => AppState.get('catBiblioUnsub'),     set: v => AppState.set('catBiblioUnsub', v),     configurable: true },
+  semestresUnsub:     { get: () => AppState.get('semestresUnsub'),     set: v => AppState.set('semestresUnsub', v),     configurable: true },
+  galeriasUnsub:      { get: () => AppState.get('galeriasUnsub'),      set: v => AppState.set('galeriasUnsub', v),      configurable: true },
+  tablerosUnsub:      { get: () => AppState.get('tablerosUnsub'),      set: v => AppState.set('tablerosUnsub', v),      configurable: true },
+  tableroFeedUnsub:   { get: () => AppState.get('tableroFeedUnsub'),   set: v => AppState.set('tableroFeedUnsub', v),   configurable: true },
+  sidebarOnlineUnsub: { get: () => AppState.get('sidebarOnlineUnsub'), set: v => AppState.set('sidebarOnlineUnsub', v), configurable: true },
+  muroFeedUnsub:      { get: () => AppState.get('muroFeedUnsub'),      set: v => AppState.set('muroFeedUnsub', v),      configurable: true },
+  muroFotosUnsub:     { get: () => AppState.get('muroFotosUnsub'),     set: v => AppState.set('muroFotosUnsub', v),     configurable: true },
+  muroAlbumsUnsub:    { get: () => AppState.get('muroAlbumsUnsub'),    set: v => AppState.set('muroAlbumsUnsub', v),    configurable: true },
+
+  /* ── Paginación feed ── */
+  feedOldestDoc:      { get: () => AppState.get('feedOldestDoc'),      set: v => AppState.set('feedOldestDoc', v),      configurable: true },
+  feedHayMas:         { get: () => AppState.get('feedHayMas'),         set: v => AppState.set('feedHayMas', v),         configurable: true },
+  feedCargandoMas:    { get: () => AppState.get('feedCargandoMas'),    set: v => AppState.set('feedCargandoMas', v),    configurable: true },
+
+  /* ── Paginación / chat ── */
+  chatOldestDoc:      { get: () => AppState.get('chatOldestDoc'),      set: v => AppState.set('chatOldestDoc', v),      configurable: true },
+  chatHayMas:         { get: () => AppState.get('chatHayMas'),         set: v => AppState.set('chatHayMas', v),         configurable: true },
+  chatCargandoMas:    { get: () => AppState.get('chatCargandoMas'),    set: v => AppState.set('chatCargandoMas', v),    configurable: true },
+  currentSalaId:      { get: () => AppState.get('currentSalaId'),      set: v => AppState.set('currentSalaId', v),      configurable: true },
+  salaChatColorSeleccionado: { get: () => AppState.get('salaChatColorSeleccionado'), set: v => AppState.set('salaChatColorSeleccionado', v), configurable: true },
+  salaChatEmojiSeleccionado: { get: () => AppState.get('salaChatEmojiSeleccionado'), set: v => AppState.set('salaChatEmojiSeleccionado', v), configurable: true },
+  chatLastReadMs:     { get: () => AppState.get('chatLastReadMs'),      set: v => AppState.set('chatLastReadMs', v),     configurable: true },
+  _onlineHeartbeatTimer: { get: () => AppState.get('_onlineHeartbeatTimer'), set: v => AppState.set('_onlineHeartbeatTimer', v), configurable: true },
+
+  /* ── Navegación ── */
+  currentSection:     { get: () => AppState.get('currentSection'),     set: v => AppState.set('currentSection', v),     configurable: true },
+
+  /* ── Tareas ── */
+  tareasFilter:       { get: () => AppState.get('tareasFilter'),       set: v => AppState.set('tareasFilter', v),       configurable: true },
+  tareasVistaCalendario: { get: () => AppState.get('tareasVistaCalendario'), set: v => AppState.set('tareasVistaCalendario', v), configurable: true },
+
+  /* ── Lightbox ── */
+  lightboxPhotos:     { get: () => AppState.get('lightboxPhotos'),     set: v => AppState.set('lightboxPhotos', v),     configurable: true },
+  lightboxIdx:        { get: () => AppState.get('lightboxIdx'),        set: v => AppState.set('lightboxIdx', v),        configurable: true },
+
+  /* ── Dinámicas ── */
+  ruletaMiembros:     { get: () => AppState.get('ruletaMiembros'),     set: v => AppState.set('ruletaMiembros', v),     configurable: true },
+  ruletaAngulo:       { get: () => AppState.get('ruletaAngulo'),       set: v => AppState.set('ruletaAngulo', v),       configurable: true },
+  ruletaSpinning:     { get: () => AppState.get('ruletaSpinning'),     set: v => AppState.set('ruletaSpinning', v),     configurable: true },
+  triviaBanco:        { get: () => AppState.get('triviaBanco'),        set: v => AppState.set('triviaBanco', v),        configurable: true },
+  triviaIdx:          { get: () => AppState.get('triviaIdx'),          set: v => AppState.set('triviaIdx', v),          configurable: true },
+  triviaScore:        { get: () => AppState.get('triviaScore'),        set: v => AppState.set('triviaScore', v),        configurable: true },
+  puntosMarcador:     { get: () => AppState.get('puntosMarcador'),     set: v => AppState.set('puntosMarcador', v),     configurable: true },
+
+  /* ── Tableros ── */
+  currentTableroId:   { get: () => AppState.get('currentTableroId'),   set: v => AppState.set('currentTableroId', v),   configurable: true },
+  dentroDeTablero:    { get: () => AppState.get('dentroDeTablero'),    set: v => AppState.set('dentroDeTablero', v),    configurable: true },
+
+  /* ── Muro ── */
+  muroAlbumActualId:  { get: () => AppState.get('muroAlbumActualId'),  set: v => AppState.set('muroAlbumActualId', v),  configurable: true },
+  muroAlbumsCache:    { get: () => AppState.get('muroAlbumsCache'),    set: v => AppState.set('muroAlbumsCache', v),    configurable: true },
+
+  /* ── Apuntes ── */
+  semestresAbiertos:  { get: () => AppState.get('semestresAbiertos'),  set: v => AppState.set('semestresAbiertos', v),  configurable: true },
+  scrollPosicionApuntes: { get: () => AppState.get('scrollPosicionApuntes'), set: v => AppState.set('scrollPosicionApuntes', v), configurable: true },
+  ordenSemestres:     { get: () => AppState.get('ordenSemestres'),     set: v => AppState.set('ordenSemestres', v),     configurable: true },
+  ordenMaterias:      { get: () => AppState.get('ordenMaterias'),      set: v => AppState.set('ordenMaterias', v),      configurable: true },
+  apuntesSearchTerm:  { get: () => AppState.get('apuntesSearchTerm'),  set: v => AppState.set('apuntesSearchTerm', v),  configurable: true },
+
+  /* ── Biblioteca ── */
+  selectedBiblioColor: { get: () => AppState.get('selectedBiblioColor'), set: v => AppState.set('selectedBiblioColor', v), configurable: true },
+  biblioCategorias:   { get: () => AppState.get('biblioCategorias'),   set: v => AppState.set('biblioCategorias', v),   configurable: true },
+  bibliotecaUiBound:  { get: () => AppState.get('bibliotecaUiBound'),  set: v => AppState.set('bibliotecaUiBound', v),  configurable: true },
+
+  /* ── Calendario ── */
+  calDiaSeleccionado: { get: () => AppState.get('calDiaSeleccionado'), set: v => AppState.set('calDiaSeleccionado', v), configurable: true },
+  calMesOffset:       { get: () => AppState.get('calMesOffset'),       set: v => AppState.set('calMesOffset', v),       configurable: true },
+});
+
+/* ═══════════════════════════════════════════════════
+   CONSTANTES — Listas de emojis
+═══════════════════════════════════════════════════ */
 const EMOJIS_SEMESTRE = [
   '📅', '📚', '🎓', '🌱', '☀️', '🍂', '❄️', '📖', '🏫', '✏️',
   '🗓️', '🌸', '🌻', '🍃', '🌊', '⭐', '🔖', '🎒', '🖊️', '📋',
   '🏆', '🌙', '🎯', '🧩', '🌈', '🎪', '🚀', '💫', '🎀', '🌟'
 ];
 const EMOJIS_MATERIA = [
-  // Matemáticas y Exactas
   '📐', '🔢', '🧮', '📊', '➕', '➗', '🔣', '∫', 'π', '📈',
-  // Ciencias
   '🔬', '⚗️', '🧪', '🧫', '🧬', '🔭', '⚛️', '🌡️', '🧲', '💊',
-  // Tecnología y Sistemas
   '💻', '🖥️', '📱', '⌨️', '🖱️', '🖨️', '💾', '💿', '🔌', '🛜',
   '🤖', '👾', '🕹️', '📡', '🔧', '⚙️', '🛠️', '🔩', '🖧', '📟',
-  // Humanidades y Sociales
   '🌍', '🗺️', '📜', '🏛️', '🗽', '⚖️', '🏦', '📰', '🎭', '🗣️',
-  // Arte y Diseño
   '🎨', '✏️', '🖌️', '🖍️', '📸', '🎬', '🎵', '🎼', '🎹', '🎸',
-  // Idiomas y Literatura
   '📝', '📖', '✍️', '🔤', '💬', '📕', '📗', '📘', '📙', '🔡',
-  // Economía y Admin
   '💰', '📉', '🏢', '💼', '🤝', '📦', '🏪', '💳', '🧾', '📑',
-  // Salud y Deportes
   '🏃', '⚽', '🏀', '🏊', '🧘', '💪', '🦷', '🩺', '🧠', '🫀',
-  // General Escolar
   '🏫', '🎒', '📏', '📌', '📍', '🗂️', '🗃️', '📂', '🗒️', '⏰'
 ];
 const EMOJIS_GRUPO = ['👥', '🚀', '⭐', '🔥', '💎', '🌙', '🎯', '🏆', '🌈', '🎪'];
 
 /* ═══════════════════════════════════════════════════
-   UTILIDADES
+   UTILIDADES DOM
 ═══════════════════════════════════════════════════ */
 const $ = id => document.getElementById(id);
 const qs = (sel, ctx = document) => ctx.querySelector(sel);
 const qsa = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
+/* ═══════════════════════════════════════════════════
+   UTILIDADES DE FORMATO Y TEXTO
+═══════════════════════════════════════════════════ */
 function escHtml(str) {
   return String(str || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -130,7 +366,7 @@ function fmtTime(ts) {
   return d.toLocaleString('es-MX', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
 }
 function fmtTimeChat(ts) {
-  if (!ts) return 'Enviando...'; // Evita que se rompa si el mensaje es nuevo
+  if (!ts) return 'Enviando...';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   if (!(d instanceof Date) || Number.isNaN(d.getTime())) return 'Enviando...';
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -167,45 +403,40 @@ function getChatMsgDate(m) {
   const d = new Date(ts);
   return Number.isFinite(d.getTime()) ? d : null;
 }
+
+/* ═══════════════════════════════════════════════════
+   ACCESO A FIREBASE
+═══════════════════════════════════════════════════ */
 function waitForFirebase(cb) {
   if (window._firebaseReady) { cb(); return; }
   window.addEventListener('firebase-ready', cb, { once: true });
 }
-// Acceso global a Firebase
-function db() { return window._db; }
+function db()  { return window._db; }
 function lib() { return window._fbLib; }
 
-/** Índice de opción en userVotes de votaciones (0 es válido; undefined → null). */
+/* ═══════════════════════════════════════════════════
+   HELPERS DE DOMINIO
+═══════════════════════════════════════════════════ */
 function parseUserVoteIndex(raw) {
   if (raw === undefined || raw === null) return null;
   const n = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
   return Number.isFinite(n) ? n : null;
 }
 
-// Función para convertir links de Drive a links directos de previsualización
 function limpiarLinkDrive(url) {
   if (url.includes('drive.google.com')) {
-    // Formato 1: /d/ID/view, /d/ID/edit, /d/ID/preview (el más común)
     const matchPath = url.match(/\/d\/([a-zA-Z0-9_-]+)\/(view|edit|usp|preview)/);
-    if (matchPath && matchPath[1]) {
-      return `https://drive.google.com/file/d/${matchPath[1]}/preview`;
-    }
-    // Formato 2: /d/ID sin segmento de ruta (p.ej. /d/ID?usp=sharing)
+    if (matchPath?.[1]) return `https://drive.google.com/file/d/${matchPath[1]}/preview`;
     const matchId = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (matchId && matchId[1]) {
-      return `https://drive.google.com/file/d/${matchId[1]}/preview`;
-    }
-    // Formato 3: open?id=ID o ?id=ID
+    if (matchId?.[1]) return `https://drive.google.com/file/d/${matchId[1]}/preview`;
     const matchQuery = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    if (matchQuery && matchQuery[1]) {
-      return `https://drive.google.com/file/d/${matchQuery[1]}/preview`;
-    }
+    if (matchQuery?.[1]) return `https://drive.google.com/file/d/${matchQuery[1]}/preview`;
   }
   return url;
 }
 
 /* ═══════════════════════════════════════════════════
-   MODO OSCURO / CLARO
+   TEMA — Modo oscuro / claro
 ═══════════════════════════════════════════════════ */
 function initTheme() {
   const saved = localStorage.getItem('ze_theme') || 'dark';
@@ -219,8 +450,6 @@ function applyTheme(theme) {
   if (meta) meta.content = theme === 'light' ? '#ffffff' : '#1a1a2e';
   localStorage.setItem('ze_theme', theme);
 }
-// FIX #1: El listener se registra después de que el DOM esté disponible
-// para evitar TypeError si el script carga antes que el HTML.
 function _initThemeToggle() {
   const btn = $('btnThemeToggle');
   if (!btn) return;
@@ -236,25 +465,14 @@ if (document.readyState === 'loading') {
 }
 
 /* ═══════════════════════════════════════════════════
-   SAFARI / CROSS-BROWSER UNIVERSAL LAYOUT FIXES
-   
-   1. --ze-topbar-h: alto real del topbar medido con JS
-   2. --ze-real-vh: 1% del viewport real de Safari
-      (Safari cambia el tamaño al aparecer/ocultar la
-       barra de dirección, rompiendo 100vh)
-   3. Clase .visible en chat-online-bar (reemplaza :has
-      que no existe en Safari < 15.4)
+   SAFARI / CROSS-BROWSER LAYOUT FIXES
 ═══════════════════════════════════════════════════ */
 function _setTopbarHeight() {
   const topbar = document.querySelector('header.topbar');
   if (!topbar) return;
   const h = topbar.getBoundingClientRect().height;
-  if (h > 0) {
-    document.documentElement.style.setProperty('--ze-topbar-h', h + 'px');
-  }
+  if (h > 0) document.documentElement.style.setProperty('--ze-topbar-h', h + 'px');
 }
-
-/** Alto real de la bottom nav (móvil); en escritorio 0. Evita hueco/solape con valores fijos 48px. */
 function _setBottomNavClearance() {
   const nav = document.getElementById('bottomNav');
   if (!nav) return;
@@ -264,53 +482,25 @@ function _setBottomNavClearance() {
     return;
   }
   const h = nav.getBoundingClientRect().height;
-  if (h > 0) {
-    document.documentElement.style.setProperty('--ze-bottom-nav-clearance', h + 'px');
-  } else {
-    document.documentElement.style.removeProperty('--ze-bottom-nav-clearance');
-  }
+  if (h > 0) document.documentElement.style.setProperty('--ze-bottom-nav-clearance', h + 'px');
+  else        document.documentElement.style.removeProperty('--ze-bottom-nav-clearance');
 }
-
 function _setRealVh() {
-  // En Safari la barra de dirección hace que 100vh > viewport real.
-  // Guardamos el valor real como variable CSS para usarla en los cálculos.
   const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
   document.documentElement.style.setProperty('--ze-real-vh', vh + 'px');
 }
-
 function _initSafariFixes() {
-  const _layoutTick = () => {
-    _setRealVh();
-    _setTopbarHeight();
-    _setBottomNavClearance();
-  };
-
-  _layoutTick();
-
-  // Escuchar visualViewport (Safari lo soporta desde iOS 13)
-  // Se dispara cuando la barra de dirección aparece/desaparece
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', _layoutTick, { passive: true });
-  }
-
-  window.addEventListener('resize', _layoutTick, { passive: true });
-
-  window.addEventListener('orientationchange', () => {
-    requestAnimationFrame(_layoutTick);
-  }, { passive: true });
-
-  try {
-    window.matchMedia('(max-width: 768px)').addEventListener('change', _layoutTick);
-  } catch (_) {
-    window.matchMedia('(max-width: 768px)').addListener(_layoutTick);
-  }
-
-  requestAnimationFrame(() => requestAnimationFrame(_layoutTick));
-  // Segunda medición tras aplicar safe-areas en iOS
-  setTimeout(_layoutTick, 100);
-  setTimeout(_layoutTick, 600);
+  const tick = () => { _setRealVh(); _setTopbarHeight(); _setBottomNavClearance(); };
+  tick();
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', tick, { passive: true });
+  window.addEventListener('resize', tick, { passive: true });
+  window.addEventListener('orientationchange', () => requestAnimationFrame(tick), { passive: true });
+  try { window.matchMedia('(max-width: 768px)').addEventListener('change', tick); }
+  catch (_) { window.matchMedia('(max-width: 768px)').addListener(tick); }
+  requestAnimationFrame(() => requestAnimationFrame(tick));
+  setTimeout(tick, 100);
+  setTimeout(tick, 600);
 }
-
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', _initSafariFixes);
 } else {
@@ -319,85 +509,71 @@ if (document.readyState === 'loading') {
 
 /* ── Chat online bar: clase .visible en lugar de :has() ── */
 function _updateChatOnlineBarVisibility() {
-  const bar = document.querySelector('.chat-online-bar');
+  const bar  = document.querySelector('.chat-online-bar');
   const list = document.getElementById('chatOnlineList');
   if (!bar || !list) return;
-  const isVisible = list.style.display === 'flex';
-  bar.classList.toggle('visible', isVisible);
+  bar.classList.toggle('visible', list.style.display === 'flex');
 }
-// Observar cambios de estilo en la lista online para actualizar la clase
 if (typeof MutationObserver !== 'undefined') {
   const _onlineObserver = new MutationObserver(_updateChatOnlineBarVisibility);
   const _waitForOnlineList = setInterval(() => {
     const list = document.getElementById('chatOnlineList');
-    if (list) {
-      _onlineObserver.observe(list, { attributes: true, attributeFilter: ['style'] });
-      clearInterval(_waitForOnlineList);
-    }
+    if (list) { _onlineObserver.observe(list, { attributes: true, attributeFilter: ['style'] }); clearInterval(_waitForOnlineList); }
   }, 500);
 }
 
+/* ═══════════════════════════════════════════════════
+   AVATAR
+═══════════════════════════════════════════════════ */
 function getAvatarHtml(url, name, extraClass = '') {
-  const initial = (name || '?').charAt(0).toUpperCase();
-  const safeUrl = (url && typeof url === 'string') ? url.trim() : '';
-
-  if (safeUrl !== '') {
-    // Si hay URL, intentamos cargar la imagen
+  const initial  = (name || '?').charAt(0).toUpperCase();
+  const safeUrl  = (url && typeof url === 'string') ? url.trim() : '';
+  if (safeUrl) {
     return `
       <div class="avatar-fallback-container ${extraClass}">
-        <img src="${escHtml(safeUrl)}" class="${extraClass}" alt="" 
+        <img src="${escHtml(safeUrl)}" class="${extraClass}" alt=""
              style="display:block; width:100%; height:100%; object-fit:cover; border-radius:50%;"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
         <div class="sidebar-member-initial ${extraClass}" style="display:none; width:100%; height:100%;">${initial}</div>
       </div>`;
   }
-  // Si no hay URL, ponemos la inicial directo
   return `<div class="sidebar-member-initial ${extraClass}">${initial}</div>`;
 }
 
 /* ═══════════════════════════════════════════════════
-  Autenticación con Google
+   AUTENTICACIÓN CON GOOGLE
 ═══════════════════════════════════════════════════ */
 function initAuth() {
   waitForFirebase(() => {
     const { onAuthStateChanged } = lib();
     onAuthStateChanged(window._auth, async user => {
       if (user) {
-        // Primero cargamos lo básico de Google
-        currentUser = {
-          uid: user.uid,
-          email: user.email,
-          name: user.displayName || user.email.split('@')[0],
+        AppState.set('currentUser', {
+          uid:    user.uid,
+          email:  user.email,
+          name:   user.displayName || user.email.split('@')[0],
           avatar: user.photoURL || ''
-        };
-        // Luego intentamos leer el perfil guardado en Firestore (nombre/avatar personalizados)
+        });
         try {
           const { doc, getDoc } = lib();
           const snap = await getDoc(doc(db(), 'ec_users', user.uid));
           if (snap.exists()) {
             const d = snap.data();
-            if (d.name) currentUser.name = d.name;
-            if (d.avatar !== undefined && d.avatar !== null) currentUser.avatar = d.avatar;
+            const cu = AppState.get('currentUser');
+            if (d.name)   cu.name   = d.name;
+            if (d.avatar !== undefined && d.avatar !== null) cu.avatar = d.avatar;
+            AppState.set('currentUser', cu);
           }
-        } catch (_) { }
+        } catch (_) {}
         showApp();
         await ensureUserDoc();
         loadGruposDelUsuario();
       } else {
-        // FIX: Cancelar TODOS los listeners activos antes de limpiar el estado.
-        // Antes solo se ocultaba el DOM, dejando listeners de Firestore y el
-        // heartbeat corriendo con currentUser=null → errores silenciosos y
-        // riesgo de datos cruzados si el usuario cambia de cuenta en la misma pestaña.
-        currentUser = null;
-        currentGroupId = null;
-        currentGroupData = null;
-
-        // Delegar el teardown a grupos.js que tiene acceso directo a todas
-        // las variables let de los módulos (son closures del mismo scope global).
-        if (typeof window.teardownAllListeners === 'function') {
-          window.teardownAllListeners();
-        }
-
+        /* Cancelar todos los listeners antes de limpiar el estado */
+        if (typeof window.teardownAllListeners === 'function') window.teardownAllListeners();
+        AppState.set('currentUser',      null);
+        AppState.set('currentGroupId',   null);
+        AppState.set('currentGroupData', null);
         showLogin();
       }
     });
@@ -429,39 +605,33 @@ $('btnLogout').addEventListener('click', () => {
     danger: false,
     onConfirm: async () => {
       const btn = $('btnLogout');
-      btn.disabled = true;
-      btn.textContent = '⏳';
+      btn.disabled = true; btn.textContent = '⏳';
       const { signOut } = lib();
-      try {
-        await signOut(window._auth);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Cerrar sesión';
-      }
+      try { await signOut(window._auth); }
+      finally { btn.disabled = false; btn.textContent = 'Cerrar sesión'; }
     }
   });
 });
 
 async function ensureUserDoc() {
+  const cu = AppState.get('currentUser');
   const { doc, setDoc } = lib();
   try {
-    await setDoc(doc(db(), 'ec_users', currentUser.uid), {
-      name: currentUser.name,
-      email: currentUser.email,
-      avatar: currentUser.avatar,
+    await setDoc(doc(db(), 'ec_users', cu.uid), {
+      name: cu.name, email: cu.email, avatar: cu.avatar,
       updatedAt: lib().serverTimestamp()
     }, { merge: true });
-  } catch (_) { }
+  } catch (_) {}
 }
 
 function showLogin() {
   $('loginScreen').style.display = 'flex';
-  $('appShell').style.display = 'none';
+  $('appShell').style.display    = 'none';
 }
 
 function showApp() {
   $('loginScreen').style.display = 'none';
-  $('appShell').style.display = 'flex';
+  $('appShell').style.display    = 'flex';
   refreshAvatarUI();
   $('userName').textContent = getUserAlias();
   $('userRole').textContent = 'Integrante';
@@ -470,32 +640,29 @@ function showApp() {
   showSection('loading');
 }
 
-// --- NUEVO: Función para obtener el nombre específico en este grupo ---
 window.getUserAlias = function () {
-  if (currentGroupData && currentGroupData.miembroNombres) {
-    const key = currentUser.email.replace(/\./g, '_');
-    if (currentGroupData.miembroNombres[key]) {
-      return currentGroupData.miembroNombres[key];
-    }
+  const cu  = AppState.get('currentUser');
+  const cgd = AppState.get('currentGroupData');
+  if (cgd?.miembroNombres) {
+    const key = cu.email.replace(/\./g, '_');
+    if (cgd.miembroNombres[key]) return cgd.miembroNombres[key];
   }
-  return currentUser.name;
+  return cu.name;
 };
 
-/** Actualiza todos los elementos de avatar/nombre en la UI con los datos actuales de currentUser */
 function refreshAvatarUI() {
-  const av = currentUser.avatar || '';
+  const cu      = AppState.get('currentUser');
+  const av      = cu.avatar || '';
   const isEmoji = av && [...av].length <= 2 && !av.startsWith('http');
-  const isUrl = av && av.startsWith('http');
-  const initial = (currentUser.name || '?').charAt(0).toUpperCase();
+  const isUrl   = av && av.startsWith('http');
+  const initial = (cu.name || '?').charAt(0).toUpperCase();
 
-  // Imágenes de avatar en topbar, sidebar, compose, chat
   [$('userAvatar'), $('topbarAvatar'), $('composeAvatar')].forEach(el => {
     if (!el) return;
     if (isUrl) { el.src = av; el.style.display = ''; }
-    else { el.src = ''; el.style.display = 'none'; }
+    else       { el.src = ''; el.style.display = 'none'; }
   });
 
-  // Avatar grande del muro — solo si es mi muro
   const muroAv = $('muroAvatar');
   const muroFb = $('muroAvatarFallback');
   if (muroAv && muroFb && !muroViendoUid) {
@@ -507,12 +674,10 @@ function refreshAvatarUI() {
     }
   }
 
-  // Avatar lateral (sidebar pill)
   const userAvEl = $('userAvatar');
   if (userAvEl) {
     if (!isUrl) {
       userAvEl.style.display = 'none';
-      // Mostrar inicial en el pill si no hay foto URL
       let pill = $('userPillInitial');
       if (!pill) {
         pill = document.createElement('div');
@@ -530,19 +695,12 @@ function refreshAvatarUI() {
   }
 }
 
-
 /* ═══════════════════════════════════════════════════
-   TOAST — Notificaciones visuales (reemplaza alert)
+   ERRORES AMIGABLES
 ═══════════════════════════════════════════════════ */
-
-/**
- * Convierte errores técnicos de Firebase/red en mensajes legibles para el usuario.
- * Los mensajes internos (e.message) nunca deben mostrarse en crudo.
- */
 window.friendlyError = function(e) {
   if (!e) return 'Ocurrió un error inesperado.';
   const msg = (e.message || e.code || String(e)).toLowerCase();
-
   if (msg.includes('permission-denied') || msg.includes('missing or insufficient'))
     return 'No tienes permiso para realizar esta acción.';
   if (msg.includes('network') || msg.includes('unavailable') || msg.includes('offline'))
@@ -559,69 +717,49 @@ window.friendlyError = function(e) {
     return 'La operación tardó demasiado. Intenta de nuevo.';
   if (msg.includes('upload') || msg.includes('cloudinary'))
     return 'No se pudo subir el archivo. Verifica el formato e intenta de nuevo.';
-
-  // Si no hay un caso conocido, devolvemos el mensaje pero sin jerga técnica
   return 'Algo salió mal. Intenta de nuevo.';
 };
 
 /* ═══════════════════════════════════════════════════
    CONFIRM — Modal de confirmación destructiva
-   Reemplaza confirm() nativo del navegador.
-   Uso: showConfirm({ title, message, confirmText, onConfirm, danger })
 ═══════════════════════════════════════════════════ */
 window.showConfirm = function({ title = '¿Estás seguro?', message = '', confirmText = 'Confirmar', cancelText = 'Cancelar', onConfirm, danger = true } = {}) {
   const modal = document.getElementById('modalConfirmDestructivo');
   if (!modal) { console.error('Falta #modalConfirmDestructivo en index.html'); return; }
-
-  // Rellenar contenido
   const elTitle   = document.getElementById('confirmTitle');
   const elMsg     = document.getElementById('confirmMessage');
   const btnOk     = document.getElementById('confirmBtnOk');
   const btnCancel = document.getElementById('confirmBtnCancel');
-
   if (elTitle)   elTitle.textContent   = title;
   if (elMsg)     elMsg.textContent     = message;
   if (btnOk)     btnOk.textContent     = confirmText;
   if (btnCancel) btnCancel.textContent = cancelText;
-
-  // Color del botón: rojo si es destructivo, accent si no
-  if (btnOk) {
-    btnOk.className = danger ? 'confirm-btn-ok danger' : 'confirm-btn-ok';
-  }
-
-  // Limpiar listeners anteriores clonando el botón
+  if (btnOk) btnOk.className = danger ? 'confirm-btn-ok danger' : 'confirm-btn-ok';
   const newOk = btnOk.cloneNode(true);
   btnOk.parentNode.replaceChild(newOk, btnOk);
-
-  // Abrir modal
   modal.classList.add('open');
   if (typeof _lockBodyScroll === 'function') _lockBodyScroll();
-
   const close = () => {
     modal.classList.remove('open');
     if (!document.querySelector('.modal-overlay.open, .comments-modal-overlay.active')) {
       if (typeof _unlockBodyScroll === 'function') _unlockBodyScroll();
     }
   };
-
-  // Confirmar
   newOk.addEventListener('click', () => { close(); onConfirm?.(); });
-
-  // Cancelar — reusar el mismo botón que ya existe, guardando referencia antes de usarla
   const cancelBtnOld = document.getElementById('confirmBtnCancel');
   const newCancel = cancelBtnOld.cloneNode(true);
   cancelBtnOld.parentNode.replaceChild(newCancel, cancelBtnOld);
   newCancel.addEventListener('click', close);
-
-  // Cerrar al hacer clic en el overlay
   const onOverlay = (e) => { if (e.target === modal) { close(); modal.removeEventListener('click', onOverlay); } };
   modal.addEventListener('click', onOverlay);
 };
 
-const _TOAST_MAX = 4; // máximo de toasts apilados al mismo tiempo
+/* ═══════════════════════════════════════════════════
+   TOAST — Notificaciones visuales
+═══════════════════════════════════════════════════ */
+const _TOAST_MAX = 4;
 
 window.showToast = function(msg, type = 'info', duration = 3500) {
-  // Crear contenedor si no existe
   let container = document.getElementById('toast-container');
   if (!container) {
     container = document.createElement('div');
@@ -629,82 +767,38 @@ window.showToast = function(msg, type = 'info', duration = 3500) {
     container.setAttribute('aria-live', 'polite');
     container.setAttribute('aria-atomic', 'false');
     container.style.cssText = `
-      position: fixed;
-      top: 18px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 99999;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      pointer-events: none;
-      width: max-content;
-      max-width: 90vw;
-    `;
+      position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+      z-index: 99999; display: flex; flex-direction: column; align-items: center;
+      gap: 8px; pointer-events: none; width: max-content; max-width: 90vw;`;
     document.body.appendChild(container);
   }
-
-  // Deduplicación: si ya hay un toast con el mismo mensaje, no apilamos otro
   const existing = container.querySelectorAll('[data-toast-msg]');
-  for (const el of existing) {
-    if (el.dataset.toastMsg === msg) return;
-  }
-
-  // Límite de toasts: si hay demasiados, eliminar el más antiguo
+  for (const el of existing) { if (el.dataset.toastMsg === msg) return; }
   const allToasts = container.querySelectorAll('[data-toast-msg]');
-  if (allToasts.length >= _TOAST_MAX) {
-    allToasts[0].click(); // dispara su propio remove con animación
-  }
-
-  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-  const colors = {
-    success: 'var(--green, #16a34a)',
-    error:   'var(--red,   #dc2626)',
-    warning: '#f59e0b',
-    info:    'var(--accent,#7c6af7)'
-  };
-
+  if (allToasts.length >= _TOAST_MAX) allToasts[0].click();
+  const icons  = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  const colors = { success: 'var(--green, #16a34a)', error: 'var(--red, #dc2626)', warning: '#f59e0b', info: 'var(--accent,#7c6af7)' };
   const toast = document.createElement('div');
-  toast.setAttribute('role', 'alert');           // accesibilidad: lectores de pantalla
-  toast.setAttribute('aria-live', 'assertive'); // anuncia el mensaje inmediatamente
-  toast.dataset.toastMsg = msg;                 // para deduplicación
+  toast.setAttribute('role', 'alert');
+  toast.setAttribute('aria-live', 'assertive');
+  toast.dataset.toastMsg = msg;
   toast.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--bg2, #1e1e2e);
-    color: var(--text0, #fff);
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg2, #1e1e2e); color: var(--text0, #fff);
     border: 1px solid var(--border, rgba(255,255,255,0.1));
     border-left: 4px solid ${colors[type]};
-    padding: 12px 18px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-family: var(--font, sans-serif);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-    pointer-events: all;
-    max-width: 88vw;
-    line-height: 1.4;
-    opacity: 0;
-    transform: translateY(-12px) scale(0.96);
-    transition: opacity 0.22s ease, transform 0.22s ease;
-    cursor: pointer;
-  `;
+    padding: 12px 18px; border-radius: 10px; font-size: 14px;
+    font-family: var(--font, sans-serif); box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    pointer-events: all; max-width: 88vw; line-height: 1.4;
+    opacity: 0; transform: translateY(-12px) scale(0.96);
+    transition: opacity 0.22s ease, transform 0.22s ease; cursor: pointer;`;
   toast.innerHTML = `<span style="font-size:16px;flex-shrink:0" aria-hidden="true">${icons[type]}</span><span>${msg}</span>`;
   container.appendChild(toast);
-
-  // Animar entrada
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      toast.style.opacity = '1';
-      toast.style.transform = 'translateY(0) scale(1)';
-    });
-  });
-
-  // Animar salida y eliminar
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    toast.style.opacity = '1'; toast.style.transform = 'translateY(0) scale(1)';
+  }));
   const remove = () => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-8px) scale(0.96)';
+    toast.style.opacity = '0'; toast.style.transform = 'translateY(-8px) scale(0.96)';
     setTimeout(() => toast.remove(), 220);
   };
   const timer = setTimeout(remove, duration);
@@ -712,42 +806,27 @@ window.showToast = function(msg, type = 'info', duration = 3500) {
 };
 
 /* ═══════════════════════════════════════════════════
-   SUBIDA DE ARCHIVOS — CLOUDINARY
-   Función compartida por: apuntes, muro, chat,
-   tableros y dinámicas. Centralizada aquí para que
-   cualquier módulo pueda usarla sin duplicar código.
+   CLOUDINARY — Subida de archivos
 ═══════════════════════════════════════════════════ */
 async function uploadToCloudinary(file, tag = '') {
   if (file.size > 10 * 1024 * 1024) {
     showToast('El archivo es muy pesado. Máximo 10 MB.', 'info');
     return null;
   }
-
   const fd = new FormData();
   fd.append('file', file);
   fd.append('upload_preset', CLOUDINARY_PRESET);
-
   if (tag) {
     fd.append('tags', tag);
     fd.append('folder', `ZonaEscolar/${tag}`);
     fd.append('asset_folder', `ZonaEscolar/${tag}`);
   }
-
   try {
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
-      method: 'POST', body: fd
-    });
+    const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, { method: 'POST', body: fd });
     const data = await res.json();
-    if (data.error) {
-      console.error('Error exacto de Cloudinary:', data.error.message);
-      // FIX: mostrar error al usuario en lugar de fallar silenciosamente
-      showToast('No se pudo subir el archivo. Intenta de nuevo.', 'error');
-      return null;
-    }
+    if (data.error) { showToast('No se pudo subir el archivo. Intenta de nuevo.', 'error'); return null; }
     return data.secure_url || null;
   } catch (e) {
-    console.error('Fallo de conexión con Cloudinary:', e);
-    // FIX: feedback al usuario en error de red (común en móvil)
     showToast('Sin conexión. Verifica tu red e intenta de nuevo.', 'error');
     return null;
   }

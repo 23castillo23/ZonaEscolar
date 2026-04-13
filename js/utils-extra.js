@@ -344,29 +344,30 @@ window.addEventListener('resize', () => {
   });
 
   // Ajustar posición cuando el viewport se desplaza (iOS scroll con teclado)
+  // BUG FIX: translateY se eliminó del compose wrapper porque combinar ese
+  // transform con el scroll simultáneo de chatMessages causaba doble
+  // desplazamiento visible en Android Chrome e iOS Safari.
+  // La solución correcta es dejar que el flexbox + --chat-h posicionen el
+  // compose bar y solo hacer scroll al fondo del contenedor de mensajes.
   window.visualViewport.addEventListener('scroll', () => {
     const vvH = window.visualViewport?.height;
     if (vvH) _updateChatHeight(vvH);
 
     if (currentSection === 'chat') {
+      // Limpiar cualquier transform residual que pudiera haber quedado de
+      // versiones anteriores del código
       const chatCompose = document.querySelector('.chat-compose-wrapper');
-      if (chatCompose) {
-        const offsetY = window.visualViewport.offsetTop;
-        // BUG FIX: solo aplicar el transform cuando la sección chat está activa.
-        // Antes se aplicaba siempre, desplazando el compose bar en secciones
-        // como Feed o Tareas si el usuario había tocado algún input.
-        chatCompose.style.transform = offsetY ? `translateY(${offsetY}px)` : '';
+      if (chatCompose && chatCompose.style.transform) {
+        chatCompose.style.transform = '';
       }
       _scrollChatToBottom();
     }
   });
 
-  // BUG FIX: proteger con optional chaining por si visualViewport deja de
-  // estar disponible (contexto raro en algunos Android WebView).
-  window.addEventListener('resize', () => {
-    const vvH = window.visualViewport?.height;
-    if (vvH) _updateChatHeight(vvH);
-  });
+  // NOTA: Se elimina el window.addEventListener('resize') que había aquí
+  // porque era redundante con el visualViewport 'resize' de arriba.
+  // Tener ambos causaba que _updateChatHeight se llamara dos veces por evento
+  // con valores ligeramente distintos, generando un parpadeo de layout.
 
   // Inicializar --chat-h al cargar
   _updateChatHeight(window.visualViewport.height);

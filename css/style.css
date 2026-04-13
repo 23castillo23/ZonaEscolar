@@ -595,7 +595,10 @@ header.topbar {
   overflow: hidden !important;
   padding: 0;
   max-width: 100%;
-  height: calc(100% - var(--ze-topbar-h, 56px));
+  /* BUG FIX: usar --chat-h calculada en JS (utils-extra.js) que descuenta
+     el topbar real + bottom-nav real medidos con getBoundingClientRect.
+     Fallback: restar las alturas fijas si JS aún no actualizó la variable. */
+  height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
   min-height: 0;
 }
 
@@ -3063,9 +3066,10 @@ header.topbar {
 #sectionChat {
   display: none;
   flex-direction: column;
-  height: 100vh;
-  height: calc(var(--ze-real-vh, 1vh) * 100);
-  height: 100dvh;
+  /* BUG FIX: se elimina height:100dvh de aquí porque #sectionChat.active
+     ya define la altura correcta descontando topbar y bottom-nav.
+     Tener ambas reglas causaba que en algunos dispositivos el chat ocupara
+     toda la pantalla ignorando el topbar, cortando el input por abajo. */
   padding: 0;
   max-width: 100%;
   overflow: hidden;
@@ -3302,6 +3306,10 @@ header.topbar {
   border-bottom: none;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
+  /* BUG FIX: se elimina will-change:transform porque ya no se aplica
+     translateY desde JS. Mantenerlo causaba que el navegador creara
+     un nuevo stacking context que en algunos Android desplazaba el
+     compose bar fuera del área visible al abrir el teclado. */
 }
 
 /* Tu barra original, pero ahora transparente y sin bordes porque el wrapper ya los tiene */
