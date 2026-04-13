@@ -304,9 +304,11 @@ window.addEventListener('resize', () => {
 
   function _updateChatHeight(vvHeight) {
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    const bottomH = isMobile ? _readLayoutPx('--ze-bottom-nav-clearance', 48) : 0;
-    // Móvil: #sectionChat usa padding-top = topbar; la altura del bloque es hasta el borde inferior (sin restar topbar dos veces).
-    const chatH = isMobile ? (vvHeight - bottomH) : (vvHeight - _readLayoutPx('--ze-topbar-h', 56) - bottomH);
+    const bottomH  = isMobile ? _readLayoutPx('--ze-bottom-nav-clearance', 48) : 0;
+    const topbarH  = _readLayoutPx('--ze-topbar-h', 56);
+    // FIX: en móvil también restamos el topbar — sin esto el chat ocupa altura
+    // de más y el compose bar queda parcialmente tapado por la barra de navegación.
+    const chatH = vvHeight - topbarH - bottomH;
     document.documentElement.style.setProperty('--chat-h', Math.max(chatH, 200) + 'px');
   }
 

@@ -725,7 +725,11 @@ function initChatListeners() {
     this.style.height = Math.min(this.scrollHeight, 100) + 'px';
   });
   $('chatInput')?.addEventListener('focus', () => {
-    if (!window.visualViewport) setTimeout(() => ajustarScrollChat(false), 150);
+    // FIX: siempre hacer scroll al fondo al enfocar, no solo cuando falta visualViewport.
+    // En iOS/Android con visualViewport el teclado dispara 'resize' en el viewport,
+    // pero hay un gap de ~100-200ms antes de que cambie la altura — este timeout
+    // hace scroll cuando ya se recalculó --chat-h.
+    setTimeout(() => ajustarScrollChat(false), 200);
   });
   $('chatInput')?.addEventListener('blur', () => {
     const box = $('chatMessages');

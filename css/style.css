@@ -8533,10 +8533,12 @@ header.topbar {
     padding-top: 0;
   }
 
-  /* Chat: altura hasta borde inferior; padding-top = topbar (una sola vez, con --chat-h = vv - bottom) */
+  /* FIX: fallback de --chat-h descuenta topbar + bottom-nav, igual que en escritorio.
+     Antes solo descontaba bottom-nav, dejando el compose bar parcialmente oculto
+     si JS aún no había calculado --chat-h al montar la vista. */
   #sectionChat.active {
-    height: var(--chat-h, calc(100dvh - var(--ze-bottom-nav-clearance, 52px)));
-    max-height: var(--chat-h, calc(100dvh - var(--ze-bottom-nav-clearance, 52px)));
+    height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    max-height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
@@ -8546,7 +8548,7 @@ header.topbar {
     overflow: hidden;
     display: flex !important;
     flex-direction: column;
-    transition: height 0.15s ease, max-height 0.15s ease;
+    /* Sin transition de altura: evita parpadeo al abrir/cerrar teclado en móvil */
   }
   #sectionChat:not(.active) {
     display: none !important;
@@ -8575,14 +8577,16 @@ header.topbar {
   .chat-compose-wrapper {
     width: 100%;
     margin: 0;
-    padding: 8px 12px 10px 12px;
+    /* FIX: padding-bottom incluye safe-area para barra home de iOS */
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px)) 12px;
     border-radius: 0;
     border-left: none;
     border-right: none;
     border-bottom: none;
     border-top: 1px solid var(--border);
     box-sizing: border-box;
-    overflow: visible;
+    /* FIX: overflow hidden evita que el emoji picker rompa el layout en pantallas pequeñas */
+    overflow: hidden;
     box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
     flex-shrink: 0;
   }
