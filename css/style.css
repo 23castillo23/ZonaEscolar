@@ -8497,8 +8497,12 @@ header.topbar {
     padding-bottom: 0;
     flex: 1;
     min-height: 0;
-    height: 100dvh;
-    max-height: 100dvh;
+    /* FIX: 100dvh en Chrome Android incluye la barra URL al cargar,
+       haciendo el contenedor más alto que la pantalla visible y
+       dejando el bottom-nav flotando arriba con espacio en blanco abajo.
+       --ze-real-vh se calcula con visualViewport.height (altura real). */
+    height: calc(var(--ze-real-vh, 1vh) * 100);
+    max-height: calc(var(--ze-real-vh, 1vh) * 100);
     min-height: -webkit-fill-available;
     overflow: hidden;
     transition: height 0.15s ease, min-height 0.15s ease, max-height 0.15s ease;
@@ -8578,12 +8582,12 @@ header.topbar {
   }
 
   /* Modo galería: se comporta igual que cualquier .section normal en móvil */
-  /* padding-top lo hereda de .section — quitarlo aquí evitaba el doble espacio */
   #sectionChat.active.modo-galeria {
     height: auto;
     max-height: none;
     overflow-y: auto;
     overflow-x: hidden;
+    padding-top: var(--ze-topbar-h, 56px);
     padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
   }
   #sectionChat:not(.active) {

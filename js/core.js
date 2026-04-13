@@ -500,6 +500,11 @@ function _initSafariFixes() {
   requestAnimationFrame(() => requestAnimationFrame(tick));
   setTimeout(tick, 100);
   setTimeout(tick, 600);
+  /* FIX: bottom nav puede estar oculto al arrancar (display:none en CSS base).
+     Si h=0 al medir, --ze-bottom-nav-clearance se elimina y el nav queda mal.
+     Medimos de nuevo más tarde para capturar la altura real una vez visible. */
+  setTimeout(tick, 1200);
+  setTimeout(tick, 2500);
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', _initSafariFixes);
