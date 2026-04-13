@@ -8743,9 +8743,10 @@ header.topbar {
     flex-direction: column;
     flex: 1;
     min-height: 0;
-    height: 100%;
-    max-height: 100%;
-    overflow: hidden;
+    height: auto;
+    max-height: none;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: 0;
     padding-top: var(--ze-topbar-h, 56px);
     box-sizing: border-box;
