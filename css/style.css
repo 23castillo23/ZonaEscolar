@@ -8731,7 +8731,9 @@ header.topbar {
     height: 100%;
     max-height: 100%;
     overflow: hidden;
-    padding: 0;
+    /* Mismo padding-top que .section — compensa la topbar fixed
+       que #sectionChat.active anula con padding:0 */
+    padding: var(--ze-topbar-h, 56px) 0 0;
     box-sizing: border-box;
   }
 
@@ -8741,8 +8743,7 @@ header.topbar {
     z-index: 2;
     background: var(--bg0);
     padding: 8px 12px;
-    /* El hueco bajo la topbar fija se pone aquí, no en el contenedor padre */
-    margin-top: var(--ze-topbar-h, 56px);
+    margin-top: 0;
     margin-bottom: 10px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
