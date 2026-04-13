@@ -6475,8 +6475,8 @@ header.topbar {
 
 .book-item {
   width: 48px;
-  height: 150px;
-  padding: 32px 4px 12px 4px;
+  height: 160px;
+  padding: 0 4px 12px 4px;
   border-radius: 4px 9px 9px 4px;
   position: relative;
   cursor: pointer;
@@ -6498,11 +6498,11 @@ header.topbar {
 }
 
 .book-ext-badge {
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
   color: white;
   font-size: 8px;
   font-weight: 800;
-  padding: 3px 4px;
+  padding: 3px 5px;
   border-radius: 4px;
   position: absolute;
   top: 8px;
@@ -6521,8 +6521,9 @@ header.topbar {
   color: white;
   font-size: 9px;
   font-weight: 700;
-  height: 90px;
-  max-height: 90px;
+  /* 160px alto - 12px padding-bottom - 30px zona badge = ~110px para el texto */
+  height: 108px;
+  max-height: 108px;
   width: 38px;
   max-width: 38px;
   white-space: nowrap;
