@@ -66,7 +66,15 @@ function initSalasChat() {
 
   const vistaGaleria = $('vistaSalasChat');
   const vistaChat    = $('vistaChatSala');
-  if (vistaGaleria) vistaGaleria.style.display = '';
+  if (vistaGaleria) {
+    vistaGaleria.style.display = '';
+    /* FIX MÓVIL: #sectionChat.active tiene padding:0, así que
+       #vistaSalasChat debe compensar la topbar fija por su cuenta.
+       Leemos la altura real del DOM para no depender de la variable CSS. */
+    const topbar = document.querySelector('header.topbar');
+    const topbarH = topbar ? topbar.getBoundingClientRect().height : 56;
+    vistaGaleria.style.paddingTop = topbarH + 'px';
+  }
   if (vistaChat)    vistaChat.style.display    = 'none';
 
   const btnNueva = $('btnNuevaSalaChat');
