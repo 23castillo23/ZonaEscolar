@@ -108,7 +108,6 @@ html {
   font-size: 16px;
   -webkit-tap-highlight-color: transparent;
   height: 100svh;
-  height: -webkit-fill-available;
   max-height: 100svh;
   overflow: hidden;
 }
@@ -121,7 +120,6 @@ body {
   color: var(--text0);
   height: 100svh;
   height: 100dvh;
-  min-height: -webkit-fill-available;  /* FIX iOS PWA: llena el área visual completa incluyendo home bar */
   overflow: hidden;
   line-height: 1.55;
   transition: background-color 0.3s, color 0.3s;
@@ -322,7 +320,6 @@ a {
   flex-direction: row;
   height: 100svh;
   height: 100dvh;
-  height: -webkit-fill-available;
   overflow: hidden;
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
@@ -4522,11 +4519,16 @@ header.topbar {
   align-items: stretch;
   justify-content: space-between;
   padding: 6px 0;
+  /* FIX iPhone 13 mini y modelos con home bar grande:
+     safe-area-inset-bottom cubre exactamente el espacio de la home bar.
+     El bottom-nav se extiende visualmente hasta el borde físico. */
   padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   gap: 0;
   transition: transform 0.18s ease, visibility 0.18s ease;
   will-change: transform;
   box-sizing: border-box;
+  /* Extender el fondo del bottom-nav hasta el borde físico de la pantalla */
+  background-clip: padding-box;
 }
 
 .bottom-nav-item {
@@ -4610,18 +4612,6 @@ header.topbar {
   .login-screen {
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  /* FIX iOS PWA altura — iPhone 13 mini y pantallas con home bar:
-     En modo standalone iOS no reporta correctamente 100dvh/100svh.
-     -webkit-fill-available es el único valor que ocupa el área visual
-     real descontando la barra de estado Y la home bar de iOS. */
-  html, body {
-    height: -webkit-fill-available;
-  }
-
-  .app-shell {
-    height: -webkit-fill-available;
   }
 }
 
