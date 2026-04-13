@@ -607,6 +607,14 @@ header.topbar {
   min-height: 0;
 }
 
+/* Modo galería de salas: se comporta como sección normal (sin height fija) */
+#sectionChat.active.modo-galeria {
+  height: auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* ═══════════════════════════════════════════════════════
    EMPTY STATE / NO GROUP
 ═══════════════════════════════════════════════════════ */
@@ -8560,13 +8568,23 @@ header.topbar {
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
-    padding-top: 0; /* QUITAMOS EL PADDING DOBLE */
+    padding-top: 0;
     padding-bottom: 0;
     box-sizing: border-box;
     overflow: hidden;
     display: flex !important;
     flex-direction: column;
     /* Sin transition de altura: evita parpadeo al abrir/cerrar teclado en móvil */
+  }
+
+  /* Modo galería: se comporta igual que cualquier .section normal en móvil */
+  #sectionChat.active.modo-galeria {
+    height: auto;
+    max-height: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: var(--ze-topbar-h, 56px);
+    padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
   }
   #sectionChat:not(.active) {
     display: none !important;
@@ -8731,9 +8749,7 @@ header.topbar {
     height: 100%;
     max-height: 100%;
     overflow: hidden;
-    /* Mismo padding-top que .section — compensa la topbar fixed
-       que #sectionChat.active anula con padding:0 */
-    padding: var(--ze-topbar-h, 56px) 0 0;
+    padding: 0;
     box-sizing: border-box;
   }
 

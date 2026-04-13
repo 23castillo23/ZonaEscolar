@@ -66,16 +66,11 @@ function initSalasChat() {
 
   const vistaGaleria = $('vistaSalasChat');
   const vistaChat    = $('vistaChatSala');
-  if (vistaGaleria) {
-    vistaGaleria.style.display = '';
-    /* FIX MÓVIL: #sectionChat.active tiene padding:0, así que
-       #vistaSalasChat debe compensar la topbar fija por su cuenta.
-       Leemos la altura real del DOM para no depender de la variable CSS. */
-    const topbar = document.querySelector('header.topbar');
-    const topbarH = topbar ? topbar.getBoundingClientRect().height : 56;
-    vistaGaleria.style.paddingTop = topbarH + 'px';
-  }
+  const secChat      = $('sectionChat');
+  if (vistaGaleria) vistaGaleria.style.display = '';
   if (vistaChat)    vistaChat.style.display    = 'none';
+  /* Modo galería: CSS se adapta solo igual que cualquier .section normal */
+  if (secChat) secChat.classList.add('modo-galeria');
 
   const btnNueva = $('btnNuevaSalaChat');
   if (btnNueva) btnNueva.style.display = AppState.get('isAdmin') ? '' : 'none';
@@ -166,6 +161,9 @@ window.abrirSalaChat = function(salaId, nombre, color) {
   const vistaChat    = $('vistaChatSala');
   if (vistaGaleria) vistaGaleria.style.display = 'none';
   if (vistaChat)    vistaChat.style.display    = '';
+  /* Salir del modo galería: CSS vuelve al layout de mensajes */
+  const secChat = $('sectionChat');
+  if (secChat) secChat.classList.remove('modo-galeria');
 
   const titulo = $('salaFeedTitulo');
   if (titulo) { titulo.textContent = nombre; if (color) titulo.style.color = color; }
@@ -196,6 +194,9 @@ function cerrarSalaChat() {
   const vistaChat    = $('vistaChatSala');
   if (vistaGaleria) vistaGaleria.style.display = '';
   if (vistaChat)    vistaChat.style.display    = 'none';
+  /* Volver al modo galería */
+  const secChatCerrar = $('sectionChat');
+  if (secChatCerrar) secChatCerrar.classList.add('modo-galeria');
 
   const topbarTitle = $('topbarTitle');
   if (topbarTitle) topbarTitle.innerHTML = 'Chat';
