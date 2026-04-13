@@ -37,7 +37,7 @@
   --chat-other-bg: var(--bg3);
   /* Espacio bajo el contenido: sobreescrito por JS con el alto real de #bottomNav (móvil) */
   --ze-bottom-nav-clearance: calc(52px + env(safe-area-inset-bottom, 0px));
-  --ze-topbar-h: calc(56px + max(24px, env(safe-area-inset-top, 24px))); /* sobreescrito por JS */
+  --ze-topbar-h: calc(48px + max(20px, env(safe-area-inset-top, 20px)) + 8px); /* sobreescrito por JS */
   --ze-real-vh: 1vh; /* sobreescrito por JS con visualViewport — fix Safari */
   /* Safe-area shortcuts usadas por el iOS keyboard fix en utils-extra.js */
   --sat: env(safe-area-inset-top, 0px);
@@ -8925,19 +8925,20 @@ header.topbar {
     font-size: 20px;
   }
 
-  /* Topbar compacta — no pisar safe-area del notch (iPhone mini, etc.) */
+  /* Topbar compacta móvil — safe-area + contenido reducido */
   .topbar {
     padding-left: max(10px, env(safe-area-inset-left, 0px));
     padding-right: max(10px, env(safe-area-inset-right, 0px));
-    padding-top: max(24px, env(safe-area-inset-top, 24px));
-    padding-bottom: 0;
-    min-height: calc(56px + max(24px, env(safe-area-inset-top, 24px)));
+    /* safe-area real + 8px de aire entre barra de estado y nuestros iconos */
+    padding-top: calc(max(20px, env(safe-area-inset-top, 20px)) + 8px);
+    padding-bottom: 6px;
+    min-height: auto;
     height: auto;
-    gap: 8px;
+    gap: 6px;
   }
 
   .topbar-title {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .topbar-right {
@@ -8948,17 +8949,32 @@ header.topbar {
     display: none;
   }
 
+  /* Botón tema más pequeño en móvil */
   .btn-theme-toggle {
-    min-width: 40px;
-    min-height: 40px;
-    width: 40px;
-    height: 40px;
-    font-size: 15px;
+    min-width: 30px;
+    min-height: 30px;
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
     padding: 0;
   }
 
+  /* Avatar más pequeño en móvil */
+  .topbar-avatar {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+  }
+
+  /* Botón hamburguesa más compacto */
+  .topbar-menu {
+    font-size: 18px;
+    padding: 4px;
+  }
+
   #btnInvitarCompa {
-    padding: 5px 8px;
+    padding: 4px 8px;
     font-size: 11px;
   }
 
