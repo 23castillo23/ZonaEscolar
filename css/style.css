@@ -320,13 +320,10 @@ a {
 ═══════════════════════════════════════════════════════ */
 .app-shell {
   display: flex;
-  /* FIX Android Chrome: 100dvh al cargar puede incluir la barra URL del navegador
-     y ser mayor que la pantalla visible, dejando espacio en blanco bajo el bottom-nav.
-     100svh (small viewport) siempre excluye las barras del navegador. */
-  height: 100svh;
+  flex-direction: row;   /* sidebar izq + main-content derecha en desktop */
   height: 100dvh;
+  height: 100svh;        /* svh excluye barras del navegador en Android */
   max-height: 100svh;
-  min-height: 100svh;
   overflow: hidden;
 }
 
@@ -8492,18 +8489,18 @@ header.topbar {
     box-sizing: border-box;
   }
   
+  /* FIX DEFINITIVO bottom-nav: app-shell en column para que sticky funcione */
+  .app-shell {
+    flex-direction: column;
+  }
+
   .main-content {
     margin-left: 0;
     padding-bottom: 0;
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
-    /* FIX: no fijar height explícita — el app-shell ya tiene height:100dvh.
-       main-content crece con flex:1 hasta llenar el espacio disponible.
-       Fijar height:100dvh aquí causaba que el contenedor fuera más alto
-       que la pantalla visible en Chrome Android, dejando espacio en blanco
-       debajo del bottom-nav. */
-    height: 100%;
-    max-height: 100%;
+    /* Sin height fija — crece hasta llenar el espacio entre topbar y bottom-nav */
+    height: 0;           /* flex-grow:1 lo estira; height:0 evita desbordamiento */
     overflow: hidden;
   }
 
@@ -8551,9 +8548,17 @@ header.topbar {
     border-bottom: 1px solid var(--border);
   }
 
-  /* Bottom nav visible */
+  /* Bottom nav: sticky en lugar de fixed para evitar el espacio en blanco
+     en Android Chrome donde 100dvh puede ser mayor que el viewport visible */
   .bottom-nav {
     display: flex;
+    position: sticky;   /* FIX: sale del flujo fixed y queda pegado al fondo del flex */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    flex-shrink: 0;     /* no se comprime aunque el contenido sea largo */
+    z-index: 150;
+    width: 100%;
   }
 
   .din-vista-header {
@@ -8566,8 +8571,10 @@ header.topbar {
      Antes solo descontaba bottom-nav, dejando el compose bar parcialmente oculto
      si JS aún no había calculado --chat-h al montar la vista. */
   #sectionChat.active {
-    height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
-    max-height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    /* Con app-shell en flex-column, el chat ocupa el espacio real disponible
+       sin depender de 100dvh que puede incluir barras del navegador */
+    height: 100%;
+    max-height: 100%;
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
@@ -8577,7 +8584,6 @@ header.topbar {
     overflow: hidden;
     display: flex !important;
     flex-direction: column;
-    /* Sin transition de altura: evita parpadeo al abrir/cerrar teclado en móvil */
   }
 
   /* Modo galería: se comporta igual que cualquier .section normal en móvil */
