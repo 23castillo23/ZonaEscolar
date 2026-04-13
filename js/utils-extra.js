@@ -289,6 +289,9 @@ window.addEventListener('resize', () => {
   if (!window.visualViewport) return;
 
   let _lastVVHeight = window.visualViewport.height;
+  /* Detectar iOS una sola vez */
+  const _isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   function _scrollChatToBottom() {
     const box = $('chatMessages');
@@ -302,12 +305,17 @@ window.addEventListener('resize', () => {
     return Number.isFinite(n) && n >= 0 ? n : fallback;
   }
 
-  function _updateChatHeight(vvHeight) {
+  function _updateChatHeight(vvHeight, keyboardOpen) {
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    const bottomH  = isMobile ? _readLayoutPx('--ze-bottom-nav-clearance', 48) : 0;
     const topbarH  = _readLayoutPx('--ze-topbar-h', 56);
-    // FIX: en móvil también restamos el topbar — sin esto el chat ocupa altura
-    // de más y el compose bar queda parcialmente tapado por la barra de navegación.
+    // FIX iOS: cuando el teclado está abierto en iOS, visualViewport.height ya
+    // excluye el teclado — restar también el bottom-nav descuenta espacio que
+    // no existe, haciendo --chat-h demasiado pequeño y ocultando el contenido.
+    // En Android el teclado NO reduce visualViewport, así que sí necesitamos
+    // restar el bottom-nav siempre.
+    const bottomH = (isMobile && !(_isIOS && keyboardOpen))
+      ? _readLayoutPx('--ze-bottom-nav-clearance', 48)
+      : 0;
     const chatH = vvHeight - topbarH - bottomH;
     document.documentElement.style.setProperty('--chat-h', Math.max(chatH, 200) + 'px');
   }
@@ -318,7 +326,7 @@ window.addEventListener('resize', () => {
     _lastVVHeight = vvHeight;
 
     // 1. Actualizar variable CSS --chat-h (topbar/bottom nav medidos en core.js)
-    _updateChatHeight(vvHeight);
+    _updateChatHeight(vvHeight, keyboardOpen);
 
     // 2. No tocar maxHeight de secciones no-chat: asignar vvHeight completo dejaba
     //    un hueco enorme bajo el contenido al abrir el teclado (viewport ≠ alto útil).
@@ -353,7 +361,9 @@ window.addEventListener('resize', () => {
   // compose bar y solo hacer scroll al fondo del contenedor de mensajes.
   window.visualViewport.addEventListener('scroll', () => {
     const vvH = window.visualViewport?.height;
-    if (vvH) _updateChatHeight(vvH);
+    // En el evento scroll no sabemos si el teclado está abierto, pero si vvH
+    // es menor que _lastVVHeight es porque el teclado ya lo redujo.
+    if (vvH) _updateChatHeight(vvH, vvH < _lastVVHeight - 50);
 
     if (currentSection === 'chat') {
       // Limpiar cualquier transform residual que pudiera haber quedado de
@@ -371,8 +381,8 @@ window.addEventListener('resize', () => {
   // Tener ambos causaba que _updateChatHeight se llamara dos veces por evento
   // con valores ligeramente distintos, generando un parpadeo de layout.
 
-  // Inicializar --chat-h al cargar
-  _updateChatHeight(window.visualViewport.height);
+  // Inicializar --chat-h al cargar (teclado cerrado = keyboardOpen false)
+  _updateChatHeight(window.visualViewport.height, false);
 })();
 
 
