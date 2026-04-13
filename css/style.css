@@ -324,6 +324,10 @@ a {
   height: 100svh;
   height: 100dvh;
   overflow: hidden;
+  /* FIX iOS: el JS aplica translateY para compensar el scroll del body
+     que Safari introduce al abrir el teclado */
+  will-change: transform;
+  transform: translateY(0);
 }
 
 /* ── SIDEBAR ── */
@@ -8583,8 +8587,8 @@ header.topbar {
      Antes solo descontaba bottom-nav, dejando el compose bar parcialmente oculto
      si JS aún no había calculado --chat-h al montar la vista. */
   #sectionChat.active {
-    height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
-    max-height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    height: var(--chat-h, calc(var(--vvh, 100dvh) - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    max-height: var(--chat-h, calc(var(--vvh, 100dvh) - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
