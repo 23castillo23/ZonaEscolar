@@ -599,7 +599,7 @@ header.topbar {
   /* BUG FIX: usar --chat-h calculada en JS (utils-extra.js) que descuenta
      el topbar real + bottom-nav real medidos con getBoundingClientRect.
      Fallback: restar las alturas fijas si JS aún no actualizó la variable. */
-  height: var(--chat-h, calc(100svh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+  height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
   min-height: 0;
 }
 
@@ -8559,8 +8559,8 @@ header.topbar {
      Antes solo descontaba bottom-nav, dejando el compose bar parcialmente oculto
      si JS aún no había calculado --chat-h al montar la vista. */
   #sectionChat.active {
-    height: var(--chat-h, calc(100svh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
-    max-height: var(--chat-h, calc(100svh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    max-height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
@@ -8589,7 +8589,6 @@ header.topbar {
   #vistaChatSala {
     flex: 1;
     min-height: 0;
-    height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -8743,12 +8742,10 @@ header.topbar {
     flex-direction: column;
     flex: 1;
     min-height: 0;
-    height: auto;
-    max-height: none;
-    overflow-y: auto;
-    overflow-x: hidden;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
     padding: 0;
-    padding-top: var(--ze-topbar-h, 56px);
     box-sizing: border-box;
   }
   

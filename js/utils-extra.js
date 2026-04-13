@@ -312,16 +312,6 @@ window.addEventListener('resize', () => {
     document.documentElement.style.setProperty('--chat-h', Math.max(chatH, 200) + 'px');
   }
 
-  /* Exponer para que otros módulos (chat.js) fuercen el recálculo al cambiar de vista */
-  window.recalcChatH = function() {
-    const vvH = window.visualViewport?.height || window.innerHeight;
-    _updateChatHeight(vvH);
-    requestAnimationFrame(() => {
-      const vvH2 = window.visualViewport?.height || window.innerHeight;
-      _updateChatHeight(vvH2);
-    });
-  };
-  
   window.visualViewport.addEventListener('resize', () => {
     const vvHeight = window.visualViewport.height;
     const keyboardOpen = vvHeight < _lastVVHeight - 50;

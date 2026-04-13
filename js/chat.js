@@ -166,7 +166,21 @@ window.abrirSalaChat = function(salaId, nombre, color) {
   if (secChat) secChat.classList.remove('modo-galeria');
   
   /* Recalcular --chat-h ahora que el layout cambió a modo sala */
-  if (typeof window.recalcChatH === 'function') window.recalcChatH();
+  (function _recalcChatH() {
+    const vvH      = window.visualViewport?.height || window.innerHeight;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const getVar   = (v, fb) => { const r = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(v)); return Number.isFinite(r) && r > 0 ? r : fb; };
+    const topbarH  = getVar('--ze-topbar-h', 56);
+    const bottomH  = isMobile ? getVar('--ze-bottom-nav-clearance', 52) : 0;
+    const chatH    = Math.max(vvH - topbarH - bottomH, 200);
+    document.documentElement.style.setProperty('--chat-h', chatH + 'px');
+    /* Segundo intento tras el repaint por si los valores aún no están listos */
+    requestAnimationFrame(() => {
+      const vvH2   = window.visualViewport?.height || window.innerHeight;
+      const chatH2 = Math.max(vvH2 - topbarH - bottomH, 200);
+      document.documentElement.style.setProperty('--chat-h', chatH2 + 'px');
+    });
+  })();
 
   const titulo = $('salaFeedTitulo');
   if (titulo) { titulo.textContent = nombre; if (color) titulo.style.color = color; }
