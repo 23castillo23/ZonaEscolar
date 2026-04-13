@@ -8579,7 +8579,7 @@ header.topbar {
     max-height: none;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-top: var(--ze-topbar-h, 56px);
+    padding-top: 0;
     padding-bottom: calc(12px + var(--ze-bottom-nav-clearance));
   }
   #sectionChat:not(.active) {
@@ -8722,14 +8722,14 @@ header.topbar {
 
   /* Burbuja Flotante */
   .chat-fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    bottom: calc(var(--ze-bottom-nav-clearance) + 12px);
     right: 14px;
     width: 48px;
     height: 48px;
   }
 
   .chat-burbuja-panel {
-    bottom: calc(var(--ze-bottom-nav-clearance) + 12px);
+    bottom: calc(var(--ze-bottom-nav-clearance) + 68px);
     right: 14px;
     width: min(300px, calc(100vw - 48px));
     max-height: 360px;
