@@ -6487,6 +6487,7 @@ header.topbar {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
+  padding-bottom: 12px;
   box-shadow: inset 4px 0 5px rgba(255, 255, 255, 0.25), inset -3px 0 5px rgba(0, 0, 0, 0.3), 5px 5px 10px rgba(0, 0, 0, 0.4);
   overflow: hidden;
 }
@@ -6498,7 +6499,7 @@ header.topbar {
 }
 
 .book-ext-badge {
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.5);
   color: white;
   font-size: 8px;
   font-weight: 800;
@@ -6521,9 +6522,8 @@ header.topbar {
   color: white;
   font-size: 9px;
   font-weight: 700;
-  /* 160px alto - 12px padding-bottom - 30px zona badge = ~110px para el texto */
-  height: 108px;
-  max-height: 108px;
+  height: 118px;
+  max-height: 118px;
   width: 38px;
   max-width: 38px;
   white-space: nowrap;
