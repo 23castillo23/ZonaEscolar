@@ -8703,15 +8703,17 @@ header.topbar {
   }
 
   
+  /* ── Galería de salas: idéntica al tablero en móvil ── */
   #vistaSalasChat {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
-    height: auto;
-    max-height: none;
+    height: 100%;
+    max-height: 100%;
     overflow: hidden;
-    padding: 0 10px 4px;
+    padding: var(--ze-topbar-h, 56px) 12px 0;
+    box-sizing: border-box;
   }
 
   #vistaSalasChat .tableros-galeria-header {
@@ -8719,10 +8721,10 @@ header.topbar {
     top: auto;
     z-index: 2;
     background: var(--bg0);
-    padding-top: 4px;
+    padding-top: 8px;
     padding-bottom: 8px;
     margin-top: 0;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
@@ -8737,13 +8739,16 @@ header.topbar {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     align-content: start;
+    padding-bottom: calc(10px + var(--ze-bottom-nav-clearance, 52px));
   }
-    
-  /* FIX MÓVIL: Reducir tamaño de tarjetas de salas en Chat
-     para evitar el exceso de espacio vertical entre ellas */
 
   #salasGaleria.tableros-galeria .tablero-card {
     aspect-ratio: 3/2;
+  }
+
+  #salasGaleria.tableros-galeria .tablero-card-wrap {
+    width: 100%;
+    min-width: 0;
   }
 
   /* FIX MÓVIL: Botón X del lightbox respeta la barra de

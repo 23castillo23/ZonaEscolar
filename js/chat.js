@@ -97,25 +97,36 @@ function renderGaleriaSalas(salas) {
   else salasSorted.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
 
   let html = '';
-
+  
+  /* ── Card "Nueva sala" (solo admin) — mismo patrón que tableros ── */
   if (isAdmin) {
     html += `
-      <button class="tablero-card tablero-card-nuevo" onclick="abrirModalNuevaSala()">
-        <div class="tablero-card-inner"><div class="tablero-card-content">
-          <span class="tablero-card-icon">➕</span>
-          <div class="tablero-card-nombre">Nueva sala</div>
-        </div></div>
-      </button>`;
+      <div class="tablero-card-wrap">
+        <button class="tablero-card tablero-card-nuevo" onclick="abrirModalNuevaSala()">
+          <div class="tablero-card-inner">
+            <div class="tablero-card-content">
+              <span class="tablero-card-icon">➕</span>
+              <div class="tablero-card-nombre">Nueva sala</div>
+            </div>
+          </div>
+        </button>
+      </div>`;
   }
 
+  /* ── Card "General" — misma estructura que tablero general ── */
   html += `
-    <button class="tablero-card tablero-general" onclick="abrirSalaChat('general','💬 General','')">
-      <div class="tablero-card-inner"><div class="tablero-card-content">
-        <span class="tablero-card-icon">💬</span>
-        <div class="tablero-card-nombre">General</div>
-      </div></div>
-    </button>`;
+    <div class="tablero-card-wrap">
+      <button class="tablero-card tablero-general" onclick="abrirSalaChat('general','💬 General','')">
+        <div class="tablero-card-inner">
+          <div class="tablero-card-content">
+            <span class="tablero-card-icon">💬</span>
+            <div class="tablero-card-nombre">General</div>
+          </div>
+        </div>
+      </button>
+    </div>`;
 
+  /* ── Cards de salas creadas ── */
   salasSorted.forEach(s => {
     const bg    = (s.color && s.color.trim()) ? s.color : '#3b82f6';
     const icono = s.emoji || getTableroIcono(s.nombre);
@@ -123,12 +134,14 @@ function renderGaleriaSalas(salas) {
       ? `<button class="tablero-card-del" onclick="event.stopPropagation(); eliminarSala('${s.id}','${escHtml(s.nombre)}')">🗑️</button>`
       : '';
     html += `
-      <div class="tablero-card-wrap" style="position:relative">
+      <div class="tablero-card-wrap">
         <button class="tablero-card" style="background:${bg}" onclick="abrirSalaChat('${s.id}','${escHtml(s.nombre)}','${bg}')">
-          <div class="tablero-card-inner"><div class="tablero-card-content">
-            <span class="tablero-card-icon">${icono}</span>
-            <div class="tablero-card-nombre">${escHtml(s.nombre)}</div>
-          </div></div>
+          <div class="tablero-card-inner">
+            <div class="tablero-card-content">
+              <span class="tablero-card-icon">${icono}</span>
+              <div class="tablero-card-nombre">${escHtml(s.nombre)}</div>
+            </div>
+          </div>
         </button>
         ${delBtn}
       </div>`;
