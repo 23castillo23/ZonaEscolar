@@ -278,96 +278,49 @@ window.addEventListener('resize', () => {
 });
 
 /* ══════════════════════════════════════════════════════
-   iOS KEYBOARD FIX — visualViewport API (unificado)
+   iOS KEYBOARD FIX — visualViewport API
    
-   ESTRATEGIA:
-   · En iOS Safari/PWA el teclado NO reduce window.innerHeight
-     ni el layout viewport — solo reduce visualViewport.height
-     y además desplaza window.scrollY, haciendo que todo el
-     contenido "suba" fuera de pantalla.
-   · Solución: cuando el chat está activo en iOS con teclado
-     abierto, usamos --vvh (visual viewport height) para
-     fijar la sección al tamaño visible real, y compensamos
-     el scrollY del body con un translateY en el appShell.
-   · En Android el teclado sí reduce el layout viewport, así
-     que el flex normal funciona sin intervención.
+   Con .app-shell { position:fixed; inset:0 } el shell
+   siempre ocupa el viewport visible, incluso cuando
+   Safari hace scroll del body al abrir el teclado.
+   Aquí solo actualizamos --chat-h y hacemos scroll.
 ══════════════════════════════════════════════════════ */
 (function setupIOSKeyboardFix() {
   if (!window.visualViewport) return;
 
-  const _isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
-                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let _lastVVH = window.visualViewport.height;
 
-  let _lastVVHeight = window.visualViewport.height;
-  let _rafPending   = false;
-
-  function _readLayoutPx(prop, fallback) {
-    const raw = getComputedStyle(document.documentElement).getPropertyValue(prop).trim();
-    const n   = parseFloat(raw);
-    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  function _readPx(prop, fallback) {
+    const n = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(prop));
+    return Number.isFinite(n) && n > 0 ? n : fallback;
   }
 
-  function _apply() {
-    _rafPending = false;
+  function _update() {
     const vvH      = window.visualViewport.height;
-    const vvTop    = window.visualViewport.offsetTop; // desplazamiento iOS
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    const topbarH  = _readLayoutPx('--ze-topbar-h', 56);
-    const bottomH  = isMobile ? _readLayoutPx('--ze-bottom-nav-clearance', 52) : 0;
+    const topbarH  = _readPx('--ze-topbar-h', 56);
+    const bottomH  = isMobile ? _readPx('--ze-bottom-nav-clearance', 52) : 0;
+    const chatH    = Math.max(vvH - topbarH - bottomH, 200);
+    document.documentElement.style.setProperty('--chat-h', chatH + 'px');
 
-    // ── Variable genérica usada por el fallback CSS ──
-    document.documentElement.style.setProperty('--vvh', vvH + 'px');
-
-    if (_isIOS && isMobile) {
-      /* En iOS compensamos el scroll del body que Safari introduce
-         al abrir el teclado (vvTop > 0 significa que el viewport
-         se desplazó hacia abajo dentro del body). */
-      const shell = document.getElementById('appShell');
-      if (shell) shell.style.transform = vvTop ? `translateY(${vvTop}px)` : '';
-
-      /* --chat-h = altura visual disponible menos topbar.
-         NO restamos bottomH: el bottom-nav queda DETRÁS del teclado
-         y restarlos hace que el chat sea demasiado pequeño. */
-      const chatH = vvH - topbarH;
-      document.documentElement.style.setProperty('--chat-h', Math.max(chatH, 200) + 'px');
-    } else {
-      /* Android / escritorio: layout viewport se reduce con el teclado,
-         restamos topbar + bottomNav normalmente. */
-      const chatH = vvH - topbarH - bottomH;
-      document.documentElement.style.setProperty('--chat-h', Math.max(chatH, 200) + 'px');
-      const shell = document.getElementById('appShell');
-      if (shell && shell.style.transform) shell.style.transform = '';
-    }
-
-    // Scroll al fondo del chat cuando el teclado aparece/desaparece
     if (currentSection === 'chat') {
       const box = $('chatMessages');
       if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 80);
     }
 
-    // Scroll de modales al campo enfocado
-    const keyboardJustOpened = vvH < _lastVVHeight - 50;
-    if (keyboardJustOpened) {
-      const activeModal = document.querySelector('.modal-overlay.open, .modal-overlay[style*="flex"]');
-      if (activeModal) {
-        const focused = activeModal.querySelector('input:focus, textarea:focus');
-        if (focused) setTimeout(() => focused.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150);
+    if (vvH < _lastVVH - 50) {
+      const modal = document.querySelector('.modal-overlay.open, .modal-overlay[style*="flex"]');
+      if (modal) {
+        const el = modal.querySelector('input:focus, textarea:focus');
+        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150);
       }
     }
-    _lastVVHeight = vvH;
+    _lastVVH = vvH;
   }
 
-  function _scheduleApply() {
-    if (_rafPending) return;
-    _rafPending = true;
-    requestAnimationFrame(_apply);
-  }
-
-  window.visualViewport.addEventListener('resize', _scheduleApply);
-  window.visualViewport.addEventListener('scroll', _scheduleApply);
-
-  // Inicializar al cargar
-  _apply();
+  window.visualViewport.addEventListener('resize', _update);
+  window.visualViewport.addEventListener('scroll', _update);
+  _update();
 })();
 
 

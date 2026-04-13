@@ -107,23 +107,24 @@
 html {
   font-size: 16px;
   -webkit-tap-highlight-color: transparent;
-  height: 100svh;
-  max-height: 100svh;
-  overflow: hidden;
+  /* FIX iOS: NO poner height fijo ni overflow:hidden en html.
+     Safari necesita poder hacer scroll en el documento raíz
+     cuando aparece el teclado — bloquearlo es la causa
+     de la pantalla negra en iPhone. */
+  height: 100%;
 }
 
 body {
   font-family: var(--font);
   background-color: var(--bg0);
-  /* Textura de puntos sutil para rellenar espacio vacío */
   background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1.5px, transparent 1.5px);
   background-size: 24px 24px;
   color: var(--text0);
-  /* FIX Android Chrome: 100svh excluye barras del navegador, evita
-     el espacio en blanco debajo del bottom-nav al cargar la app */
-  height: 100svh;
-  height: 100dvh;
-  overflow: hidden;
+  /* FIX iOS: body tampoco debe tener overflow:hidden.
+     El scroll del body es el mecanismo que usa Safari para
+     reposicionar el contenido al abrir el teclado.
+     El appShell (position:fixed) se encarga de contener el layout. */
+  height: 100%;
   line-height: 1.55;
   transition: background-color 0.3s, color 0.3s;
   overscroll-behavior-y: none;
@@ -321,13 +322,14 @@ a {
 .app-shell {
   display: flex;
   flex-direction: row;
-  height: 100svh;
-  height: 100dvh;
+  /* FIX iOS: position:fixed + inset:0 hace que el appShell ocupe
+     exactamente el viewport visible en todo momento, incluso cuando
+     Safari hace scroll del body al abrir el teclado.
+     Esto reemplaza el overflow:hidden en html/body que causaba
+     la pantalla negra en iPhone. Android no se ve afectado. */
+  position: fixed;
+  inset: 0;
   overflow: hidden;
-  /* FIX iOS: el JS aplica translateY para compensar el scroll del body
-     que Safari introduce al abrir el teclado */
-  will-change: transform;
-  transform: translateY(0);
 }
 
 /* ── SIDEBAR ── */
@@ -8587,8 +8589,8 @@ header.topbar {
      Antes solo descontaba bottom-nav, dejando el compose bar parcialmente oculto
      si JS aún no había calculado --chat-h al montar la vista. */
   #sectionChat.active {
-    height: var(--chat-h, calc(var(--vvh, 100dvh) - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
-    max-height: var(--chat-h, calc(var(--vvh, 100dvh) - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
+    max-height: var(--chat-h, calc(100dvh - var(--ze-topbar-h, 56px) - var(--ze-bottom-nav-clearance, 52px)));
     min-height: 0;
     flex: 1 1 auto;
     padding: 0;
