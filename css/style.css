@@ -9229,16 +9229,21 @@ header.topbar {
   transform: translateY(-1px);
 }
 
-/* ── iOS PWA: Safe Area — evita que el contenido quede debajo
-      de la barra de estado (notch, Dynamic Island, etc.)     ── */
-@supports (padding-top: env(safe-area-inset-top)) {
-  @media (display-mode: standalone) {
-    header.topbar {
-      padding-top: env(safe-area-inset-top);
-      height: calc(56px + env(safe-area-inset-top));
-    }
-    aside.sidebar {
-      padding-top: env(safe-area-inset-top);
-    }
+/* ── iOS PWA: Fix espacio negro debajo del bottom-nav ──
+   En iPhone con status bar "black", el app-shell no llena
+   correctamente hasta el fondo — esto lo corrige.         */
+@media (display-mode: standalone) {
+  html, body {
+    height: -webkit-fill-available;
+  }
+
+  .app-shell {
+    height: -webkit-fill-available;
+    min-height: -webkit-fill-available;
+  }
+
+  /* Refuerza que el bottom-nav cubra la home bar del iPhone */
+  .bottom-nav {
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 6px));
   }
 }
