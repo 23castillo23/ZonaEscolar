@@ -324,12 +324,18 @@ a {
   height: 100svh;
   height: 100dvh;
   overflow: hidden;
+  /* FIX iOS PWA: cuando viewport-fit=cover está activo, la app ocupa
+     toda la pantalla incluyendo el notch. El padding lateral izquierdo
+     evita que el sidebar quede detrás del notch en landscape. */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* ── SIDEBAR ── */
 
 .sidebar-header {
-  padding: 20px 20px 16px;
+  /* FIX iOS PWA: el sidebar también necesita respetar el safe area del notch */
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -459,12 +465,14 @@ header.topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-  height: 56px;
+  /* FIX iOS PWA: padding-top = safe-area-inset-top (notch / Dynamic Island) */
+  padding: env(safe-area-inset-top, 0px) 20px 0 20px;
+  height: calc(56px + env(safe-area-inset-top, 0px));
   background: var(--bg1);
   border-bottom: 1px solid var(--border);
   position: relative;
   z-index: 100;
+  flex-shrink: 0;
 }
 
 .topbar-menu {
