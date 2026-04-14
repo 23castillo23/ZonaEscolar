@@ -11,13 +11,16 @@
 /* ═══════════════════════════════════════════════════
    LÓGICA DEL MURO (PERFIL PROPIO Y DE TERCEROS)
 ═══════════════════════════════════════════════════ */
+let muroFotosUnsub = null;
+let muroFeedUnsub = null;
+let muroAlbumsUnsub = null;       // listener de álbumes
 /* BUG FIX: Se eliminaron las declaraciones "let muroFotosUnsub", "let muroFeedUnsub"
    y "let muroAlbumsUnsub" que existían aquí. Estas variables ya están definidas como
    proxies de AppState en core.js (Object.defineProperty). Mantenerlas como "let" de
    módulo creaba variables locales que sombreaban los proxies en algunos entornos,
    impidiendo que teardownAllListeners() en grupos.js las cancelara correctamente.
    Ahora usan directamente los proxies globales de AppState. */
-// NOTE: muroAlbumActualId y muroAlbumsCache están centralizadas en core.js
+// NOTE: muroAlbumActualId y muroAlbumsCache están centralizadas en core.js (línea ~50)
 let _muroFilesBuffer = [];        // fotos pendientes de asignar a álbum
 /* BUG FIX: debounce timer como variable de módulo independiente, en lugar de
    renderMuroAlbums._debounceTimer. Una propiedad de función se perdería si la
@@ -80,8 +83,8 @@ function renderMuroAlbums(targetUid, esPropio) {
   }
 
   // BUG-07: Debounce de 300ms para evitar race condition si el snapshot se dispara múltiples veces
-  if (_muroAlbumsDebounce) clearTimeout(_muroAlbumsDebounce);
-  _muroAlbumsDebounce = setTimeout(() => _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid), 300);
+  if (renderMuroAlbums._debounceTimer) clearTimeout(renderMuroAlbums._debounceTimer);
+  renderMuroAlbums._debounceTimer = setTimeout(() => _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid), 300);
 }
 
 function _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid) {
@@ -117,12 +120,12 @@ function _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid) {
       const count = conteos[alb.id] || 0;
       const cover = covers[alb.id] || '';
       const delBtn = esPropio
-        ? `<button class="album-muro-del" onclick="event.stopPropagation(); eliminarAlbumMuro('${alb.id}',${JSON.stringify(alb.nombre)})" title="Eliminar álbum">🗑️</button>` /* BUG FIX: JSON.stringify para nombres con apóstrofes */
+        ? `<button class="album-muro-del" onclick="event.stopPropagation(); eliminarAlbumMuro('${alb.id}','${escHtml(alb.nombre)}')" title="Eliminar álbum">🗑️</button>`
         : '';
       const coverHtml = cover
         ? `<img class="album-muro-cover" src="${escHtml(cover)}" loading="lazy" alt="">`
         : `<div class="album-muro-cover-placeholder">${escHtml(alb.emoji || '📁')}</div>`;
-      return `<div class="album-muro-card" onclick="abrirAlbumMuro('${alb.id}',${JSON.stringify(alb.nombre)},${JSON.stringify(alb.emoji||'📁')})"> <!-- BUG FIX: JSON.stringify para nombres/emoji con apóstrofes -->
+      return `<div class="album-muro-card" onclick="abrirAlbumMuro('${alb.id}','${escHtml(alb.nombre)}','${escHtml(alb.emoji||'📁')}')">
         ${coverHtml}
         ${delBtn}
         <div class="album-muro-info">

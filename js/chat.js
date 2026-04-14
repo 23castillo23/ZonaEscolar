@@ -75,6 +75,10 @@ function initSalasChat() {
   const btnNueva = $('btnNuevaSalaChat');
   if (btnNueva) btnNueva.style.display = AppState.get('isAdmin') ? '' : 'none';
 
+  /* Sincronizar texto del botón de orden */
+  const btnSort = $('btnSortSalas');
+  if (btnSort) btnSort.textContent = (window._ordenSalas === 'nombre') ? '📅 Fecha' : '🔤 A-Z';
+
   const { collection, query, where, onSnapshot } = lib();
   const q = query(
     collection(db(), 'ec_salas_chat'),
@@ -84,7 +88,7 @@ function initSalasChat() {
   AppState.set('salasUnsub', onSnapshot(q, snap => {
     const salas = [];
     snap.forEach(d => salas.push({ id: d.id, ...d.data() }));
-    salas.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+    window._salasCache = salas; /* guardar para re-render sin nueva consulta */
     renderGaleriaSalas(salas);
   }));
 }
@@ -97,7 +101,7 @@ function renderGaleriaSalas(salas) {
   const orden   = window._ordenSalas || 'fecha';
   const salasSorted = [...salas];
   if (orden === 'nombre') salasSorted.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
-  else salasSorted.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  else salasSorted.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
   let html = '';
   
@@ -855,3 +859,4 @@ function pedirTextoFotoModal(onConfirm) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); input.removeEventListener('keydown', handler); confirmar(); }
   });
 }
+

@@ -370,9 +370,9 @@ function _renderTarjetaVotacion(v) {
   if (puedeGestionar) {
     btnsCierre = activa
       ? `<button class="btn-sm btn-sm-danger" onclick="cerrarVotacionPanel('${v.id}')">🔒 Cerrar</button>
-         <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}',${JSON.stringify(v.pregunta)}) /* BUG FIX: JSON.stringify */">🗑️ Eliminar</button>`
+         <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}','${escHtml(v.pregunta)}')">🗑️ Eliminar</button>`
       : `<button class="btn-sm" onclick="reabrirVotacionPanel('${v.id}')">🔓 Reabrir</button>
-         <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}',${JSON.stringify(v.pregunta)}) /* BUG FIX: JSON.stringify */">🗑️ Eliminar</button>`;
+         <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}','${escHtml(v.pregunta)}')">🗑️ Eliminar</button>`;
   }
 
   return `<div class="din-tarjeta-votacion">
@@ -384,7 +384,7 @@ function _renderTarjetaVotacion(v) {
     <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Por ${escHtml(v.authorName || 'Anónimo')} · ${totalVotos} voto${totalVotos !== 1 ? 's' : ''}</div>
     ${opcionesHtml}${resultadosHtml}
     <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center">
-      <button class="tarea-share-btn" onclick="compartirVotacion('${v.id}',${JSON.stringify(v.pregunta)})">📌 Compartir</button> <!-- BUG FIX: JSON.stringify para pregunta con apóstrofes -->
+      <button class="tarea-share-btn" onclick="compartirVotacion('${v.id}','${escHtml(v.pregunta)}')">📌 Compartir</button>
       ${btnsCierre}
     </div>
   </div>`;
