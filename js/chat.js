@@ -134,11 +134,11 @@ function renderGaleriaSalas(salas) {
     const bg    = (s.color && s.color.trim()) ? s.color : '#3b82f6';
     const icono = s.emoji || getTableroIcono(s.nombre);
     const delBtn = isAdmin
-      ? `<button class="tablero-card-del" onclick="event.stopPropagation(); eliminarSala('${s.id}','${escHtml(s.nombre)}')">🗑️</button>`
+      ? `<button class="tablero-card-del" onclick="event.stopPropagation(); eliminarSala('${s.id}',${JSON.stringify(s.nombre)})">🗑️</button>` /* BUG FIX: JSON.stringify para nombre de sala con apóstrofes */
       : '';
     html += `
       <div class="tablero-card-wrap">
-        <button class="tablero-card" style="background:${bg}" onclick="abrirSalaChat('${s.id}','${escHtml(s.nombre)}','${bg}')">
+        <button class="tablero-card" style="background:${bg}" onclick="abrirSalaChat('${s.id}',${JSON.stringify(s.nombre)},'${bg}')"> <!-- BUG FIX: JSON.stringify para nombre de sala -->
           <div class="tablero-card-inner">
             <div class="tablero-card-content">
               <span class="tablero-card-icon">${icono}</span>

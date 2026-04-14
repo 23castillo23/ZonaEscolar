@@ -1,9 +1,9 @@
-# Guía de migración — ZonaEscolar AppState
+# Guía de migración — ZonaEscolar AppState v2
 
 ## Qué cambió en core.js
 
-El nuevo `core.js` introduce `AppState`, un objeto central que reemplaza las ~60 variables globales sueltas.  
-**Todos los módulos siguen funcionando sin cambiar nada** porque cada variable suelta (`currentGroupId`, `isAdmin`, etc.) ahora es un *proxy* que lee y escribe en `AppState` automáticamente.
+El `core.js` actual introduce `AppState`, un objeto central que reemplaza las ~60 variables globales sueltas.  
+**Todos los módulos no migrados siguen funcionando sin cambiar nada** porque cada variable suelta (`currentGroupId`, `isAdmin`, etc.) ahora es un *proxy* que lee y escribe en `AppState` automáticamente.
 
 Cuando quieras mejorar un módulo, sigue el patrón de migración de abajo.
 
@@ -30,7 +30,6 @@ AppState.set('currentGroupId', grupoId)
 
 // Escuchar cambios de UNA clave
 const cancelar = AppState.on('currentGroupId', (nuevoId) => {
-  // se ejecuta cada vez que currentGroupId cambia
   recargarMiModulo(nuevoId);
 });
 cancelar(); // para dejar de escuchar
@@ -42,194 +41,262 @@ AppState.unsub('bibliotecaUnsub');
 
 ---
 
+## Estado actual de la migración
+
+### ✅ `biblioteca.js` — Completo
+
+Variables propias migradas: `biblioCategorias`, `bibliotecaUiBound`, `selectedBiblioColor`, `bibliotecaUnsub`, `catBiblioUnsub`.  
+Eventos: `AppState.on('currentGroupId')` cancela listeners y resetea UI al cambiar de grupo.  
+`window.eliminarLibro` / `window.eliminarCategoria` se mantienen por compatibilidad, pero la lógica real ya vive en delegación de eventos (`data-action`).
+
+### ✅ `tareas.js` — Completo
+
+Variables propias migradas: `tareasUnsub`, `votacionUnsub`, `tareasFilter`, `tareasVistaCalendario`, `calDiaSeleccionado`.  
+`AppState.on('currentGroupId')` cancela listeners y resetea estado al cambiar de grupo.
+
+### ⚙️ `chat.js` — Parcial
+
+Algunos unsubs usan AppState. Aún quedan múltiples `window.*` y variables locales sueltas. Ver lista completa en MODULOS.md.
+
+### ⚙️ `muro.js` — Parcial
+
+Un `AppState.set` presente. El resto sigue en variables globales heredadas.
+
+### ⏳ Pendientes
+
+`apuntes.js`, `dinamicas.js`, `grupos.js`, `tableros.js`, `videotutoriales.js`
+
+---
+
 ## Migrar un módulo — paso a paso
 
-### Ejemplo: biblioteca.js
+### Ejemplo basado en `biblioteca.js` (ya migrado)
 
 **ANTES (problemático)**
 ```js
 function initBiblioteca() {
   if (!currentGroupId) return;           // lee variable global directa
-  // ...
   bibliotecaUiBound = true;              // escribe variable global directa
 }
 
 function loadBiblioCategorias() {
-  if (catBiblioUnsub) { catBiblioUnsub(); catBiblioUnsub = null; }  // cancela unsub manual
-  // ...
+  if (catBiblioUnsub) { catBiblioUnsub(); catBiblioUnsub = null; }  // cancelación manual
   catBiblioUnsub = onSnapshot(...);      // guarda unsub en global
 }
 ```
 
 **DESPUÉS (limpio)**
 ```js
+AppState.on('currentGroupId', (nuevoId) => {
+  AppState.unsub('bibliotecaUnsub');
+  AppState.unsub('catBiblioUnsub');
+  AppState.set('bibliotecaUiBound', false);
+});
+
 function initBiblioteca() {
-  if (!AppState.get('currentGroupId')) return;      // ← AppState.get
-  // ...
-  AppState.set('bibliotecaUiBound', true);          // ← AppState.set
+  if (!AppState.get('currentGroupId')) return;
+
+  if (!AppState.get('bibliotecaUiBound')) {
+    AppState.set('bibliotecaUiBound', true);
+    // registrar listeners de UI solo una vez por grupo
+  }
+  loadBiblioCategorias();
 }
 
 function loadBiblioCategorias() {
-  AppState.unsub('catBiblioUnsub');                 // ← AppState.unsub (una sola línea)
-  // ...
-  AppState.set('catBiblioUnsub', onSnapshot(...));  // ← AppState.set
+  AppState.unsub('catBiblioUnsub');  // una sola línea
+  AppState.set('catBiblioUnsub', onSnapshot(...));
 }
-
-// Reaccionar cuando el grupo cambia
-AppState.on('currentGroupId', (nuevoId) => {
-  if (nuevoId) loadBiblioCategorias();
-});
 ```
 
 ---
 
-## Migración por módulo (qué variables le pertenecen a cada uno)
+## Eliminar `window.*` — delegación de eventos
 
-### grupos.js
-Variables propias que puede migrar primero:
-- `gruposUnsub` → `AppState.get/set/unsub('gruposUnsub')`
-- `grupos` → `AppState.get/set('grupos')`
+Actualmente varios módulos exponen funciones en `window` para ser llamadas desde HTML inline.
 
-Variables compartidas que YA maneja vía AppState (los proxies las interceptan):
-- `currentGroupId`, `currentGroupData`, `isAdmin`
-
-### chat.js
-Variables propias:
-- `chatUnsub`, `salasUnsub`, `chatOnlineUnsub`
-- `currentSalaId`, `chatOldestDoc`, `chatHayMas`, `chatCargandoMas`
-- `chatLastReadMs`, `salaChatColorSeleccionado`, `salaChatEmojiSeleccionado`
-
-Suscribirse al cambio de grupo:
+**El patrón problemático:**
+```html
+<!-- En el HTML generado -->
+<button onclick="eliminarLibro('abc123')">✕</button>
+```
 ```js
+// En el módulo
+window.eliminarLibro = function(id) { ... }
+```
+
+**El patrón limpio (delegación):**
+```html
+<!-- En el HTML generado -->
+<button data-action="eliminar-libro" data-id="abc123">✕</button>
+```
+```js
+// En el módulo — un solo listener que cubre todos los botones
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-action="eliminar-libro"]');
+  if (!btn) return;
+  eliminarLibroLocal(btn.dataset.id);
+});
+```
+
+Esto elimina las dependencias en `window` y hace que cada módulo sea completamente autónomo.
+
+> **Nota:** Las funciones de `core.js` en `window` (`showToast`, `showConfirm`, `getUserAlias`, `friendlyError`) son utilidades globales compartidas y **no se deben eliminar**.
+
+---
+
+## Migración por módulo — variables que le pertenecen a cada uno
+
+### `grupos.js`
+```js
+// Variables propias a migrar:
+AppState.get/set/unsub('gruposUnsub')
+AppState.get/set('grupos')
+
+// Shared — ya manejados por proxies (no tocar):
+// currentGroupId, currentGroupData, isAdmin
+```
+
+### `chat.js`
+```js
+// Variables propias a migrar:
+AppState.get/set/unsub('chatUnsub')
+AppState.get/set/unsub('salasUnsub')
+AppState.get/set/unsub('chatOnlineUnsub')
+AppState.get/set('currentSalaId')
+AppState.get/set('chatOldestDoc')
+AppState.get/set('chatHayMas')
+AppState.get/set('chatCargandoMas')
+AppState.get/set('chatLastReadMs')
+AppState.get/set('salaChatColorSeleccionado')
+AppState.get/set('salaChatEmojiSeleccionado')
+
+// Suscribirse al cambio de grupo:
 AppState.on('currentGroupId', (id) => {
+  AppState.unsub('chatUnsub');
+  AppState.unsub('salasUnsub');
   if (id) initSalasChat();
 });
 ```
 
-### tareas.js
-Variables propias:
-- `tareasUnsub`, `votacionUnsub`
-- `tareasFilter`, `tareasVistaCalendario`
-- `calDiaSeleccionado`, `calMesOffset`
-
-### biblioteca.js
-Variables propias:
-- `bibliotecaUnsub`, `catBiblioUnsub`
-- `biblioCategorias`, `bibliotecaUiBound`, `selectedBiblioColor`
-
-### apuntes.js
-Variables propias:
-- `semestresUnsub`, `galeriasUnsub`
-- `semestres`, `galerias`, `galeriaActual`, `apunteFiles`
-- `semestresAbiertos`, `scrollPosicionApuntes`
-- `ordenSemestres`, `ordenMaterias`, `apuntesSearchTerm`
-
-### muro.js
-Variables propias:
-- `muroFeedUnsub`, `muroFotosUnsub`, `muroAlbumsUnsub`
-- `muroAlbumActualId`, `muroAlbumsCache`
-
-### tableros.js
-Variables propias:
-- `tablerosUnsub`, `tableroFeedUnsub`
-- `currentTableroId`, `dentroDeTablero`
-- `feedUnsub`, `feedOldestDoc`, `feedHayMas`, `feedCargandoMas`
-
-### dinamicas.js
-Variables propias:
-- `votacionUnsub`
-- `ruletaMiembros`, `ruletaAngulo`, `ruletaSpinning`
-- `triviaBanco`, `triviaIdx`, `triviaScore`, `puntosMarcador`
-
-### videotutoriales.js
-Variables propias:
-- `dvdUnsub` (declarada localmente en el módulo, está bien)
-
----
-
-## Eliminar window.* — el otro problema grande
-
-Actualmente `biblioteca.js`, `chat.js` y `tareas.js` exponen funciones en `window`:
-
+### `tareas.js` ✅ ya migrado
 ```js
-window.eliminarLibro = function(id) { ... }
-window.abrirSalaChat = function(salaId, ...) { ... }
-window.toggleTarea   = function(id, ...) { ... }
+AppState.get/set/unsub('tareasUnsub')
+AppState.get/set/unsub('votacionUnsub')
+AppState.get/set('tareasFilter')
+AppState.get/set('tareasVistaCalendario')
+AppState.get/set('calDiaSeleccionado')
 ```
 
-Estas se llaman desde HTML inline (`onclick="eliminarLibro('...')`).
-
-**La alternativa limpia** es usar delegación de eventos:
-
+### `biblioteca.js` ✅ ya migrado
 ```js
-// En biblioteca.js — en vez de window.eliminarLibro
-document.addEventListener('click', e => {
-  const btn = e.target.closest('[data-action="eliminar-libro"]');
-  if (!btn) return;
-  eliminarLibro(btn.dataset.id);
-});
-
-// En el HTML generado — en vez de onclick="eliminarLibro('...')"
-`<button data-action="eliminar-libro" data-id="${it.id}">✕</button>`
+AppState.get/set/unsub('bibliotecaUnsub')
+AppState.get/set/unsub('catBiblioUnsub')
+AppState.get/set('biblioCategorias')
+AppState.get/set('bibliotecaUiBound')
+AppState.get/set('selectedBiblioColor')
 ```
 
-Esto elimina las dependencias en `window` y hace que cada módulo sea completamente independiente.
-
----
-
-## Service Worker — versionado por módulo
-
-Actualmente un solo número de versión invalida TODO el caché:
+### `apuntes.js`
 ```js
-const CACHE_NAME = 'zonaescolar-shell-v36';  // cambia uno → borra todo
+AppState.get/set/unsub('semestresUnsub')
+AppState.get/set/unsub('galeriasUnsub')
+AppState.get/set('semestres')
+AppState.get/set('galerias')
+AppState.get/set('galeriaActual')
+AppState.get/set('apunteFiles')
+AppState.get/set('semestresAbiertos')
+AppState.get/set('scrollPosicionApuntes')
+AppState.get/set('ordenSemestres')
+AppState.get/set('ordenMaterias')
+AppState.get/set('apuntesSearchTerm')
 ```
 
-**La mejora** es un caché por módulo:
+### `muro.js`
 ```js
-// sw.js
-const CACHE_SHELL   = 'ze-shell-v37';    // HTML, CSS, manifest
-const CACHE_CHAT    = 'ze-chat-v4';      // solo cuando chat.js cambia
-const CACHE_BIBLIO  = 'ze-biblio-v2';    // solo cuando biblioteca.js cambia
-const CACHE_TAREAS  = 'ze-tareas-v3';
-// ...
-
-const CACHES_VALIDOS = [CACHE_SHELL, CACHE_CHAT, CACHE_BIBLIO, CACHE_TAREAS];
-
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => !CACHES_VALIDOS.includes(k)).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
-});
+AppState.get/set/unsub('muroFeedUnsub')
+AppState.get/set/unsub('muroFotosUnsub')
+AppState.get/set/unsub('muroAlbumsUnsub')
+AppState.get/set('muroAlbumActualId')
+AppState.get/set('muroAlbumsCache')
 ```
 
-Así cuando solo cambias `chat.js`, solo subes `CACHE_CHAT` de v4 a v5. El resto del caché se mantiene intacto y el usuario no pierde la app.
+### `tableros.js`
+```js
+AppState.get/set/unsub('tablerosUnsub')
+AppState.get/set/unsub('tableroFeedUnsub')
+AppState.get/set/unsub('feedUnsub')
+AppState.get/set('currentTableroId')
+AppState.get/set('dentroDeTablero')
+AppState.get/set('feedOldestDoc')
+AppState.get/set('feedHayMas')
+AppState.get/set('feedCargandoMas')
+```
+
+### `dinamicas.js`
+```js
+AppState.get/set/unsub('votacionUnsub')
+AppState.get/set('ruletaMiembros')
+AppState.get/set('ruletaAngulo')
+AppState.get/set('ruletaSpinning')
+AppState.get/set('triviaBanco')
+AppState.get/set('triviaIdx')
+AppState.get/set('triviaScore')
+AppState.get/set('puntosMarcador')
+```
+
+### `videotutoriales.js`
+```js
+// dvdUnsub está declarado localmente en el módulo — está bien así.
+// Solo migrar si se detecta que causa problemas al cambiar de grupo.
+```
 
 ---
 
 ## Orden sugerido de migración
 
-Hazlo de menor a mayor impacto:
+De menor a mayor impacto:
 
-1. **biblioteca.js** — más aislado, pocas dependencias
-2. **tareas.js** — sin conexión con chat ni muro
-3. **videotutoriales.js** — completamente independiente
-4. **dinamicas.js** — estado local, no comparte con nadie
-5. **apuntes.js** — comparte `galeriasUnsub` con muro, migrarlo junto
-6. **muro.js** — migrar con apuntes
-7. **chat.js** — más complejo por la burbuja y las salas
-8. **tableros.js** — depende del feed, migrar al final
-9. **grupos.js** — el orquestador, migrar al final de todo
+1. ✅ **`biblioteca.js`** — completado
+2. ✅ **`tareas.js`** — completado
+3. **`videotutoriales.js`** — completamente independiente, fácil
+4. **`dinamicas.js`** — estado local, no comparte con nadie
+5. **`apuntes.js`** — comparte `galeriasUnsub` con muro, considerar migrar junto
+6. **`muro.js`** — migrar con apuntes
+7. **`chat.js`** — más complejo por la burbuja y las salas
+8. **`tableros.js`** — depende del feed, migrar al final
+9. **`grupos.js`** — el orquestador, migrar al final de todo
 
 ---
 
-## Verificar que funciona tras cada cambio
+## Verificar que funciona tras cada migración
 
 Después de migrar un módulo, verifica:
+
 - [ ] Al entrar a esa sección, carga correctamente
-- [ ] Al cambiar de grupo, la sección se recarga limpia
+- [ ] Al cambiar de grupo, la sección se recarga limpia (sin datos del grupo anterior)
 - [ ] Al hacer logout y login, no quedan listeners colgados
 - [ ] En móvil (Chrome DevTools → modo dispositivo), el layout no se rompe
+- [ ] Los botones de borrar/editar siguen funcionando (delegación de eventos ok)
 
 Si algo falla, el problema es en el módulo que acabas de migrar — ningún otro debería verse afectado.
+
+---
+
+## Service Worker — caché modular (ya implementado)
+
+El `sw.js` actual ya usa caché por módulo. Cada módulo tiene su propia constante:
+
+```js
+const CACHE_SHELL    = 'ze-shell-v47';   // subir al cambiar: index.html, style.css, core.js, grupos.js, utils-extra.js
+const CACHE_CHAT     = 'ze-chat-v5';     // subir al cambiar: chat.js
+const CACHE_TAREAS   = 'ze-tareas-v4';   // subir al cambiar: tareas.js
+const CACHE_BIBLIO   = 'ze-biblio-v3';   // subir al cambiar: biblioteca.js
+const CACHE_APUNTES  = 'ze-apuntes-v3';  // subir al cambiar: apuntes.js
+const CACHE_MURO     = 'ze-muro-v3';     // subir al cambiar: muro.js
+const CACHE_TABLEROS = 'ze-tableros-v2'; // subir al cambiar: tableros.js
+const CACHE_VIDEO    = 'ze-video-v2';    // subir al cambiar: videotutoriales.js
+const CACHE_DIN      = 'ze-dinamicas-v3';// subir al cambiar: dinamicas.js
+```
+
+Al cambiar solo `chat.js`, solo subes `CACHE_CHAT` de v5 a v6. El resto del caché permanece intacto.

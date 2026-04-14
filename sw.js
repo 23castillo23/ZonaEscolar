@@ -14,15 +14,15 @@
 ═══════════════════════════════════════════════════ */
 
 /* ── Versiones por módulo ── */
-const CACHE_SHELL   = 'ze-shell-v46';        /* HTML, CSS, manifest, core.js, grupos.js, utils-extra.js */
+const CACHE_SHELL   = 'ze-shell-v49';        /* HTML, CSS, manifest, core.js, grupos.js, utils-extra.js */
 const CACHE_CHAT    = 'ze-chat-v5';
-const CACHE_TAREAS  = 'ze-tareas-v3';
+const CACHE_TAREAS  = 'ze-tareas-v4';        /* tareas.js — fix fecha split('T') */
 const CACHE_BIBLIO  = 'ze-biblio-v3';
-const CACHE_APUNTES = 'ze-apuntes-v2';
-const CACHE_MURO    = 'ze-muro-v2';
+const CACHE_APUNTES = 'ze-apuntes-v3';       /* apuntes.js — fix authorName getUserAlias() */
+const CACHE_MURO    = 'ze-muro-v3';          /* muro.js — fix debounce timer */
 const CACHE_TABLEROS= 'ze-tableros-v2';
 const CACHE_VIDEO   = 'ze-video-v2';
-const CACHE_DIN     = 'ze-dinamicas-v2';
+const CACHE_DIN     = 'ze-dinamicas-v3';     /* dinamicas.js — fix authorName getUserAlias() */
 
 /* ── Todos los cachés válidos ── */
 const CACHES_VALIDOS = [

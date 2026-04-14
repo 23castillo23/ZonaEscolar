@@ -197,6 +197,7 @@ const AppState = (() => {
         feedOldestDoc: null, feedHayMas: true, feedCargandoMas: false,
         chatOldestDoc: null, chatHayMas: true, chatCargandoMas: false,
         currentSalaId: null, chatLastReadMs: 0, _onlineHeartbeatTimer: null,
+        salaChatColorSeleccionado: '#1a237e', salaChatEmojiSeleccionado: '💬',
         currentSection: 'feed', tareasFilter: 'all', tareasVistaCalendario: false,
         lightboxPhotos: [], lightboxIdx: 0,
         ruletaMiembros: [], ruletaAngulo: 0, ruletaSpinning: false,
@@ -613,7 +614,7 @@ $('btnLogout').addEventListener('click', () => {
       btn.disabled = true; btn.textContent = '⏳';
       const { signOut } = lib();
       try { await signOut(window._auth); }
-      finally { btn.disabled = false; btn.textContent = 'Cerrar sesión'; }
+      finally { btn.disabled = false; btn.textContent = 'Salir'; }
     }
   });
 });

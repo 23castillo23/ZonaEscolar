@@ -131,12 +131,12 @@ function renderGaleriaTableros(tableros) {
     const icono = t.icono || getTableroIcono(t.nombre);
     const bg = t.color || '#1a237e';
     const delBtn = isAdmin
-      ? `<button class="tablero-card-del" onclick="event.stopPropagation(); eliminarTablero('${t.id}','${escHtml(t.nombre)}')">🗑️</button>`
+      ? `<button class="tablero-card-del" onclick="event.stopPropagation(); eliminarTablero('${t.id}',${JSON.stringify(t.nombre)})">🗑️</button>` /* BUG FIX: JSON.stringify para nombres con apóstrofes */
       : '';
     
     // IMPORTANTE: Aquí envolvemos el nombre en las mismas clases que el Tablero General
     html += `
-    <button class="tablero-card" style="background:${bg}" onclick="abrirTablero('${t.id}','${escHtml(t.nombre)}','${bg}')">
+    <button class="tablero-card" style="background:${bg}" onclick="abrirTablero('${t.id}',${JSON.stringify(t.nombre)},'${bg}')"> <!-- BUG FIX: JSON.stringify para nombre del tablero -->
       <div class="tablero-card-inner">
         <div class="tablero-card-content">
           <span class="tablero-card-icon">${icono}</span>
@@ -265,6 +265,8 @@ $('btnConfirmarTablero').addEventListener('click', async () => {
   const nombre = $('nuevoTableroNombre').value.trim();
   if (!nombre) { showToast('Escribe el nombre del tablero.', 'warning'); return; }
   if (!isAdmin) { showToast('Solo el administrador puede crear tableros.', 'error'); return; }
+  /* BUG FIX: guard de currentUser */
+  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
 
   const selectedColor = document.querySelector('#tableroColorPicker .dvd-color-opt.selected');
   const color = selectedColor?.dataset.color || '#1a237e';
@@ -771,6 +773,8 @@ function abrirModalComentarios(postId, cardEl) {
   async function enviarDesdeModal() {
     const text = newInput.value.trim();
     if (!text) return;
+    /* BUG FIX: guard de currentUser */
+    if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
     newSend.disabled = true;
     try {
       await addDoc(collection(db(), 'ec_comentarios'), {
@@ -1259,9 +1263,9 @@ function buildFeedCard(p) {
       <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
         ${activa
           ? `<button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="cerrarVotacionPanel('${p.votacionId}')">🔒 Cerrar</button>
-             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="quitarVotacionDelTablero('${p.id}','${escHtml(p.pregunta || '')}')">🗑️ Quitar del tablero</button>`
+             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="quitarVotacionDelTablero('${p.id}',${JSON.stringify(p.pregunta || '')})">🗑️ Quitar del tablero</button>` /* BUG FIX: JSON.stringify para pregunta con apóstrofes */
           : `<button class="btn-sm" style="font-size:11px" onclick="reabrirVotacionPanel('${p.votacionId}')">🔓 Reabrir</button>
-             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="quitarVotacionDelTablero('${p.id}','${escHtml(p.pregunta || '')}')">🗑️ Quitar del tablero</button>`
+             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="quitarVotacionDelTablero('${p.id}',${JSON.stringify(p.pregunta || '')})">🗑️ Quitar del tablero</button>` /* BUG FIX: JSON.stringify para pregunta con apóstrofes */
         }
       </div>` : '';
 
@@ -1505,6 +1509,8 @@ window.eliminarComentario = function (comentarioId, postId) {
 async function enviarComentario(postId, inputEl) {
   const text = inputEl.value.trim();
   if (!text) return;
+  /* BUG FIX: guard de currentUser */
+  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
 
   const sendBtn = inputEl.nextElementSibling;
   if(sendBtn) sendBtn.disabled = true;
@@ -1535,6 +1541,7 @@ async function enviarComentario(postId, inputEl) {
 }
 
 async function toggleFeedLike(postId, btn) {
+  if (!currentUser) return;
   const { doc, updateDoc, arrayUnion, arrayRemove, increment } = lib();
   const uid = currentUser.uid;
   const isLiked = btn.classList.contains('liked');
@@ -1667,6 +1674,8 @@ $('composeSend').addEventListener('click', async () => {
   const text = $('composeInput').value.trim();
   if (!text && !composeFiles.length) return;
   if (!currentGroupId) return;
+  /* BUG FIX: guard de currentUser */
+  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
 
   const btn = $('composeSend');
   btn.disabled = true;

@@ -60,6 +60,10 @@ function renderTareas(tareas) {
 function buildTareaHTML(t) {
   const cu          = AppState.get('currentUser');
   const isAdmin     = AppState.get('isAdmin');
+  /* BUG FIX: guard de currentUser — si la sesión expiró mientras el snapshot
+     de Firestore llegaba, cu sería null y cu.uid lanzaría un TypeError que
+     deja la lista de tareas en blanco sin ningún mensaje de error visible. */
+  if (!cu) return '';
   const esMio       = t.authorUid === cu.uid;
   const tienePermiso = isAdmin || esMio;
 
@@ -94,7 +98,11 @@ function buildTareaHTML(t) {
       </div>`;
   }
 
-  const vence  = t.fecha ? new Date(t.fecha + 'T00:00:00') : null;
+  /* BUG FIX: extraer solo la parte de fecha (YYYY-MM-DD) antes de parsear.
+     Si t.fecha llegara con hora incluida (ej: "2025-01-15T06:00:00Z"), concatenar
+     'T00:00:00' lo corrompería silenciosamente dando un día incorrecto. */
+  const fechaSolo = t.fecha ? String(t.fecha).split('T')[0] : null;
+  const vence  = fechaSolo ? new Date(fechaSolo + 'T00:00:00') : null;
   const vencida = vence && vence < new Date() && !t.done;
 
   return `
@@ -158,6 +166,9 @@ window.toggleTarea = async function(id, done) {
 window.compartirTarea = async function(tareaId) {
   if (!AppState.get('currentGroupId')) return;
   const cu  = AppState.get('currentUser');
+  /* BUG FIX: guard de currentUser — si la sesión expiró justo antes de llamar
+     a esta función, cu sería null y cu.uid causaría un TypeError silencioso. */
+  if (!cu) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   const { collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, serverTimestamp } = lib();
 
   const tareaSnap = await getDoc(doc(db(), 'ec_tareas', tareaId)).catch(() => null);
@@ -187,7 +198,7 @@ window.compartirTarea = async function(tareaId) {
           const metaPartes = [];
           if (tData.responsable) metaPartes.push(`Responsable: ${tData.responsable}`);
           if (tData.fecha) {
-            let fechaStr = new Date(tData.fecha + 'T00:00:00').toLocaleDateString('es-MX');
+            let fechaStr = new Date(String(tData.fecha).split('T')[0] + 'T00:00:00').toLocaleDateString('es-MX');
             if (tData.hora) fechaStr += ' · ⏰ ' + tData.hora;
             metaPartes.push(`Fecha: ${fechaStr}`);
           }
@@ -215,6 +226,8 @@ window.compartirTarea = async function(tareaId) {
 window.eliminarTarea = async function(id) {
   const cu      = AppState.get('currentUser');
   const isAdmin = AppState.get('isAdmin');
+  /* BUG FIX: guard de currentUser */
+  if (!cu) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   const { doc, getDoc, deleteDoc } = lib();
   try {
     const snap = await getDoc(doc(db(), 'ec_tareas', id));
@@ -241,17 +254,30 @@ window.eliminarTarea = async function(id) {
    EVENTOS DE UI
 ══════════════════════════════════════════ */
 
-qsa('.filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    AppState.set('tareasFilter', btn.dataset.filter);
-    qsa('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    AppState.unsub('tareasUnsub');
-    initTareas();
+/* BUG FIX: qsa se ejecutaba al cargar el módulo, antes de que el DOM
+   estuviera completamente listo. Si los botones no existían aún, los
+   listeners quedaban sin registrar y los filtros no funcionaban.
+   Se envuelve en DOMContentLoaded para garantizar que los elementos existen. */
+function _initFilterBtns() {
+  qsa('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      AppState.set('tareasFilter', btn.dataset.filter);
+      qsa('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      AppState.unsub('tareasUnsub');
+      initTareas();
+    });
   });
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initFilterBtns);
+} else {
+  _initFilterBtns();
+}
 
-$('btnNuevaTarea').addEventListener('click', () => {
+/* BUG FIX: se añade ?. a los selectores que podían arrojar TypeError
+   si el elemento no existe en el DOM cuando el módulo carga. */
+$('btnNuevaTarea')?.addEventListener('click', () => {
   ['tareaTitulo','tareaDesc','tareaResponsable','tareaFecha','tareaHora','tareaMateria']
     .forEach(id => { if ($(id)) $(id).value = ''; });
   const lista = $('subtareasList');
@@ -271,7 +297,7 @@ $('btnAddSubtarea')?.addEventListener('click', () => {
   list.appendChild(div);
 });
 
-$('btnConfirmarTarea').addEventListener('click', async () => {
+$('btnConfirmarTarea')?.addEventListener('click', async () => {
   const titulo = $('tareaTitulo').value.trim();
   if (!titulo) { showToast('Escribe el título de la tarea.', 'warning'); return; }
 

@@ -21,6 +21,11 @@ $('apuntesSearch')?.addEventListener('input', e => {
 });
 
 function initApuntes() {
+  // BUG FIX: guard de currentGroupId — igual que initFeed e initTableros.
+  // Sin esto, si el resize u otro evento llama a initApuntes sin grupo activo,
+  // la query a Firestore falla con groupId=null y deja la sección en blanco.
+  if (!currentGroupId) return;
+
   const toolbar = document.querySelector('.apuntes-toolbar');
   if (toolbar) toolbar.style.display = isAdmin ? 'flex' : 'none';
 
@@ -179,7 +184,7 @@ function renderSemestres() {
               <button class="album-action-btn" onclick="abrirNotas('${m.id}')">Notas</button>
             </div>
           </article>
-          ${isAdmin ? `<button class="materia-delete" onclick="event.stopPropagation(); eliminarMateria('${m.id}','${escHtml(m.name)}')">🗑️</button>` : ''}
+          ${isAdmin ? `<button class="materia-delete" onclick="event.stopPropagation(); eliminarMateria('${m.id}',${JSON.stringify(m.name)})">🗑️</button>` : ''} <!-- BUG FIX: JSON.stringify para nombres con apóstrofes -->
         </div>`;
     }).join('');
 
@@ -213,7 +218,7 @@ function renderSemestres() {
           <svg class="group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ${rotateStyle}>
             <path d="M6 9l6 6 6-6"/>
           </svg>
-          ${isAdmin ? `<button class="group-delete" onclick="event.stopPropagation(); eliminarSemestre('${sem.id}','${escHtml(sem.name)}')">🗑️</button>` : ''}
+          ${isAdmin ? `<button class="group-delete" onclick="event.stopPropagation(); eliminarSemestre('${sem.id}',${JSON.stringify(sem.name)})">🗑️</button>` : ''} <!-- BUG FIX: JSON.stringify para nombres con apóstrofes -->
         </div>
         <div class="group-body">
           <div class="carousel-wrap">
@@ -390,7 +395,7 @@ function renderFotosGaleria(fotos) {
         <button class="photo-action-btn feed-action-btn ${isLiked ? 'liked' : ''}" onclick="event.stopPropagation(); toggleFotoLike('${f.id}', this)">
           <span class="foco-icon" style="font-size: 16px;">💡</span> (<span class="like-count">${likeCount}</span>)
         </button>
-        <button class="photo-action-btn" onclick="event.stopPropagation(); abrirNotasDeFoto('${f.url}', '${escHtml(f.caption || '')}')">
+        <button class="photo-action-btn" onclick="event.stopPropagation(); abrirNotasDeFoto(${JSON.stringify(f.url)}, ${JSON.stringify(f.caption || '')})"> <!-- BUG FIX: JSON.stringify para caption con apóstrofes -->
           💬 Notas
         </button>
       </div>
@@ -511,7 +516,9 @@ function setupApunteUpload() {
             groupId: currentGroupId,
             url, caption,
             authorUid: currentUser.uid,
-            authorName: currentUser.name,
+            /* BUG FIX: usar getUserAlias() para respetar el alias del grupo en lugar
+               del nombre real de la cuenta, consistente con el resto de módulos. */
+            authorName: getUserAlias(),
             publishedToFeed: false,
             createdAt: serverTimestamp()
           });

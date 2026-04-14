@@ -487,6 +487,8 @@ function abrirDetalleDvd(dvd) {
   const enviar = async () => {
     const text = input.value.trim();
     if (!text) return;
+    /* BUG FIX: guard de currentUser */
+    if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
     newSend.disabled = true;
     const { collection: col, addDoc, serverTimestamp } = lib();
     try {
@@ -624,6 +626,8 @@ if (btnConfirmarDvd) {
     const videoId = extraerYoutubeId(url);
     if (!videoId) { showToast('No se reconoce como un link de YouTube válido.', 'info'); return; }
     if (!titulo) { showToast('Escribe un título para el tutorial.', 'warning'); return; }
+    /* BUG FIX: guard de currentUser */
+    if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
 
     btnConfirmarDvd.disabled = true;
     btnConfirmarDvd.textContent = '⏳ Guardando…';

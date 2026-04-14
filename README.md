@@ -2,7 +2,7 @@
 
 Tu espacio escolar privado — apuntes, chat, tareas y dinámicas con tu grupo.
 
-> **Versión actual:** 1.7.0  
+> **Versión actual:** 1.8.0  
 > **Stack:** Firebase (Auth + Firestore) · Cloudinary · PWA  
 > **Sin backend propio** — todo corre en Firebase + Cloudinary
 
@@ -13,24 +13,24 @@ Tu espacio escolar privado — apuntes, chat, tareas y dinámicas con tu grupo.
 ```
 zonaescolar/
 ├── index.html              ← App principal (shell + Firebase init)
-├── sw.js                   ← Service Worker (PWA / caché offline)
+├── sw.js                   ← Service Worker (PWA / caché offline por módulo)
 ├── manifest.webmanifest    ← Manifiesto PWA (nombre, colores, iconos)
 ├── css/
 │   └── style.css           ← Estilos globales (tema oscuro/claro)
 ├── js/
-│   ├── core.js             ← Estado global, auth, utilidades
-│   ├── grupos.js           ← Grupos, miembros, sidebar, navegación
-│   ├── tableros.js         ← Feed, tableros temáticos, tarjetas
+│   ├── core.js             ← AppState, auth, utilidades, Firebase init
+│   ├── grupos.js           ← Grupos, miembros, sidebar, navegación global
+│   ├── tableros.js         ← Feed, tableros temáticos, tarjetas, comentarios
 │   ├── muro.js             ← Muro personal, álbumes de fotos
-│   ├── chat.js             ← Chat en tiempo real, salas
-│   ├── tareas.js           ← Tareas, subtareas, filtros
-│   ├── biblioteca.js       ← Biblioteca de archivos
+│   ├── chat.js             ← Chat en tiempo real, salas, burbuja flotante
+│   ├── tareas.js           ← Tareas, subtareas, filtros (migrado a AppState)
+│   ├── biblioteca.js       ← Biblioteca de archivos PDF/links, repisas
 │   ├── apuntes.js          ← Apuntes por semestre y materia
 │   ├── dinamicas.js        ← Ruleta, votación, trivia, puntos
 │   ├── videotutoriales.js  ← Videos tutoriales del grupo
-│   └── utils-extra.js      ← Selector de tablero, helpers
-└── icons/
-    └── icon.png            ← Ícono de la app (192×192 mínimo)
+│   └── utils-extra.js      ← Selector de tablero, fix teclado iOS, helpers
+└── image/icon/
+    └── icon-512.png        ← Ícono de la app (192×192 y 512×512)
 ```
 
 ---
@@ -51,6 +51,14 @@ El proyecto Firebase usado es **zonaescolar-658ff**. Si quieres usar tu propio p
 2. Activa **Authentication** → Google Sign-in
 3. Activa **Firestore Database**
 4. Reemplaza el objeto `firebaseConfig` en `index.html` con las credenciales de tu proyecto
+
+### Cloudinary
+
+Las imágenes se almacenan en **Cloudinary** (no en Firebase Storage).
+
+- **Cloud name:** `dwjzn6n0a`
+- **Upload preset:** `zonaescolar_unsigned` (unsigned, sin autenticación)
+- Se usa en: Feed, Apuntes, Chat (imágenes), Mi Muro
 
 ---
 
@@ -210,7 +218,7 @@ service cloud.firestore {
 | `ec_tableros`          | Tableros temáticos del grupo                                 |
 | `ec_chat`              | Mensajes del chat grupal por sala                            |
 | `ec_salas_chat`        | Salas de chat creadas por el grupo                           |
-| `ec_chat_reads`        | Registro del último mensaje leído por usuario (para contador no leídos) |
+| `ec_chat_reads`        | Registro del último mensaje leído por usuario (contador no leídos) |
 | `ec_typing`            | Indicador "está escribiendo…" en tiempo real                 |
 | `ec_online`            | Presencia online de usuarios en el chat                      |
 | `ec_tareas`            | Tareas del grupo con responsable, fecha y subtareas          |
@@ -221,20 +229,10 @@ service cloud.firestore {
 | `ec_muro_fotos`        | Fotos del muro personal de cada usuario                      |
 | `ec_muro_albums`       | Álbumes del muro personal de cada usuario                    |
 | `ec_biblioteca`        | Archivos PDF/links de la biblioteca del grupo                |
-| `ec_biblio_categorias` | Categorías/repisas de la biblioteca                          |
+| `ec_biblio_categorias` | Repisas (categorías) de la biblioteca                        |
 | `ec_videotutoriales`   | Videos tutoriales del grupo                                  |
 | `ec_votaciones`        | Votaciones del grupo (no se autopublican en el feed)         |
 | `ec_trivias`           | Trivias guardadas con nombre y banco de preguntas            |
-
----
-
-## Cloudinary
-
-Las imágenes se almacenan en **Cloudinary** (no en Firebase Storage).
-
-- **Cloud name:** `dwjzn6n0a`
-- **Upload preset:** `zonaescolar_unsigned` (unsigned, sin autenticación)
-- Se usa en: Feed, Apuntes, Chat (imágenes), Mi Muro
 
 ---
 
@@ -242,125 +240,127 @@ Las imágenes se almacenan en **Cloudinary** (no en Firebase Storage).
 
 ZonaEscolar es instalable como app nativa en móvil y escritorio.
 
-- El archivo `sw.js` maneja el caché de los assets del app shell
-- El archivo `manifest.webmanifest` define nombre, colores y el ícono
+- El `sw.js` usa **caché modular por archivo** — solo se invalida el caché del módulo que cambió
+- El `manifest.webmanifest` define nombre (`ZonaEscolar`), colores (`#0e0e16` / `#7c6af7`) e ícono
 - En iOS: Safari → Compartir → Agregar a pantalla de inicio
 - En Android/Chrome: el navegador muestra un banner de instalación automáticamente
+
+### Cómo actualizar el caché tras un cambio
+
+Sube solo el número del caché del módulo que modificaste en `sw.js`:
+
+```js
+const CACHE_SHELL    = 'ze-shell-v47';    // HTML, CSS, manifest, core.js, grupos.js, utils-extra.js
+const CACHE_CHAT     = 'ze-chat-v5';
+const CACHE_TAREAS   = 'ze-tareas-v4';
+const CACHE_BIBLIO   = 'ze-biblio-v3';
+const CACHE_APUNTES  = 'ze-apuntes-v3';
+const CACHE_MURO     = 'ze-muro-v3';
+const CACHE_TABLEROS = 'ze-tableros-v2';
+const CACHE_VIDEO    = 'ze-video-v2';
+const CACHE_DIN      = 'ze-dinamicas-v3';
+```
+
+Y actualiza el `?v=` del script correspondiente en `index.html` (actualmente todos en `?v=36`).
+
+---
+
+## Arquitectura — AppState
+
+Todos los módulos comparten estado a través de `AppState` en `core.js`. No hay variables globales sueltas.
+
+```js
+AppState.get('currentGroupId')          // leer
+AppState.set('currentGroupId', id)      // escribir + notificar suscriptores
+AppState.on('currentGroupId', fn)       // reaccionar a cambios
+AppState.unsub('tareasUnsub')           // cancelar listener de Firestore
+```
+
+**Estado de migración por módulo:**
+
+| Módulo | Migrado a AppState |
+|---|---|
+| `biblioteca.js` | ✅ Completo |
+| `tareas.js` | ✅ Completo |
+| `chat.js` | ⚙️ Parcial (usa AppState para unsubs) |
+| `muro.js` | ⚙️ Parcial (un AppState.set) |
+| `apuntes.js` | ⏳ Pendiente |
+| `dinamicas.js` | ⏳ Pendiente |
+| `grupos.js` | ⏳ Pendiente |
+| `tableros.js` | ⏳ Pendiente |
+| `videotutoriales.js` | ⏳ Pendiente |
+
+Ver `GUIA_MIGRACION.md` para instrucciones detalladas.
 
 ---
 
 ## Changelog
 
-### v1.7.0 — Fixes de layout móvil, calendario eliminado y correcciones de miembros
+### v1.8.0 — AppState v2, migración de módulos, fixes de bugs
 
-**Cambios principales:**
+**1 — AppState v2 (`core.js`)**  
+Se introduce `AppState` como fuente única de verdad para todas las variables globales. Las ~60 variables sueltas anteriores se mantienen como proxies compatibles para no romper módulos no migrados. API: `get`, `set`, `on`, `unsub`.
+
+**2 — `biblioteca.js` migrado a AppState**  
+Variables propias (`biblioCategorias`, `bibliotecaUiBound`, `selectedBiblioColor`, unsubs) ahora pasan por AppState. Se reemplazaron los `window.eliminarLibro` / `window.eliminarCategoria` por delegación de eventos con `data-action`. Se eliminó el bug de doble `dispatchEvent` en `window.eliminarLibro` que causaba doble diálogo de confirmación.
+
+**3 — `tareas.js` migrado a AppState**  
+Variables `tareasUnsub`, `votacionUnsub`, `tareasFilter`, `tareasVistaCalendario`, `calDiaSeleccionado` ahora pasan por AppState. `AppState.on('currentGroupId')` cancela listeners y resetea estado al cambiar de grupo.
+
+**4 — Fix `authorName` en `apuntes.js` y `dinamicas.js`**  
+`authorName` ahora usa `getUserAlias()` en lugar de `currentUser.displayName`, igual que el resto de los módulos.
+
+**5 — Fix debounce en `muro.js`**  
+Se corrigió el timer de debounce que no se cancelaba correctamente entre llamadas.
+
+**6 — Fix fecha en `tareas.js`**  
+La fecha de vencimiento ahora usa `split('T')[0]` correctamente para evitar desfase de un día por zona horaria.
+
+---
+
+**Archivos modificados en esta versión:**
+
+| Archivo | Cambio |
+|---|---|
+| `js/core.js` | AppState v2 — fuente única de verdad, proxies de compatibilidad |
+| `js/biblioteca.js` | Migración completa a AppState, delegación de eventos, fix doble confirm |
+| `js/tareas.js` | Migración completa a AppState, fix fecha split('T') |
+| `js/apuntes.js` | Fix authorName → getUserAlias() |
+| `js/dinamicas.js` | Fix authorName → getUserAlias() |
+| `js/muro.js` | Fix debounce timer |
+| `sw.js` | Caché modular por módulo (reemplaza CACHE_NAME único) |
+
+---
+
+### v1.7.0 — Fixes de layout móvil, calendario eliminado y correcciones de integrantes
 
 **1 — Calendario de tareas eliminado (`tareas.js` + `index.html`)**  
-El calendario mensual de tareas fue removido completamente por problemas de adaptación en móvil. Se eliminaron las funciones `renderCalMes`, `calNavegar`, `calVerDia`, `resetVistaCalendario` y las variables `_calTareasCache`, `tareasVistaCalendario`, `calMesOffset` y `calDiaSeleccionado`. El botón `📅 Calendario` fue quitado del HTML. Los filtros Todas / Pendientes / Completadas se mantienen intactos.
+El calendario mensual fue removido por problemas de adaptación en móvil. Se eliminaron las funciones `renderCalMes`, `calNavegar`, `calVerDia`, `resetVistaCalendario` y las variables `_calTareasCache`, `tareasVistaCalendario`, `calMesOffset` y `calDiaSeleccionado`. El botón `📅 Calendario` fue quitado del HTML. Los filtros Todas / Pendientes / Completadas se mantienen.
 
 **2 — Bug crítico: miembros reingresados no veían el grupo (`grupos.js`)**  
-Cuando el admin expulsaba a un integrante y lo volvía a agregar, el listener de Firestore recibía la actualización en tiempo real pero no llamaba a `activarGrupo` porque ya había pasado el `primerSnapshot`. El usuario veía el grupo en el selector pero la pantalla seguía diciendo "sin grupo". Se agregó el bloque `else if (grupos.length > 0)` en el listener para activar automáticamente el grupo cuando el usuario no tiene ninguno activo y aparece uno nuevo.
+Al expulsar e invitar de nuevo a un integrante, el listener no llamaba a `activarGrupo` porque ya había pasado el `primerSnapshot`. Se agregó el bloque `else if (grupos.length > 0)` para activar el grupo automáticamente cuando aparece uno nuevo y el usuario no tiene grupo activo.
 
 **3 — Barra de usuarios online arreglada (`style.css`)**  
-La barra `.chat-online-bar` mostraba una línea verde visible aunque no hubiera nadie conectado, porque tenía `min-height: 26px` y `border-bottom` siempre activos. Ahora tiene `min-height: 0` y el borde/padding solo aparecen cuando la lista interna está en `display:flex` (es decir, cuando hay compañeros conectados). El sistema de presencia no fue modificado.
+La barra `.chat-online-bar` mostraba una línea visible aunque no hubiera nadie conectado (`min-height: 26px` siempre activo). Ahora tiene `min-height: 0` y el borde/padding solo aparecen cuando hay compañeros conectados.
 
 **4 — Espacio excesivo arriba en móvil (`style.css`)**  
-El `::before` de `.section` usaba `max(56px, calc(...))` que en Android generaba un hueco extra entre el topbar y el contenido. Cambiado a `calc(56px + env(safe-area-inset-top, 0px))` para que sea exactamente el alto del topbar.
+`::before` de `.section` usaba `max(56px, calc(...))` que generaba hueco extra en Android. Cambiado a `calc(56px + env(safe-area-inset-top, 0px))`.
 
 **5 — Barra del chat oculta por el bottom nav en móvil (`style.css`)**  
-El `.chat-compose-wrapper` tenía `padding-bottom` calculado solo con `safe-area-inset-bottom`, sin considerar la altura del bottom nav (48px). Cambiado a `var(--ze-bottom-nav-clearance)` que ya incluye ambos valores, igual que el resto de la app.
+`.chat-compose-wrapper` ahora usa `var(--ze-bottom-nav-clearance)` que incluye el alto del bottom nav (48px) + safe area.
 
 **6 — VideoTutoriales: espacio vacío a la izquierda (`style.css`)**  
-El `.dvd-shell` tenía `max-width: 900px` con `margin: 0 auto`, dejando espacio en blanco a la izquierda en pantallas anchas. Ampliado a `max-width: 1200px` para aprovechar el ancho disponible igual que las otras secciones.
+`.dvd-shell` ampliado de `max-width: 900px` a `max-width: 1200px`.
 
----
-
-**Archivos modificados en esta versión:**
 | Archivo | Cambio |
 |---|---|
-| `js/tareas.js` | Eliminado calendario completo. Filtros de tareas simplificados |
-| `js/grupos.js` | Fix: auto-activar grupo al ser reingresado después de expulsión |
-| `css/style.css` | Fix barra online, fix spacer móvil, fix chat-compose, fix dvd-shell |
-| `index.html` | Eliminado botón `📅 Calendario` de la sección de tareas |
+| `js/tareas.js` | Calendario eliminado, filtros simplificados |
+| `js/grupos.js` | Fix auto-activar grupo al reingresar |
+| `css/style.css` | Fix barra online, spacer móvil, chat-compose, dvd-shell |
+| `index.html` | Eliminado botón `📅 Calendario` |
 
 ---
 
-### v1.6.3 — Refactorización y corrección de bugs críticos
-
-**Bugs críticos corregidos:**
-
-**Bug 1 — Duplicación de estado en múltiples archivos**  
-Las variables `muroAlbumActualId` y `muroAlbumsCache` estaban declaradas en AMBOS archivos `chat.js` y `muro.js`, causando potencial inconsistencia de estado. Ahora están centralizadas en `core.js` como variables globales únicas.
-
-**Bug 2 — Variable `calMesOffset` no declarada globalmente**  
-`calMesOffset` se usaba en `tareas.js` sin estar declarada o inicializada. Ahora está en `core.js` inicializada a `0`.
-
-**Bug 3 — Variable `triviasUnsub` no declarada**  
-En `dinamicas.js` se verificaba `typeof triviasUnsub` pero la variable existía sin tipo declarado. Ahora hay una declaración explícita en `dinamicas.js`.
-
-**Bug 4 — Código muerto en apuntes.js**  
-Línea vacía: `const btnPublicar = '';` que nunca se usaba. Eliminada.
-
-**Bug 5 — Manejo de errores silencioso (anti-pattern)**  
-Múltiples `.catch()` con funciones vacías que ocultaban errores. Ahora todos tienen logging con `console.error`.
-
----
-
-**Archivos modificados en esta versión:**
-| Archivo | Cambio |
-|---|---|
-| `js/core.js` | Agregadas: `muroAlbumActualId`, `muroAlbumsCache`, `calMesOffset` |
-| `js/muro.js` | Removidas variables duplicadas + comentario de referencia |
-| `js/chat.js` | Mejorado `.catch()` con logging |
-| `js/apuntes.js` | Eliminada línea vacía de `btnPublicar` |
-| `js/utils-extra.js` | Mejorado `.catch()` con logging |
-
----
-
-### v1.6.2 — Limpieza y caché PWA
-
-**Función huérfana eliminada (`biblioteca.js`)**  
-`renderCalendarioTareas` era la versión vieja del calendario que quedó en el archivo sin llamarse desde ningún lado. Se eliminó.
-
-**Bump de caché del Service Worker**  
-Se actualizó `CACHE_NAME` de `v13` a `v14` y las versiones de todos los scripts de `?v=2` a `?v=3`.
-
----
-
-**Archivos modificados en esta versión:**
-| Archivo | Cambio |
-|---|---|
-| `js/biblioteca.js` | Eliminada función `renderCalendarioTareas` (huérfana) |
-| `sw.js` | `CACHE_NAME` bumpeado a `v14` |
-| `index.html` | Scripts actualizados a `?v=3` |
-
----
-
-### v1.6.1 — Correcciones móvil (PWA)
-
-**Bug 1 — Calendario: mes incorrecto al navegar (`tareas.js`)**  
-Ahora usa `new Date(año, mes + offset, 1)` en lugar de aritmética manual.
-
-**Bug 2 — Calendario: retardo al tocar un día (`biblioteca.js`)**  
-`renderCalMes` guarda las tareas en `_calTareasCache` y `calVerDia` filtra desde ese caché sin hacer getDocs.
-
-**Bug 3 — Topbar se oculta al hacer scroll en iOS**  
-La topbar pasa a `position: fixed` en móvil. `showSection()` hace `scrollTop = 0` al activar cada sección.
-
-**Bug 4 — `calMesOffset` variable global no centralizada**  
-Documentado para mover a `core.js` (ya resuelto en v1.6.3).
-
----
-
-**Archivos modificados en esta versión:**
-| Archivo | Cambio |
-|---|---|
-| `js/tareas.js` | Bug 1: cálculo de año/mes en listener de Firestore |
-| `js/biblioteca.js` | Bug 2: caché `_calTareasCache` + `calVerDia` sin getDocs |
-| `css/style.css` | Bug 3: topbar `fixed` en móvil + `padding-top` en `.section` |
-| `js/grupos.js` | Bug 3: `scrollTop = 0` en `showSection()` |
-
----
 
 ### v1.6.0
 - **Votaciones — sin autopublicación:** al crear una votación ya no se publica sola en el Tablero (feed). El usuario decide cuándo y en qué tablero compartirla con el botón 📌 Compartir.

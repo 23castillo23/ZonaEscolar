@@ -11,11 +11,18 @@
 /* ═══════════════════════════════════════════════════
    LÓGICA DEL MURO (PERFIL PROPIO Y DE TERCEROS)
 ═══════════════════════════════════════════════════ */
-let muroFotosUnsub = null;
-let muroFeedUnsub = null;
-let muroAlbumsUnsub = null;       // listener de álbumes
-// NOTE: muroAlbumActualId y muroAlbumsCache están centralizadas en core.js (línea ~50)
+/* BUG FIX: Se eliminaron las declaraciones "let muroFotosUnsub", "let muroFeedUnsub"
+   y "let muroAlbumsUnsub" que existían aquí. Estas variables ya están definidas como
+   proxies de AppState en core.js (Object.defineProperty). Mantenerlas como "let" de
+   módulo creaba variables locales que sombreaban los proxies en algunos entornos,
+   impidiendo que teardownAllListeners() en grupos.js las cancelara correctamente.
+   Ahora usan directamente los proxies globales de AppState. */
+// NOTE: muroAlbumActualId y muroAlbumsCache están centralizadas en core.js
 let _muroFilesBuffer = [];        // fotos pendientes de asignar a álbum
+/* BUG FIX: debounce timer como variable de módulo independiente, en lugar de
+   renderMuroAlbums._debounceTimer. Una propiedad de función se perdería si la
+   función se redeclara, causando renders duplicados. */
+let _muroAlbumsDebounce = null;
 
 const EMOJIS_ALBUM = [
   '📁','📂','🖼️','📸','🌅','🌄','🏔️','🌊','🌿','🎨',
@@ -73,8 +80,8 @@ function renderMuroAlbums(targetUid, esPropio) {
   }
 
   // BUG-07: Debounce de 300ms para evitar race condition si el snapshot se dispara múltiples veces
-  if (renderMuroAlbums._debounceTimer) clearTimeout(renderMuroAlbums._debounceTimer);
-  renderMuroAlbums._debounceTimer = setTimeout(() => _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid), 300);
+  if (_muroAlbumsDebounce) clearTimeout(_muroAlbumsDebounce);
+  _muroAlbumsDebounce = setTimeout(() => _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid), 300);
 }
 
 function _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid) {
@@ -110,12 +117,12 @@ function _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid) {
       const count = conteos[alb.id] || 0;
       const cover = covers[alb.id] || '';
       const delBtn = esPropio
-        ? `<button class="album-muro-del" onclick="event.stopPropagation(); eliminarAlbumMuro('${alb.id}','${escHtml(alb.nombre)}')" title="Eliminar álbum">🗑️</button>`
+        ? `<button class="album-muro-del" onclick="event.stopPropagation(); eliminarAlbumMuro('${alb.id}',${JSON.stringify(alb.nombre)})" title="Eliminar álbum">🗑️</button>` /* BUG FIX: JSON.stringify para nombres con apóstrofes */
         : '';
       const coverHtml = cover
         ? `<img class="album-muro-cover" src="${escHtml(cover)}" loading="lazy" alt="">`
         : `<div class="album-muro-cover-placeholder">${escHtml(alb.emoji || '📁')}</div>`;
-      return `<div class="album-muro-card" onclick="abrirAlbumMuro('${alb.id}','${escHtml(alb.nombre)}','${escHtml(alb.emoji||'📁')}')">
+      return `<div class="album-muro-card" onclick="abrirAlbumMuro('${alb.id}',${JSON.stringify(alb.nombre)},${JSON.stringify(alb.emoji||'📁')})"> <!-- BUG FIX: JSON.stringify para nombres/emoji con apóstrofes -->
         ${coverHtml}
         ${delBtn}
         <div class="album-muro-info">
@@ -203,8 +210,10 @@ window.crearAlbumMuro = async function () {
   const btn = $('btnCrearAlbum');
   const nombre = ($('albumNombreInput')?.value || '').trim();
   if (!nombre) { showToast('Escribe un nombre para el álbum.', 'warning'); return; }
-  if (!currentGroupId) { showToast('Selecciona un grupo primero.', 'warning'); return; } 
-  const emoji = $('albumEmojiSeleccionado')?.textContent || '📁';  
+  if (!currentGroupId) { showToast('Selecciona un grupo primero.', 'warning'); return; }
+  /* BUG FIX: guard de currentUser */
+  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
+  const emoji = $('albumEmojiSeleccionado')?.textContent || '📁';
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   const { collection, addDoc, serverTimestamp } = lib();
   try {
@@ -291,6 +300,8 @@ function mostrarSelectorAlbum(files) {
 }
 
 async function subirFotosMuro(files, albumId) {
+  /* BUG FIX: guard de currentUser */
+  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   const btn = $('btnMuroSubir');
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   const { collection, addDoc, serverTimestamp } = lib();

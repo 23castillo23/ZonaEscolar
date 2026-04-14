@@ -93,9 +93,15 @@ function initBiblioteca() {
     });
 
     /* Guardar libro */
-    const btnConfLibro = $('btnConfirmarBiblio');
+    /* BUG FIX: usar cloneNode para limpiar cualquier listener previo y luego
+       addEventListener en lugar de .onclick, consistente con el resto del módulo
+       y seguro frente a reentradas si bibliotecaUiBound se resetea dos veces. */
+    const btnConfLibroOld = $('btnConfirmarBiblio');
+    const btnConfLibro = btnConfLibroOld
+      ? (() => { const c = btnConfLibroOld.cloneNode(true); btnConfLibroOld.parentNode.replaceChild(c, btnConfLibroOld); return c; })()
+      : null;
     if (btnConfLibro) {
-      btnConfLibro.onclick = async () => {
+      btnConfLibro.addEventListener('click', async () => {
         const nombre      = $('biblioNombre').value.trim();
         const urlOriginal = $('biblioUrl').value.trim();
         const catId       = $('selectCatBiblio').value;
@@ -117,7 +123,7 @@ function initBiblioteca() {
             name:        nombre,
             descripcion,
             url:         urlLimpia,
-            ext:         (nombre.split('.').pop() || 'LINK').toUpperCase(),
+            ext:         (nombre.includes('.') ? nombre.split('.').pop() || 'LINK' : 'LINK').toUpperCase(),
             colorClass:  AppState.get('selectedBiblioColor'),
             authorUid:   cu.uid,
             authorName:  getUserAlias(),
@@ -129,7 +135,7 @@ function initBiblioteca() {
           btnConfLibro.disabled    = false;
           btnConfLibro.textContent = 'Guardar';
         }
-      };
+      });
     }
   }
 
@@ -199,7 +205,7 @@ function renderBiblioteca() {
                 <div class="book-wrapper" title="${escHtml(it.name)}">
                   <div class="book-item ${it.colorClass || 'book-default'}"
                        data-action="abrir-libro" data-id="${it.id}">
-                    <div class="book-ext-badge">${escHtml(it.ext.substring(0, 4))}</div>
+                    <div class="book-ext-badge">${escHtml((it.ext || 'LINK').substring(0, 4))}</div>
                     <div class="book-spine-title">${escHtml(it.name)}</div>
                   </div>
                   ${puedeBorrar ? `<button class="btn-mat-del" style="top:-10px; right:5px;"
@@ -254,9 +260,9 @@ document.addEventListener('click', e => {
 /* Mantener window.eliminarLibro / window.eliminarCategoria por compatibilidad
    con cualquier llamada inline que aún exista en el HTML */
 window.eliminarLibro = function(id) {
-  document.dispatchEvent(new CustomEvent('click', { bubbles: true,
-    detail: { action: 'eliminar-libro', id } }));
-  /* Fallback directo */
+  /* BUG FIX: Se eliminó el dispatchEvent que abría un segundo confirm
+     mientras el listener delegado ya abría el primero — causando doble
+     diálogo y potencialmente doble delete. Solo se mantiene el confirm directo. */
   showConfirm({
     title: 'Eliminar archivo',
     message: '¿Eliminar este archivo? Esta acción no se puede deshacer.',

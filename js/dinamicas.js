@@ -298,7 +298,8 @@ function _bindVotacionForm() {
           groupId: currentGroupId, pregunta, opciones,
           votos: {}, votantes: [], userVotes: {},
           activa: true, cierreAt: cierreTimestamp || null,
-          authorUid: currentUser.uid, authorName: currentUser.name, authorAvatar: currentUser.avatar || '',
+          /* BUG FIX: usar getUserAlias() para respetar el alias del grupo. */
+          authorUid: currentUser.uid, authorName: getUserAlias(), authorAvatar: currentUser.avatar || '',
           createdAt: serverTimestamp()
         });
         $('votacionPregunta').value = '';
@@ -369,9 +370,9 @@ function _renderTarjetaVotacion(v) {
   if (puedeGestionar) {
     btnsCierre = activa
       ? `<button class="btn-sm btn-sm-danger" onclick="cerrarVotacionPanel('${v.id}')">🔒 Cerrar</button>
-         <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}','${escHtml(v.pregunta)}')">🗑️ Eliminar</button>`
+         <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}',${JSON.stringify(v.pregunta)}) /* BUG FIX: JSON.stringify */">🗑️ Eliminar</button>`
       : `<button class="btn-sm" onclick="reabrirVotacionPanel('${v.id}')">🔓 Reabrir</button>
-         <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}','${escHtml(v.pregunta)}')">🗑️ Eliminar</button>`;
+         <button class="btn-sm btn-sm-danger" onclick="eliminarVotacionPanel('${v.id}',${JSON.stringify(v.pregunta)}) /* BUG FIX: JSON.stringify */">🗑️ Eliminar</button>`;
   }
 
   return `<div class="din-tarjeta-votacion">
@@ -383,7 +384,7 @@ function _renderTarjetaVotacion(v) {
     <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Por ${escHtml(v.authorName || 'Anónimo')} · ${totalVotos} voto${totalVotos !== 1 ? 's' : ''}</div>
     ${opcionesHtml}${resultadosHtml}
     <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center">
-      <button class="tarea-share-btn" onclick="compartirVotacion('${v.id}','${escHtml(v.pregunta)}')">📌 Compartir</button>
+      <button class="tarea-share-btn" onclick="compartirVotacion('${v.id}',${JSON.stringify(v.pregunta)})">📌 Compartir</button> <!-- BUG FIX: JSON.stringify para pregunta con apóstrofes -->
       ${btnsCierre}
     </div>
   </div>`;
@@ -436,6 +437,8 @@ const _votacionVoteLocks = new Set();
 
 window.votarEnPanel = async function (votacionId, opcionIdx) {
   if (_votacionVoteLocks.has(votacionId)) return;
+  /* BUG FIX: guard de currentUser */
+  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   _votacionVoteLocks.add(votacionId);
   const uid = currentUser.uid;
   const vCached = _votacionesCache[votacionId];
@@ -502,6 +505,8 @@ window.votar = async function (votacionId, opcionIdx) { await window.votarEnPane
 
 window.votarDesdeFeed = async function (votacionId, opcionIdx, feedPostId) {
   if (_votacionVoteLocks.has(votacionId)) return;
+  /* BUG FIX: guard de currentUser */
+  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   _votacionVoteLocks.add(votacionId);
   const uid = currentUser.uid;
   let prevFeedPost = null;
@@ -643,7 +648,7 @@ function renderTriviasLista(trivias) {
     const puedeEliminar = isAdmin || esPropietario;
     const totalPregs = t.preguntas?.length || 0;
     const delBtn = puedeEliminar
-      ? `<button class="btn-sm btn-sm-danger" onclick="eliminarTriviaGuardada('${t.id}','${escHtml(t.nombre)}')">🗑️ Eliminar</button>`
+      ? `<button class="btn-sm btn-sm-danger" onclick="eliminarTriviaGuardada('${t.id}',${JSON.stringify(t.nombre)})">🗑️ Eliminar</button>` /* BUG FIX: JSON.stringify para nombre de trivia con apóstrofes */
       : '';
     return `<div class="din-tarjeta-trivia">
       <div class="din-trivia-card-header">
@@ -654,7 +659,7 @@ function renderTriviasLista(trivias) {
       </div>
       <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
         <button class="btn-primary" style="flex:1;font-size:13px" onclick="jugarTrivia('${t.id}')">▶️ Jugar</button>
-        <button class="tarea-share-btn" onclick="compartirTrivia('${t.id}','${escHtml(t.nombre)}')">📌 Compartir</button>
+        <button class="tarea-share-btn" onclick="compartirTrivia('${t.id}',${JSON.stringify(t.nombre)})">📌 Compartir</button> <!-- BUG FIX: JSON.stringify para nombre de trivia con apóstrofes -->
         ${delBtn}
       </div>
     </div>`;
@@ -814,6 +819,8 @@ document.addEventListener('click', e => {
 
 async function _guardarTriviaEnFirestore() {
   if (!_triviaBancoModal.length) { showToast('Agrega al menos una pregunta antes de guardar.', 'warning'); return; }
+  /* BUG FIX: guard de currentUser */
+  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   const nombre = ($('mt_nombre')?.value || '').trim() || `Trivia ${new Date().toLocaleDateString('es-MX')}`;
   const btn = $('mt_btnGuardarTrivia');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Guardando…'; }
@@ -911,6 +918,8 @@ window.reiniciarTrivia = function () { volverAListaTrivias(); };
 
 window.compartirVotacion = async function (votacionId, pregunta) {
   if (!currentGroupId) return;
+  /* BUG FIX: guard de currentUser */
+  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   const { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp } = lib();
 
   // Ver en qué tableros ya está compartida
@@ -969,6 +978,8 @@ window.compartirVotacion = async function (votacionId, pregunta) {
 
 window.compartirTrivia = async function (triviaId, nombre) {
   if (!currentGroupId) return;
+  /* BUG FIX: guard de currentUser */
+  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   const { collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, serverTimestamp } = lib();
 
   // Ver en qué tableros ya está compartida

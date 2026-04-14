@@ -40,10 +40,23 @@ window.teardownAllListeners = function() {
   if (muroAlbumsUnsub)   { muroAlbumsUnsub();   muroAlbumsUnsub   = null; }
   if (window._apuntesFotosUnsub) { window._apuntesFotosUnsub(); window._apuntesFotosUnsub = null; }
   if (_onlineHeartbeatTimer) { clearInterval(_onlineHeartbeatTimer); _onlineHeartbeatTimer = null; }
+  /* BUG FIX: cancelar unsubs de dinámicas y videotutoriales que viven como
+     variables let de módulo y no pasaban por AppState — podían quedar activos
+     tras logout o cambio de grupo, generando lecturas de Firestore huérfanas. */
+  if (typeof votacionesUnsub !== 'undefined' && votacionesUnsub) { votacionesUnsub(); votacionesUnsub = null; }
+  if (typeof triviasUnsub    !== 'undefined' && triviasUnsub)    { triviasUnsub();    triviasUnsub    = null; }
+  if (typeof notasUnsub      !== 'undefined' && notasUnsub)      { notasUnsub();      notasUnsub      = null; }
+  if (typeof dvdDetalleUnsub !== 'undefined' && dvdDetalleUnsub) { dvdDetalleUnsub(); dvdDetalleUnsub = null; }
+  if (typeof globalNotifUnsub !== 'undefined' && globalNotifUnsub) { globalNotifUnsub(); globalNotifUnsub = null; }
   currentTableroId  = null;
   muroAlbumActualId = null;
   muroAlbumsCache   = [];
   bibliotecaUiBound = false;
+  /* BUG FIX: resetear variables del muro ajeno para que al volver a iniciar sesión
+     no se cargue el perfil de un compañero en lugar del muro propio. */
+  muroViendoUid    = null;
+  muroViendoEmail  = null;
+  muroViendoNombre = null;
 };
 
 
@@ -224,12 +237,18 @@ function renderSidebarMiembros() {
     const esYo = email === currentUser.email;
     const esAdminGrupo = email === currentGroupData.adminEmail;
 
+    // BUG FIX: usar JSON.stringify en lugar de escHtml para los argumentos del onclick inline.
+    // escHtml convierte ' en &#39; y el navegador lo decodifica antes de ejecutar JS,
+    // rompiendo la llamada si el nombre o email contienen apóstrofes (ej: "O'Brien").
+    const emailJs  = JSON.stringify(email);
+    const nombreJs = JSON.stringify(nombre);
+
     // Botón de expulsar respetuoso (solo 'X')
     const btnExpulsar = (isAdmin && !esYo)
-      ? `<button class="btn-expulsar" title="Quitar integrante" onclick="event.stopPropagation(); expulsarMiembro('${escHtml(email)}')">✕</button>`
+      ? `<button class="btn-expulsar" title="Quitar integrante" onclick="event.stopPropagation(); expulsarMiembro(${JSON.stringify(email)})">✕</button>`
       : '';
 
-    return `<div class="sidebar-member-btn ${esYo ? 'me' : ''}" data-email="${escHtml(email)}" style="display:flex; align-items:center; cursor:pointer;" onclick="verMuroDeUsuario('${escHtml(email)}','${escHtml(nombre)}')">
+    return `<div class="sidebar-member-btn ${esYo ? 'me' : ''}" data-email="${escHtml(email)}" style="display:flex; align-items:center; cursor:pointer;" onclick="verMuroDeUsuario(${emailJs},${nombreJs})">
           <span class="sidebar-member-initial-wrap">
             <span class="sidebar-member-initial">${escHtml(nombre.charAt(0).toUpperCase())}</span>
             <span class="sidebar-online-dot" title="En línea"></span>
@@ -477,7 +496,10 @@ function activarSeccion(section, prevSection = null) {
     return;
   }
 
-  if (section !== 'biblioteca' && bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
+  if (section !== 'biblioteca') {
+    if (bibliotecaUnsub) { bibliotecaUnsub(); bibliotecaUnsub = null; }
+    if (catBiblioUnsub)  { catBiblioUnsub();  catBiblioUnsub  = null; } // BUG FIX: evitar memory leak del listener de categorías
+  }
 
   const panelBurbuja = $('chatBurbujaPanel');
   const fab = $('chatFab');
@@ -600,7 +622,8 @@ function showSection(name) {
     el.classList.add('active');
     // FIX Bug 3 (complemento): resetear el scroll al inicio cada vez que se activa
     // una sección, para que el usuario no empiece a la mitad del contenido anterior.
-    if (name !== 'chat') el.scrollTop = 0;
+    // Excluir 'muro' para no desplazar al usuario si está dentro de un álbum abierto.
+    if (name !== 'chat' && name !== 'muro') el.scrollTop = 0;
   }
 }
 
