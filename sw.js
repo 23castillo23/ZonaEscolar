@@ -14,7 +14,7 @@
 ═══════════════════════════════════════════════════ */
 
 /* ── Versiones por módulo ── */
-const CACHE_SHELL   = 'ze-shell-v45';        /* HTML, CSS, manifest, core.js, grupos.js, utils-extra.js */
+const CACHE_SHELL   = 'ze-shell-v46';        /* HTML, CSS, manifest, core.js, grupos.js, utils-extra.js */
 const CACHE_CHAT    = 'ze-chat-v5';
 const CACHE_TAREAS  = 'ze-tareas-v3';
 const CACHE_BIBLIO  = 'ze-biblio-v3';

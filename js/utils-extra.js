@@ -316,7 +316,12 @@ window.addEventListener('resize', () => {
         shell.style.transform = offsetTop > 0 ? `translateY(${offsetTop}px)` : '';
         shell.style.height    = vvH + 'px';
       }
-      // Con el teclado abierto el bottom-nav está detrás del teclado, no restarlo
+      // Ocultar bottom-nav cuando el teclado está abierto para que no tape el compose
+      const bottomNav = document.getElementById('bottomNav');
+      if (bottomNav) {
+        bottomNav.style.display = offsetTop > 0 ? 'none' : '';
+      }
+      // Con el teclado abierto el bottom-nav está oculto, no restarlo
       const bottomH = offsetTop > 0 ? 0 : _readPx('--ze-bottom-nav-clearance', 52);
       const chatH   = Math.max(vvH - topbarH - bottomH, 200);
       document.documentElement.style.setProperty('--chat-h', chatH + 'px');
