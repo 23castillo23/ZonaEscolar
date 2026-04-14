@@ -14,15 +14,15 @@
 ═══════════════════════════════════════════════════ */
 
 /* ── Versiones por módulo ── */
-const CACHE_SHELL   = 'ze-shell-v50';        /* HTML, CSS, manifest, core.js, grupos.js, utils-extra.js */
-const CACHE_CHAT    = 'ze-chat-v7';
-const CACHE_TAREAS  = 'ze-tareas-v5';        /* tareas.js — fix fecha split('T') */
-const CACHE_BIBLIO  = 'ze-biblio-v4';
-const CACHE_APUNTES = 'ze-apuntes-v4';       /* apuntes.js — fix authorName getUserAlias() */
-const CACHE_MURO    = 'ze-muro-v4';          /* muro.js — fix debounce timer */
-const CACHE_TABLEROS= 'ze-tableros-3';
-const CACHE_VIDEO   = 'ze-video-v3';
-const CACHE_DIN     = 'ze-dinamicas-v4';     /* dinamicas.js — fix authorName getUserAlias() */
+const CACHE_SHELL   = 'ze-shell-v47';        /* HTML, CSS, manifest, core.js, grupos.js, utils-extra.js */
+const CACHE_CHAT    = 'ze-chat-v5';
+const CACHE_TAREAS  = 'ze-tareas-v3';
+const CACHE_BIBLIO  = 'ze-biblio-v3';
+const CACHE_APUNTES = 'ze-apuntes-v2';
+const CACHE_MURO    = 'ze-muro-v2';
+const CACHE_TABLEROS= 'ze-tableros-v2';
+const CACHE_VIDEO   = 'ze-video-v2';
+const CACHE_DIN     = 'ze-dinamicas-v2';
 
 /* ── Todos los cachés válidos ── */
 const CACHES_VALIDOS = [

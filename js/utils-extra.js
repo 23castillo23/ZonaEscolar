@@ -135,7 +135,6 @@ $('btnLeerLibro')?.addEventListener('click', () => {
 
 $('btnCompartirLibro')?.addEventListener('click', async () => {
   if(!libroSeleccionado || !currentGroupId) return;
-  if(!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   closeModal('modalLibroAbierto');
 
   // Consultar en qué tableros ya existe este libro
@@ -214,7 +213,6 @@ window.verComentariosDvdDesdeFeed = async function(dvdId, dvdUrl) {
 };
 
 window.compartirDvd = async function(dvdId) {
-  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   const { doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc, serverTimestamp } = lib();
   try {
     const snap = await getDoc(doc(db(), 'ec_videotutoriales', dvdId));
@@ -274,7 +272,7 @@ window.addEventListener('resize', () => {
   _resizeTimer = setTimeout(() => {
     if (currentSection === 'feed' && window.innerWidth !== _lastInnerWidth) {
       _lastInnerWidth = window.innerWidth;
-      if (currentGroupId) initFeed(); // BUG FIX: no llamar initFeed sin grupo activo
+      initFeed();
     }
   }, 250);
 });
@@ -328,8 +326,10 @@ window.addEventListener('resize', () => {
       const chatH   = Math.max(vvH - topbarH - bottomH, 200);
       document.documentElement.style.setProperty('--chat-h', chatH + 'px');
     } else {
-      // Android y escritorio: comportamiento normal
-      const bottomH = isMobile ? _readPx('--ze-bottom-nav-clearance', 52) : 0;
+      // Android/escritorio: cuando el teclado reduce vvH, el bottom-nav
+      // ya no es visible, así que no lo restamos.
+      const keyboardOpen = isMobile && vvH < _lastVVH - 100;
+      const bottomH = (isMobile && !keyboardOpen) ? _readPx('--ze-bottom-nav-clearance', 52) : 0;
       const chatH   = Math.max(vvH - topbarH - bottomH, 200);
       document.documentElement.style.setProperty('--chat-h', chatH + 'px');
     }
@@ -358,7 +358,6 @@ window.addEventListener('resize', () => {
 
 
 window.compartirNotaAlTablero = async function(fotoId, url) {
-  if (!currentUser) { showToast('Tu sesión expiró. Vuelve a iniciar sesión.', 'error'); return; }
   const materiaNombre = galeriaActual ? galeriaActual.name : 'Apuntes';
   const galeriaId = galeriaActual ? galeriaActual.id : null;
 
