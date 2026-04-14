@@ -19,8 +19,8 @@ const CACHE_CHAT    = 'ze-chat-v5';
 const CACHE_TAREAS  = 'ze-tareas-v3';
 const CACHE_BIBLIO  = 'ze-biblio-v3';
 const CACHE_APUNTES = 'ze-apuntes-v2';
-const CACHE_MURO    = 'ze-muro-v3';
-const CACHE_TABLEROS= 'ze-tableros-v2';
+const CACHE_MURO    = 'ze-muro-v4';
+const CACHE_TABLEROS= 'ze-tableros-v3';
 const CACHE_VIDEO   = 'ze-video-v2';
 const CACHE_DIN     = 'ze-dinamicas-v2';
 

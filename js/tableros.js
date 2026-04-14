@@ -131,12 +131,12 @@ function renderGaleriaTableros(tableros) {
     const icono = t.icono || getTableroIcono(t.nombre);
     const bg = t.color || '#1a237e';
     const delBtn = isAdmin
-      ? `<button class="tablero-card-del" onclick="event.stopPropagation(); eliminarTablero('${t.id}',${JSON.stringify(t.nombre)})">🗑️</button>` /* BUG FIX: JSON.stringify para nombres con apóstrofes */
+      ? `<button class="tablero-card-del" onclick="event.stopPropagation(); eliminarTablero('${t.id}','${escHtml(t.nombre)}')">🗑️</button>`
       : '';
     
     // IMPORTANTE: Aquí envolvemos el nombre en las mismas clases que el Tablero General
     html += `
-    <button class="tablero-card" style="background:${bg}" onclick="abrirTablero('${t.id}',${JSON.stringify(t.nombre)},'${bg}')"> <!-- BUG FIX: JSON.stringify para nombre del tablero -->
+    <button class="tablero-card" style="background:${bg}" onclick="abrirTablero('${t.id}','${escHtml(t.nombre)}','${bg}')">
       <div class="tablero-card-inner">
         <div class="tablero-card-content">
           <span class="tablero-card-icon">${icono}</span>
