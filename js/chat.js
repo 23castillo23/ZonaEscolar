@@ -134,11 +134,15 @@ function renderGaleriaSalas(salas) {
     const bg    = (s.color && s.color.trim()) ? s.color : '#3b82f6';
     const icono = s.emoji || getTableroIcono(s.nombre);
     const delBtn = isAdmin
-      ? `<button class="tablero-card-del" onclick="event.stopPropagation(); eliminarSala('${s.id}',${JSON.stringify(s.nombre)})">🗑️</button>` /* BUG FIX: JSON.stringify para nombre de sala con apóstrofes */
+      ? `<button class="tablero-card-del" data-action="eliminar-sala" data-sala-id="${escHtml(s.id)}" data-sala-nombre="${escHtml(s.nombre)}">🗑️</button>`
       : '';
     html += `
       <div class="tablero-card-wrap">
-        <button class="tablero-card" style="background:${bg}" onclick="abrirSalaChat('${s.id}',${JSON.stringify(s.nombre)},'${bg}')"> <!-- BUG FIX: JSON.stringify para nombre de sala -->
+        <button class="tablero-card" style="background:${bg}"
+          data-action="abrir-sala"
+          data-sala-id="${escHtml(s.id)}"
+          data-sala-nombre="${escHtml(s.nombre)}"
+          data-sala-color="${escHtml(bg)}">
           <div class="tablero-card-inner">
             <div class="tablero-card-content">
               <span class="tablero-card-icon">${icono}</span>
@@ -151,6 +155,23 @@ function renderGaleriaSalas(salas) {
   });
 
   galeria.innerHTML = html;
+
+  /* ── Delegación de eventos para las cards de sala ── */
+  galeria.addEventListener('click', function handler(e) {
+    const abrirBtn   = e.target.closest('[data-action="abrir-sala"]');
+    const eliminarBtn = e.target.closest('[data-action="eliminar-sala"]');
+
+    if (abrirBtn) {
+      const { salaId, salaNombre, salaColor } = abrirBtn.dataset;
+      abrirSalaChat(salaId, salaNombre, salaColor);
+    }
+
+    if (eliminarBtn) {
+      e.stopPropagation();
+      const { salaId, salaNombre } = eliminarBtn.dataset;
+      eliminarSala(salaId, salaNombre, eliminarBtn);
+    }
+  }, { once: false });
 }
 
 window.abrirSalaChat = function(salaId, nombre, color) {
@@ -224,13 +245,13 @@ window.eliminarSalaActiva = function() {
   if (header?.dataset.salaId) eliminarSala(header.dataset.salaId, '');
 };
 
-window.eliminarSala = function(salaId, nombre) {
+window.eliminarSala = function(salaId, nombre, btnRef) {
   showConfirm({
     title: 'Eliminar sala',
     message: `¿Eliminar la sala "${nombre}"? Los mensajes del historial se conservan.`,
     confirmText: 'Eliminar',
     onConfirm: async () => {
-      const btn = document.querySelector(`[onclick*="eliminarSala('${salaId}'"]`);
+      const btn = btnRef || null;
       if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
       const { doc, deleteDoc } = lib();
       try { await deleteDoc(doc(db(), 'ec_salas_chat', salaId)); }
