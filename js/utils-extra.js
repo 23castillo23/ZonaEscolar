@@ -280,13 +280,21 @@ window.addEventListener('resize', () => {
 /* ══════════════════════════════════════════════════════
    iOS KEYBOARD FIX — visualViewport API
    
-   Con .app-shell { position:fixed; inset:0 } el shell
-   siempre ocupa el viewport visible, incluso cuando
-   Safari hace scroll del body al abrir el teclado.
-   Aquí solo actualizamos --chat-h y hacemos scroll.
+   PROBLEMA CONFIRMADO con diagnóstico real en iPhone:
+   Al abrir el teclado, Safari pone offsetTop=346px,
+   desplazando el viewport visual 346px hacia abajo.
+   Esto empuja el appShell (position:fixed) fuera de
+   la pantalla hacia arriba → pantalla negra.
+   
+   SOLUCIÓN: compensar el offsetTop con un translateY
+   en el appShell, y recalcular --chat-h con la altura
+   real del viewport visible.
 ══════════════════════════════════════════════════════ */
 (function setupIOSKeyboardFix() {
   if (!window.visualViewport) return;
+
+  const _isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   let _lastVVH = window.visualViewport.height;
 
@@ -296,18 +304,36 @@ window.addEventListener('resize', () => {
   }
 
   function _update() {
-    const vvH      = window.visualViewport.height;
-    const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    const topbarH  = _readPx('--ze-topbar-h', 56);
-    const bottomH  = isMobile ? _readPx('--ze-bottom-nav-clearance', 52) : 0;
-    const chatH    = Math.max(vvH - topbarH - bottomH, 200);
-    document.documentElement.style.setProperty('--chat-h', chatH + 'px');
+    const vvH       = window.visualViewport.height;
+    const offsetTop = window.visualViewport.offsetTop;
+    const isMobile  = window.matchMedia('(max-width: 768px)').matches;
+    const topbarH   = _readPx('--ze-topbar-h', 56);
 
+    if (_isIOS && isMobile) {
+      // Compensar el desplazamiento que Safari aplica al abrir el teclado
+      const shell = document.getElementById('appShell');
+      if (shell) {
+        shell.style.transform = offsetTop > 0 ? `translateY(${offsetTop}px)` : '';
+        shell.style.height    = vvH + 'px';
+      }
+      // Con el teclado abierto el bottom-nav está detrás del teclado, no restarlo
+      const bottomH = offsetTop > 0 ? 0 : _readPx('--ze-bottom-nav-clearance', 52);
+      const chatH   = Math.max(vvH - topbarH - bottomH, 200);
+      document.documentElement.style.setProperty('--chat-h', chatH + 'px');
+    } else {
+      // Android y escritorio: comportamiento normal
+      const bottomH = isMobile ? _readPx('--ze-bottom-nav-clearance', 52) : 0;
+      const chatH   = Math.max(vvH - topbarH - bottomH, 200);
+      document.documentElement.style.setProperty('--chat-h', chatH + 'px');
+    }
+
+    // Scroll al fondo del chat cuando cambia el teclado
     if (currentSection === 'chat') {
       const box = $('chatMessages');
       if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 80);
     }
 
+    // Scroll de modales al campo enfocado
     if (vvH < _lastVVH - 50) {
       const modal = document.querySelector('.modal-overlay.open, .modal-overlay[style*="flex"]');
       if (modal) {
