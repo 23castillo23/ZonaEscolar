@@ -444,8 +444,15 @@ a {
 
 .sidebar-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
+}
+
+/* ── NOTONES GRUPO SALIR ── */
+
+.sidebar-actions .btn-sm {
+  padding: 9px 9px;
+  font-size: 14px;
 }
 
 /* ── OVERLAY SIDEBAR MOBILE ── */
@@ -658,7 +665,9 @@ header.topbar {
 }
 
 #vistaSalasChat {
-  padding: 24px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
@@ -2194,12 +2203,18 @@ header.topbar {
   font-weight: 600;
   color: var(--accent);
   background: none;
-  border: none;
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 5px 12px;
   margin-bottom: 12px;
+  transition: background 0.18s ease, color 0.18s ease;
 }
-.muro-album-back:hover { text-decoration: underline; }
+.muro-album-back:hover {
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
 
 
 .apuntes-toolbar {
@@ -6627,7 +6642,7 @@ header.topbar {
 
 .dvd-shell {
   padding: 20px 16px 16px;
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -7211,7 +7226,7 @@ header.topbar {
 .dvd-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 7px;
+  gap: 14px; /* ── ESPACIO ENTRE TARJETAS ── */
   padding: 8px 0;
 }
 

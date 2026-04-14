@@ -14,12 +14,12 @@
 ═══════════════════════════════════════════════════ */
 
 /* ── Versiones por módulo ── */
-const CACHE_SHELL   = 'ze-shell-v47';        /* HTML, CSS, manifest, core.js, grupos.js, utils-extra.js */
+const CACHE_SHELL   = 'ze-shell-v52';        /* HTML, CSS, manifest, core.js, grupos.js, utils-extra.js */
 const CACHE_CHAT    = 'ze-chat-v5';
 const CACHE_TAREAS  = 'ze-tareas-v3';
 const CACHE_BIBLIO  = 'ze-biblio-v3';
 const CACHE_APUNTES = 'ze-apuntes-v2';
-const CACHE_MURO    = 'ze-muro-v2';
+const CACHE_MURO    = 'ze-muro-v3';
 const CACHE_TABLEROS= 'ze-tableros-v2';
 const CACHE_VIDEO   = 'ze-video-v2';
 const CACHE_DIN     = 'ze-dinamicas-v2';

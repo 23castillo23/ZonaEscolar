@@ -166,7 +166,7 @@ window.abrirAlbumMuro = function (albumId, nombre, emoji) {
   const content = $('muroContent');
   if (!content) return;
   content.innerHTML = `
-    <button class="muro-album-back" onclick="volverAAlbumes()">← Álbumes</button>
+    <button class="muro-album-back" onclick="volverAAlbumes()">← Álbum</button>
     <div style="font-size:15px;font-weight:700;margin-bottom:12px">${escHtml(emoji)} ${escHtml(nombre)}</div>
     <div class="muro-photos-grid" id="muroFotosGrid"></div>`;
 
