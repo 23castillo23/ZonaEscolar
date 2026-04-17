@@ -1263,9 +1263,9 @@ function buildFeedCard(p) {
       <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
         ${activa
           ? `<button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="cerrarVotacionPanel('${p.votacionId}')">🔒 Cerrar</button>
-             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="quitarVotacionDelTablero('${p.id}',${JSON.stringify(p.pregunta || '')})">🗑️ Quitar del tablero</button>` /* BUG FIX: JSON.stringify para pregunta con apóstrofes */
+             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="quitarVotacionDelTablero('${p.id}','${escHtml(p.pregunta || '')}')">🗑️ Quitar del tablero</button>`
           : `<button class="btn-sm" style="font-size:11px" onclick="reabrirVotacionPanel('${p.votacionId}')">🔓 Reabrir</button>
-             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="quitarVotacionDelTablero('${p.id}',${JSON.stringify(p.pregunta || '')})">🗑️ Quitar del tablero</button>` /* BUG FIX: JSON.stringify para pregunta con apóstrofes */
+             <button class="btn-sm btn-sm-danger" style="font-size:11px" onclick="quitarVotacionDelTablero('${p.id}','${escHtml(p.pregunta || '')}')">🗑️ Quitar del tablero</button>`
         }
       </div>` : '';
 
