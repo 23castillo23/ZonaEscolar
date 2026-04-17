@@ -245,9 +245,8 @@ function renderSidebarMiembros() {
 
     // Botón de expulsar respetuoso (solo 'X')
     const btnExpulsar = (isAdmin && !esYo)
-      ? `<button class="btn-expulsar" title="Quitar integrante" onclick="event.stopPropagation(); expulsarMiembro(${JSON.stringify(email)})">✕</button>`
+      ? `<button class="btn-expulsar" title="Quitar integrante" onclick="event.stopPropagation(); expulsarMiembro('${escHtml(email)}')">✕</button>`
       : '';
-
     return `<div class="sidebar-member-btn ${esYo ? 'me' : ''}" data-email="${escHtml(email)}" data-nombre="${escHtml(nombre)}" data-action="ver-muro" style="display:flex; align-items:center; cursor:pointer;">
           <span class="sidebar-member-initial-wrap">
             <span class="sidebar-member-initial">${escHtml(nombre.charAt(0).toUpperCase())}</span>
