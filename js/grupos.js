@@ -296,15 +296,33 @@ window.expulsarMiembro = async function (emailExpulsado) {
     message: `¿Estás seguro de expulsar a ${escHtml(emailExpulsado)} del grupo? Se le quitará el acceso.`,
     confirmText: 'Expulsar',
     onConfirm: async () => {
-  const { doc, updateDoc, arrayRemove } = lib();
-  try {
-    await updateDoc(doc(db(), 'ec_grupos', currentGroupId), {
-      miembros: arrayRemove(emailExpulsado)
-    });
-    showToast(`El usuario ${emailExpulsado} ha sido expulsado.`, 'success');
-  } catch (e) {
-    showToast('No se pudo expulsar al usuario. ' + friendlyError(e), 'error');
-  }
+      const { doc, updateDoc, arrayRemove } = lib();
+      try {
+        await updateDoc(doc(db(), 'ec_grupos', currentGroupId), {
+          miembros: arrayRemove(emailExpulsado)
+        });
+        // BUG FIX: Actualizar currentGroupData localmente de forma optimista
+        // sin esperar al snapshot de Firestore, para que el sidebar refleje
+        // el cambio de inmediato sin necesidad de recargar la página.
+        if (currentGroupData) {
+          currentGroupData.miembros = (currentGroupData.miembros || [])
+            .filter(e => e !== emailExpulsado);
+          // También limpiar el nombre del mapa miembroNombres
+          const key = emailExpulsado.replace(/\./g, '_');
+          if (currentGroupData.miembroNombres) {
+            delete currentGroupData.miembroNombres[key];
+          }
+          // Actualizar el grupo en el array local de grupos
+          const idx = grupos.findIndex(g => g.id === currentGroupId);
+          if (idx !== -1) grupos[idx] = { ...currentGroupData };
+        }
+        // Forzar re-render del sidebar y del modal de integrantes
+        renderSidebarMiembros();
+        renderMiembrosList();
+        showToast(`El usuario ${emailExpulsado} ha sido expulsado.`, 'success');
+      } catch (e) {
+        showToast('No se pudo expulsar al usuario. ' + friendlyError(e), 'error');
+      }
     }
   });
 };
