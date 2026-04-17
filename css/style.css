@@ -1175,6 +1175,8 @@ header.topbar {
 .feed-card.pin-pink   { border-top: 3px solid #ec4899; }
 .feed-card.pin-orange { border-top: 3px solid #f97316; }
 .feed-card.pin-cyan   { border-top: 3px solid #06b6d4; }
+.feed-card.pin-white  { border-top: 3px solid #f8fafc; }
+.feed-card.pin-black  { border-top: 3px solid #1e1e2e; }
 
 /* ── PIN clickeable: popup de colores ── */
 .feed-pin {

@@ -359,6 +359,12 @@ async function subirFotosMuro(files, albumId) {
 /* ── ABRIR EL MURO DE UN COMPAÑERO DESDE LA BARRA LATERAL ── */
 
 window.verMuroDeUsuario = async function (email, nombre) {
+  // Cancelar listeners del muro anterior para evitar que datos viejos
+  // sobreescriban la vista del nuevo muro mientras carga
+  AppState.unsub('muroFeedUnsub');
+  AppState.unsub('muroFotosUnsub');
+  AppState.unsub('muroAlbumsUnsub');
+
   // BUG-12: Resetear el álbum actual antes de cambiar de muro
   muroAlbumActualId = null;
 

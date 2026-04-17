@@ -248,7 +248,7 @@ function renderSidebarMiembros() {
       ? `<button class="btn-expulsar" title="Quitar integrante" onclick="event.stopPropagation(); expulsarMiembro(${JSON.stringify(email)})">✕</button>`
       : '';
 
-    return `<div class="sidebar-member-btn ${esYo ? 'me' : ''}" data-email="${escHtml(email)}" style="display:flex; align-items:center; cursor:pointer;" onclick="verMuroDeUsuario(${emailJs},${nombreJs})">
+    return `<div class="sidebar-member-btn ${esYo ? 'me' : ''}" data-email="${escHtml(email)}" data-nombre="${escHtml(nombre)}" data-action="ver-muro" style="display:flex; align-items:center; cursor:pointer;">
           <span class="sidebar-member-initial-wrap">
             <span class="sidebar-member-initial">${escHtml(nombre.charAt(0).toUpperCase())}</span>
             <span class="sidebar-online-dot" title="En línea"></span>
@@ -311,9 +311,8 @@ window.expulsarMiembro = async function (emailExpulsado) {
 };
 
 /* Ver muro de otro miembro */
-let muroViendoUid = null;
-let muroViendoEmail = null;
-let muroViendoNombre = null;
+// muroViendoUid, muroViendoEmail y muroViendoNombre son proxies globales de AppState
+// definidos en core.js — no declarar como let aquí para evitar sombrear los proxies.
 
 // verMuroDeUsuario se declara más abajo (línea ~1465) con la versión completa y async
 
@@ -671,3 +670,14 @@ function closeSidebar() {
   $('sidebarOverlay').classList.remove('show');
 }
 
+/* ── Delegación: click en integrante del sidebar → ver su muro ── */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-action="ver-muro"]');
+  if (!btn) return;
+  e.stopPropagation();
+  const email  = btn.dataset.email;
+  const nombre = btn.dataset.nombre;
+  if (email && typeof window.verMuroDeUsuario === 'function') {
+    window.verMuroDeUsuario(email, nombre);
+  }
+});

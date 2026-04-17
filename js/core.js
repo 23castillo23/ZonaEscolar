@@ -305,6 +305,9 @@ Object.defineProperties(window, {
   /* ── Muro ── */
   muroAlbumActualId:  { get: () => AppState.get('muroAlbumActualId'),  set: v => AppState.set('muroAlbumActualId', v),  configurable: true },
   muroAlbumsCache:    { get: () => AppState.get('muroAlbumsCache'),    set: v => AppState.set('muroAlbumsCache', v),    configurable: true },
+  muroViendoUid:      { get: () => AppState.get('muroViendoUid'),      set: v => AppState.set('muroViendoUid', v),      configurable: true },
+  muroViendoEmail:    { get: () => AppState.get('muroViendoEmail'),    set: v => AppState.set('muroViendoEmail', v),    configurable: true },
+  muroViendoNombre:   { get: () => AppState.get('muroViendoNombre'),   set: v => AppState.set('muroViendoNombre', v),   configurable: true },
 
   /* ── Apuntes ── */
   semestresAbiertos:  { get: () => AppState.get('semestresAbiertos'),  set: v => AppState.set('semestresAbiertos', v),  configurable: true },
