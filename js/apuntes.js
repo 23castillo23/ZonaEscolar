@@ -395,7 +395,9 @@ function renderFotosGaleria(fotos) {
         <button class="photo-action-btn feed-action-btn ${isLiked ? 'liked' : ''}" onclick="event.stopPropagation(); toggleFotoLike('${f.id}', this)">
           <span class="foco-icon" style="font-size: 16px;">💡</span> (<span class="like-count">${likeCount}</span>)
         </button>
-        <button class="photo-action-btn" onclick="event.stopPropagation(); abrirNotasDeFoto(${JSON.stringify(f.url)}, ${JSON.stringify(f.caption || '')})"> <!-- BUG FIX: JSON.stringify para caption con apóstrofes -->
+        <button class="photo-action-btn btn-notas-foto"
+          data-url="${escHtml(f.url)}"
+          data-caption="${escHtml(f.caption || '')}">
           💬 Notas
         </button>
       </div>
@@ -772,3 +774,16 @@ document.addEventListener('click', async e => {
 /* ═══════════════════════════════════════════════════
    CLOUDINARY UPLOAD
 ═══════════════════════════════════════════════════ */
+
+/* ── Delegación para botón "💬 Notas" de cada foto ──
+   Se usa data-url y data-caption en lugar de pasar los
+   valores directo al onclick, porque JSON.stringify genera
+   comillas dobles que rompen el atributo HTML onclick. */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.btn-notas-foto');
+  if (!btn) return;
+  e.stopPropagation();
+  const url     = btn.dataset.url     || '';
+  const caption = btn.dataset.caption || '';
+  abrirNotasDeFoto(url, caption);
+});

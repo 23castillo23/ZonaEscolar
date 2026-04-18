@@ -75,12 +75,10 @@ function renderMuroAlbums(targetUid, esPropio) {
   // Tarjeta "Sin álbum" siempre visible al final
   const albums = [...muroAlbumsCache];
 
-  if (!albums.length && !esPropio) {
-    grid.innerHTML = `<div class="feed-loading" style="grid-column:1/-1;padding:30px">
-      Este integrante aún no tiene álbumes.
-    </div>`;
-    return;
-  }
+  /* BUG FIX: No hacer return aquí aunque !albums.length && !esPropio.
+     El integrante puede tener fotos en "Sin álbum" aunque no tenga álbumes
+     creados. Si hacemos return prematuro, esas fotos nunca se muestran al admin.
+     Dejamos que _renderMuroAlbumsGrid consulte las fotos y decida qué mostrar. */
 
   // BUG-07: Debounce de 300ms para evitar race condition si el snapshot se dispara múltiples veces
   if (renderMuroAlbums._debounceTimer) clearTimeout(renderMuroAlbums._debounceTimer);
@@ -150,7 +148,7 @@ function _renderMuroAlbumsGrid(targetUid, esPropio, albums, grid) {
     }
 
     grid.innerHTML = cardsHtml || `<div class="feed-loading" style="grid-column:1/-1;padding:20px;font-size:13px;opacity:.6">
-      No hay álbumes. Usa "➕ Nuevo álbum" para crear uno.
+      ${esPropio ? 'No hay álbumes. Usa "➕ Nuevo álbum" para crear uno.' : 'Este integrante aún no tiene álbumes ni fotos.'}
     </div>`;
   }).catch(err => {
     console.error('Error al cargar álbumes del muro:', err);
@@ -379,13 +377,26 @@ window.verMuroDeUsuario = async function (email, nombre) {
     return;
   }
 
-  // 2. Si es un compañero, buscamos su ID en la base de datos
+  // 2. Si es un compañero, buscamos su registro en ec_users
+  //    BUG FIX: buscar también por email en minúsculas para tolerancia a
+  //    variaciones de capitalización, y mostrar muro aunque no tenga docs
+  //    en ec_users (el muro se basa en ec_muro_fotos por authorUid).
   const { collection, query, where, getDocs } = lib();
   try {
-    const q = query(collection(db(), 'ec_users'), where('email', '==', email));
-    const snap = await getDocs(q);
+    // Intentar con el email tal como está en miembroNombres del grupo
+    let snap = await getDocs(
+      query(collection(db(), 'ec_users'), where('email', '==', email))
+    );
 
-    // 3. Si el usuario fue invitado pero no ha iniciado sesión, usamos '__pending__'
+    // Si no lo encontró, intentar con el email en minúsculas
+    if (snap.empty) {
+      snap = await getDocs(
+        query(collection(db(), 'ec_users'), where('email', '==', email.toLowerCase()))
+      );
+    }
+
+    // 3. Si el usuario fue invitado pero aún no ha iniciado sesión en ZonaEscolar,
+    //    mostramos un estado "__pending__" amigable en lugar de error.
     if (snap.empty) {
       muroViendoUid = '__pending__';
       muroViendoEmail = email;
@@ -396,16 +407,18 @@ window.verMuroDeUsuario = async function (email, nombre) {
       return;
     }
 
-    // 4. Si el compañero sí existe, llenamos las variables y abrimos la sección
-    muroViendoUid = snap.docs[0].id;
+    // 4. Usuario encontrado → abrir su muro
+    const docData = snap.docs[0].data();
+    muroViendoUid   = snap.docs[0].id;
     muroViendoEmail = email;
-    muroViendoNombre = snap.docs[0].data().name || nombre;
+    // Usar el nombre del grupo si está disponible (miembroNombres), con fallback al de ec_users
+    muroViendoNombre = nombre || docData.name || email.split('@')[0];
     setActiveNav('muro');
     activarSeccion('muro');
     closeSidebar();
 
   } catch (e) {
-    console.error(e);
+    console.error('verMuroDeUsuario error:', e);
     showToast('Error al buscar el perfil del compañero.', 'error');
   }
 };
@@ -473,11 +486,20 @@ function initMuro() {
   }
 
   if (muroViendoUid === '__pending__') {
-    // Usuario invitado que aún no se ha registrado
-    const grid = $('muroFotosGrid');
-    if (grid) grid.innerHTML = `<div class="feed-loading" style="grid-column:1/-1;padding:30px">
-      ${escHtml(muroViendoNombre)} aún no ha iniciado sesión en ZonaEscolar.
-    </div>`;
+    // Usuario invitado que aún no ha iniciado sesión en ZonaEscolar
+    // Mostrar el mensaje en muroContent (donde se renderiza el resto del muro)
+    const content = $('muroContent');
+    if (content) content.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                  padding:40px 20px;text-align:center;gap:12px;opacity:.7">
+        <div style="font-size:48px">👤</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text1)">
+          ${escHtml(muroViendoNombre)} aún no ha iniciado sesión en ZonaEscolar
+        </div>
+        <div style="font-size:13px;color:var(--text3)">
+          Su muro estará disponible cuando acceda por primera vez a la app.
+        </div>
+      </div>`;
     if ($('muroStats')) $('muroStats').textContent = '0 fotos';
     return;
   }

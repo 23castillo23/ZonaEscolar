@@ -35,6 +35,7 @@ window.teardownAllListeners = function() {
   if (catBiblioUnsub)    { catBiblioUnsub();    catBiblioUnsub    = null; }
   if (dvdUnsub)          { dvdUnsub();          dvdUnsub          = null; }
   if (window._dvdFavsUnsub) { window._dvdFavsUnsub(); window._dvdFavsUnsub = null; }
+  if (window._grupoActivoUnsub) { window._grupoActivoUnsub(); window._grupoActivoUnsub = null; }
   if (muroFeedUnsub)     { muroFeedUnsub();     muroFeedUnsub     = null; }
   if (muroFotosUnsub)    { muroFotosUnsub();    muroFotosUnsub    = null; }
   if (muroAlbumsUnsub)   { muroAlbumsUnsub();   muroAlbumsUnsub   = null; }
@@ -72,52 +73,85 @@ async function loadGruposDelUsuario() {
   );
 
   gruposUnsub = onSnapshot(q, snap => {
-    grupos = [];
-    snap.forEach(d => grupos.push({ id: d.id, ...d.data() }));
+    /* ── Procesar cambios individuales (added / modified / removed) ──────────
+       Usar docChanges() en lugar de reconstruir el array completo en cada
+       snapshot garantiza que:
+       · Un grupo recién agregado (el admin nos invitó) aparece al instante.
+       · Un grupo del que fuimos expulsados desaparece al instante.
+       · Los cambios de nombre/miembros se reflejan sin recargar.
+    ─────────────────────────────────────────────────────────────────────── */
+    snap.docChanges().forEach(change => {
+      const datos = { id: change.doc.id, ...change.doc.data() };
+
+      if (change.type === 'added') {
+        // Solo agregar si no existe ya (evitar duplicados en primer snapshot)
+        if (!grupos.find(g => g.id === datos.id)) {
+          grupos.push(datos);
+        }
+      }
+
+      if (change.type === 'modified') {
+        const idx = grupos.findIndex(g => g.id === datos.id);
+        if (idx !== -1) grupos[idx] = datos;
+        else grupos.push(datos);
+      }
+
+      if (change.type === 'removed') {
+        grupos = grupos.filter(g => g.id !== datos.id);
+      }
+    });
 
     if (primerSnapshot) {
       primerSnapshot = false;
       // Primera carga: decidir qué mostrar
       if (grupos.length > 0) {
-        // Restaurar último grupo usado si sigue disponible
         const lastId = localStorage.getItem('ze_last_group');
         const target = lastId && grupos.find(g => g.id === lastId)
           ? lastId : grupos[0].id;
         activarGrupo(target);
       } else {
         showSection('noGroup');
-        // 👇 NUEVO: Ocultar botón invitar si la cuenta es nueva y no hay grupos
         if ($('btnInvitarCompa')) $('btnInvitarCompa').style.display = 'none';
       }
-    } else {
-      // Actualizaciones en tiempo real: actualizar datos PRIMERO, luego renderizar
-      if (currentGroupId) {
-        const grupoActual = grupos.find(g => g.id === currentGroupId);
-        if (grupoActual) {
-          currentGroupData = grupoActual; // ← datos frescos antes de renderizar
-          // Verificar si el usuario actual sigue siendo miembro
-          const sigueEnGrupo = grupoActual.miembros?.includes(currentUser.email);
-          if (!sigueEnGrupo) {
-            _manejarExpulsion();
-            return;
-          }
-        } else {
-          // El grupo ya no aparece en la query (usuario fue removido del array miembros)
-          _manejarExpulsion();
-          return;
-        }
-      } else if (grupos.length > 0) {
-        // FIX: El usuario estaba en "sin grupo" y fue reingresado → activar automáticamente
-        const lastId = localStorage.getItem('ze_last_group');
-        const target = lastId && grupos.find(g => g.id === lastId)
-          ? lastId : grupos[0].id;
-        activarGrupo(target);
+      return;
+    }
+
+    /* ── Actualizaciones en tiempo real ── */
+
+    // Caso 1: el usuario tiene grupo activo → verificar si sigue siendo miembro
+    if (currentGroupId) {
+      const grupoActual = grupos.find(g => g.id === currentGroupId);
+      if (!grupoActual) {
+        // El documento desapareció de la query → fue expulsado
+        _manejarExpulsion();
         return;
       }
-      // Renderizar con los datos ya actualizados
+      const sigueEnGrupo = grupoActual.miembros?.includes(currentUser.email);
+      if (!sigueEnGrupo) {
+        _manejarExpulsion();
+        return;
+      }
+      // Actualizar datos frescos del grupo activo
+      currentGroupData = grupoActual;
       renderGroupSelector();
       renderSidebarMiembros();
+      return;
     }
+
+    // Caso 2: el usuario estaba sin grupo (fue invitado a uno nuevo)
+    if (grupos.length > 0) {
+      const lastId = localStorage.getItem('ze_last_group');
+      const target = lastId && grupos.find(g => g.id === lastId)
+        ? lastId : grupos[0].id;
+      showToast('¡Fuiste agregado a un grupo! Entrando…', 'success');
+      activarGrupo(target);
+      return;
+    }
+
+    // Caso 3: sin grupos
+    renderGroupSelector();
+    renderSidebarMiembros();
+
   }, err => {
     console.error('Error cargando grupos:', err);
     showSection('noGroup');
@@ -160,6 +194,58 @@ $('groupSelector').addEventListener('change', e => {
   if (e.target.value) activarGrupo(e.target.value);
 });
 
+/* ── LISTENER EN TIEMPO REAL DEL GRUPO ACTIVO ──────
+   Escucha el documento del grupo activo en Firestore.
+   Así cuando el admin agrega/expulsa un integrante o
+   cambia el nombre del grupo, TODOS los miembros que
+   ya tienen la app abierta ven el sidebar actualizado
+   al instante sin necesidad de recargar la página.
+─────────────────────────────────────────────────── */
+function suscribirGrupoActivo(groupId) {
+  // Cancelar el listener anterior si existía
+  if (window._grupoActivoUnsub) {
+    window._grupoActivoUnsub();
+    window._grupoActivoUnsub = null;
+  }
+  if (!groupId) return;
+
+  const { doc, onSnapshot } = lib();
+  window._grupoActivoUnsub = onSnapshot(
+    doc(db(), 'ec_grupos', groupId),
+    grupoDoc => {
+      if (!grupoDoc.exists()) return; // El grupo fue eliminado
+      const datos = { id: grupoDoc.id, ...grupoDoc.data() };
+
+      // Verificar si el usuario sigue siendo miembro
+      const sigueEnGrupo = datos.miembros?.includes(currentUser?.email);
+      if (!sigueEnGrupo) {
+        _manejarExpulsion();
+        return;
+      }
+
+      // Actualizar los datos del grupo en el estado global
+      currentGroupData = datos;
+      const idx = grupos.findIndex(g => g.id === groupId);
+      if (idx !== -1) grupos[idx] = datos;
+
+      // Reflejar cambios en la UI
+      renderSidebarMiembros();
+      renderGroupSelector();
+
+      // Si el modal de integrantes está abierto, actualizarlo también en tiempo real
+      const modalMiembros = $('modalAgregarMiembro');
+      if (modalMiembros && modalMiembros.classList.contains('open')) {
+        renderMiembrosList();
+      }
+
+      // Actualizar badge del topbar si cambió el nombre/icono del grupo
+      $('topbarGroupBadge').textContent =
+        `${datos.icon || '👥'} ${datos.name}`;
+    },
+    err => console.warn('grupoActivo listener error:', err)
+  );
+}
+
 async function activarGrupo(groupId) {
   currentGroupId = groupId;
   currentGroupData = grupos.find(g => g.id === groupId) || null;
@@ -189,6 +275,10 @@ async function activarGrupo(groupId) {
   // ------------------------------------------
   // Cancelar TODOS los listeners activos antes de cambiar de grupo
   window.teardownAllListeners();
+
+  // Suscribirse en tiempo real al documento del grupo activo
+  // → actualiza el sidebar de integrantes para todos al instante
+  suscribirGrupoActivo(groupId);
 
   renderGroupSelector();
   renderSidebarMiembros();
